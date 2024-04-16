@@ -13,18 +13,18 @@
 #define TOUCH_XPT2046_CS 38
 #define TOUCH_XPT2046_INT 18
 #define TOUCH_XPT2046_ROTATION 0
-#define TOUCH_MAP_X1 4200
+#define TOUCH_MAP_X1 4000 //4000
 #define TOUCH_MAP_X2 100
 #define TOUCH_MAP_Y1 100
-#define TOUCH_MAP_Y2 3700 //4000
+#define TOUCH_MAP_Y2 4000 //4000
 
 int touch_last_x = 0, touch_last_y = 0;
 
 
 #include <XPT2046_Touchscreen.h>
 #include <SPI.h>
-XPT2046_Touchscreen ts(TOUCH_XPT2046_CS, TOUCH_XPT2046_INT);
-//T2046_Touchscreen ts(TOUCH_XPT2046_CS);  // Param 2 - NULL - No interrupts 
+//XPT2046_Touchscreen ts(TOUCH_XPT2046_CS, TOUCH_XPT2046_INT);
+XPT2046_Touchscreen ts(TOUCH_XPT2046_CS);  // Param 2 - NULL - No interrupts 
 
 
 void touch_init()

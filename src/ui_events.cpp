@@ -5,10 +5,10 @@
 
 #include "ui.h"
 #include "main.h"
+#include "mainGrobal.h"
 #include <EEPROM.h>
 #include "lv_i18n.h"
 
-extern nvsSystemSet ipAddress_struct;
 void ChangeLanguage(lv_event_t * e)
 {
 	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 )
@@ -23,10 +23,10 @@ void ChangeLanguage(lv_event_t * e)
 
 void btnEvnetSaveSetting(lv_event_t * e)
 {
-	ipAddress_struct.bright = lv_slider_get_value(ui_SliderBrightness);
-	Serial.printf("\nSet Brigtness is %d", ipAddress_struct.bright);
-	ledcWrite(0, ipAddress_struct.bright);
-	ipAddress_struct.LED_OFF_TIME = lv_slider_get_value(ui_SliderLedOffTime);
+	nvsSystemEEPRom.lcdBright = lv_slider_get_value(ui_SliderBrightness);
+	Serial.printf("\nSet Brigtness is %d", nvsSystemEEPRom.lcdBright);
+	ledcWrite(0, nvsSystemEEPRom.lcdBright);
+	nvsSystemEEPRom.systemLedOffTime = lv_slider_get_value(ui_SliderLedOffTime);
 
 	tm nowTime;
 	nowTime.tm_year = String(lv_label_get_text(ui_lblYearSet)).toInt() - 1900;
@@ -40,7 +40,7 @@ void btnEvnetSaveSetting(lv_event_t * e)
 	tVal.tv_sec = now;
 	settimeofday(&tVal,NULL);
 
-	EEPROM.writeBytes(1, (const byte *)&ipAddress_struct, sizeof(nvsSystemSet));
+	EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
 	EEPROM.commit();
 }
 

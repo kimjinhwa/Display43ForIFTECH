@@ -2,6 +2,11 @@
 #include <lvgl.h>
 #include <Arduino_GFX_Library.h>
 #include <TFT_eSPI.h>
+#include <RtcDS1302.h>
+#include "mainGrobal.h"
+
+#include <modbusRtu.h>
+
 #include "ui.h"
 #include "upsLog.h"
 
@@ -12,9 +17,17 @@
 #include "lv_i18n.h"
 #define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
 #define TFT_BL 2
+#define RTCEN 19 
 //#define BRIGHT  80 
 
-nvsSystemSet ipAddress_struct;
+TaskHandle_t *h_pxModbusTask;
+
+ThreeWire myWire(MOSI, SCK /*12*/ , RTCEN ); // IO, SCLK, CE
+RtcDS1302<ThreeWire> Rtc(myWire);
+
+nvsSystemSet_t nvsSystemEEPRom;
+
+
 static uint32_t screenWidth;
 static uint32_t screenHeight;
 
@@ -25,6 +38,8 @@ static unsigned long last_ms;
 //static lv_obj_t *led;
 uint16_t lcdOntime=0;
 //#define DISPLAY_7
+static char TAG[] = "main";
+
 
 #define DISPLAY_43
     
@@ -120,7 +135,7 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
       touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
       data->point.x = touch_last_x;
       data->point.y = touch_last_y;
-      ledcWrite(0, ipAddress_struct.bright );
+      ledcWrite(0, nvsSystemEEPRom.lcdBright );
       lcdOntime = 0;
       Serial.print("Data xx ");
       Serial.println(data->point.x);
@@ -140,47 +155,45 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 
 void setMemoryDataToLCD(){
 }
-void setTime(){
-  tm nowTime;
-  timeval tVal;
-  nowTime.tm_year = 124;
-  nowTime.tm_mon = 2;
-  nowTime.tm_mday = 7;
-  nowTime.tm_hour = 17;
-  nowTime.tm_min = 6;
-  nowTime.tm_sec = 6;
+// void setTime(){
+//   tm nowTime;
+//   timeval tVal;
+//   nowTime.tm_year = 124;
+//   nowTime.tm_mon = 2;
+//   nowTime.tm_mday = 7;
+//   nowTime.tm_hour = 17;
+//   nowTime.tm_min = 6;
+//   nowTime.tm_sec = 6;
 
-  time_t now = mktime(&nowTime);
-  tVal.tv_sec = now;
-  settimeofday(&tVal,NULL);
-}
+//   time_t now = mktime(&nowTime);
+//   tVal.tv_sec = now;
+//   settimeofday(&tVal,NULL);
+// }
 void showSystemDateTime(){
-  tm nowTime;
-  getLocalTime(&nowTime); 
+  timeval tmv;
+  gettimeofday(&tmv,NULL);
+  RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
+  //tm *nowTime= gmtime(&tmv.tv_sec); 
   String date;
-  date  = nowTime.tm_year + ".  ";
-  date  += nowTime.tm_mon + ".  ";
-  date  += nowTime.tm_mday+ "  ";
+  date  = nowTime.Year() + ".  ";
+  date  += nowTime.Month()+ ".  ";
+  date  += nowTime.Day()+ "  ";
   char buf[80];
-  char *dayofweek[7] = LV_CALENDAR_DEFAULT_DAY_NAMES;
+  char dayofweek[7][3] = LV_CALENDAR_DEFAULT_DAY_NAMES;
   sprintf(buf,"%d-%02d-%02d %s",
-     nowTime.tm_year+1900,nowTime.tm_mon,nowTime.tm_mday,dayofweek[nowTime.tm_wday]);
+     nowTime.Year(),nowTime.Month(),nowTime.Day(),dayofweek[nowTime.DayOfWeek()]);
   lv_label_set_text(ui_lblDate,buf);
-
-  
+  //ESP_LOGI(TAG,"%s",buf);
 
   sprintf(buf,"%02d:%02d:%02d",
-     nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
+     nowTime.Hour(),nowTime.Minute(),nowTime.Second());
   lv_label_set_text(ui_lblTime,buf);
+  //ESP_LOGI(TAG,"%s",buf);
 
   sprintf(buf,"%d-%02d-%02d %02d:%02d:%02d",
-     nowTime.tm_year+1900,nowTime.tm_mon,nowTime.tm_mday,
-     nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
+     nowTime.Year(),nowTime.Month(),nowTime.Day(),
+     nowTime.Hour(),nowTime.Minute(),nowTime.Second());
   lv_label_set_text(ui_lblDateTime,buf);
-  //Serial.printf("\n%s",buf);
-  // Serial.printf("\nNow Time is %d-%d-%d %d:%d:%d",
-  //    nowTime.tm_year+1900,nowTime.tm_mon,nowTime.tm_mday,
-  //    nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
 
   sprintf(buf,"%d",rand()%(4)+90 );
   lv_label_set_text(ui_lbaBatCapacity ,buf);
@@ -188,61 +201,127 @@ void showSystemDateTime(){
   lv_label_set_text(ui_lblLoadCapacity,buf);
 
 }
-void your_tc_finish_cb(
-        lv_event_t *event
-    ) {
-    /*
-        Load the application
-    */
-   loop();
-    //your_start_application(); /* Implement this */
-}
+void drawCursor(int16_t x, int16_t y, uint16_t color)
+{
+  int16_t r = 40;
+  uint16_t w = 10;
+  int16_t xx = x < r ? 0 : x - r;
+  int16_t yy = y < r ? 0 : y - r;
 
-    
+  gfx->fillRect(x - w/2, yy, w, r * 2, color);
+  gfx->fillRect(xx, y - w/2, r * 2, w, color);
+}
+ 
 void touchCalibrationInit()
 {
+  gfx->setTextSize(2);
+  gfx->setRotation(0);
+
+}
+void setRtc()
+{
+  Rtc.Begin();
+  RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
+  printf("\r\ncompiled time is %d/%d/%d %d:%d:%d\r\n",compiled.Year(),compiled.Month(),compiled.Day(),compiled.Hour(),compiled.Minute(),compiled.Second());
+  if (!Rtc.IsDateTimeValid())
+  {
+    printf("RTC lost confidence in the DateTime!\r\n");
+    //Rtc.SetDateTime(compiled);
+  }
+  else 
+    printf("RTC available in the DateTime!\r\n");
+  if (Rtc.GetIsWriteProtected())
+  {
+    printf("RTC was write protected, enabling writing now\r\n");
+    Rtc.SetIsWriteProtected(false);
+  }
+  else 
+    printf("RTC enabling writing \r\n");
+  if (!Rtc.GetIsRunning())
+  {
+    printf("RTC was not actively running, starting now\r\n");
+    Rtc.SetIsRunning(true);
+  }
+  else 
+    printf("RTC was actively status running \r\n");
+  if (!Rtc.GetIsRunning())
+  {
+    printf("RTC was not actively running, starting now\r\n");
+    Rtc.SetIsRunning(true);
+  }
+  else 
+    printf("RTC was actively status running \r\n");
+
+  RtcDateTime now = Rtc.GetDateTime();
+  printf("\r\nnow time is %d/%d/%d %d:%d:%d\r\n",now.Year(),now.Month(),now.Day(),now.Hour(),now.Minute(),now.Second());
+  if (now < compiled)
+  {
+    printf("\r\nSet data with compiled time"); //Rtc.SetDateTime(compiled);
+  }
+  struct timeval tmv;
+  tmv.tv_sec = now.TotalSeconds();
+  tmv.tv_usec = 0;
+  //time_t toUnixTime = now.Unix32Time();
+  //시스템의 시간도 같이 맞추어 준다.
+  settimeofday(&tmv, NULL);
+  gettimeofday(&tmv, NULL);
+  now = RtcDateTime(tmv.tv_sec);
+  //now = tmv.tv_sec;
+  printf("\r\nset and reread time is %d/%d/%d %d:%d:%d\r\n",now.Year(),now.Month(),now.Day(),now.Hour(),now.Minute(),now.Second());
+
+  myWire.end();
+}
+void setRtcNewTime(RtcDateTime rtc){
+  digitalWrite(RTCEN , HIGH);
+  // SPI.end();
+  // Rtc.Begin();
+  vTaskDelay(1);
+  if (!Rtc.GetIsRunning())
+  {
+    printf("RTC was not actively running, starting now\r\n");
+    Rtc.SetIsRunning(true);
+  }
+  else 
+    printf("RTC was actively status running \r\n");
+  Rtc.SetDateTime(rtc);
+  // myWire.end();
+  // SPI.begin(SCK,MISO,MOSI,RTCEN );
 }
 void setup()
 {
   Serial.begin(BAUDRATEDEF);
-  Serial1.begin(BAUDRATEDEF,134217756U,18,17);
-  EEPROM.begin(120);
+  EEPROM.begin(sizeof(nvsSystemSet_t));
   //if (EEPROM.read(0) != 0x55)
   {
-    ipAddress_struct.bright = 80;
-    ipAddress_struct.LED_OFF_TIME= 600;
-    ipAddress_struct.IPADDRESS = (uint32_t)IPAddress(192, 168, 0, 57);
-    ipAddress_struct.GATEWAY = (uint32_t)IPAddress(192, 168, 0, 1);
-    ipAddress_struct.SUBNETMASK = (uint32_t)IPAddress(255, 255, 255, 0);
-    ipAddress_struct.WEBSOCKETSERVER = (uint32_t)IPAddress(192, 168, 0, 57);
-    ipAddress_struct.DNS1 = (uint32_t)IPAddress(8, 8, 8, 8);
-    ipAddress_struct.DNS2 = (uint32_t)IPAddress(164, 124, 101, 2);
-    ipAddress_struct.WEBSERVERPORT = 81;
-    ipAddress_struct.NTP_1 = (uint32_t)IPAddress(203, 248, 240, 140); //(203, 248, 240, 140);
-    ipAddress_struct.NTP_2 = (uint32_t)IPAddress(13, 209, 84, 50);
-    ipAddress_struct.ntpuse = false;
+    nvsSystemEEPRom.systemLanguage= 0;  // default Hangul
+    nvsSystemEEPRom.systemModusId= 1;
+    nvsSystemEEPRom.lcdBright = 80;
+    nvsSystemEEPRom.systemLedOffTime= 600;
+    nvsSystemEEPRom.IPADDRESS = (uint32_t)IPAddress(192, 168, 0, 57);
+    nvsSystemEEPRom.GATEWAY = (uint32_t)IPAddress(192, 168, 0, 1);
+    nvsSystemEEPRom.SUBNETMASK = (uint32_t)IPAddress(255, 255, 255, 0);
+    nvsSystemEEPRom.WEBSOCKETSERVER = (uint32_t)IPAddress(192, 168, 0, 57);
+    nvsSystemEEPRom.WEBSERVERPORT = 81;
+    nvsSystemEEPRom.BAUDRATE = 9600;
+    nvsSystemEEPRom.alarmSetStatus = 0;
+    nvsSystemEEPRom.systemModbusQInterval=300;
+    nvsSystemEEPRom.operatingMode.sysOpModeBit.modbusMode = 0;//agent
+    nvsSystemEEPRom.operatingMode.sysOpModeBit.useBlueTooth = 1;
+    nvsSystemEEPRom.operatingMode.sysOpModeBit.useWiFi= 1;
+    nvsSystemEEPRom.operatingMode.sysOpModeBit.useWebServer= 1;
 
-    ipAddress_struct.HighVoltage = 36500;
-    ipAddress_struct.LowVoltage = 26000;
-    ipAddress_struct.HighImp = 8000;
-    ipAddress_struct.HighTemp = 70;
-    ipAddress_struct.alarmSetStatus = 0;
-    strncpy(ipAddress_struct.deviceName,"BAT RACK1",9);
+    strncpy(nvsSystemEEPRom.deviceName,"UPS1P1P",9);
 
     EEPROM.writeByte(0,0x55);
     EEPROM.commit();
-    EEPROM.writeBytes(1, (const byte *)&ipAddress_struct, sizeof(nvsSystemSet));
+    EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
     EEPROM.commit();
     Serial.println("Memory Initialized first booting....");
   }
-  ipAddress_struct.HighVoltage = 0;
-  ipAddress_struct.LowVoltage = 0;
-  ipAddress_struct.HighImp = 0;
-  ipAddress_struct.HighTemp = 0;
-  EEPROM.readBytes(1, (byte *)&ipAddress_struct, sizeof(ipAddress_struct));
-  Serial.printf("\ninit data \n%d %d %d %d",ipAddress_struct.HighVoltage,ipAddress_struct.LowVoltage,ipAddress_struct.HighTemp,ipAddress_struct.HighImp);
+  EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
   // while (!Serial);
-  Serial.println("LVGL Benchmark Demo");
+  Serial.println("Init RTC");
+  setRtc();
 
   // Init Display
   // Add
@@ -254,7 +333,7 @@ void setup()
 
   ledcSetup(0, 300, 8);
   ledcAttachPin(TFT_BL, 0);
-  ledcWrite(0, ipAddress_struct.bright); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
+  ledcWrite(0, nvsSystemEEPRom.lcdBright); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
 
   gfx->fillScreen(RED);
   delay(500);
@@ -264,6 +343,8 @@ void setup()
   delay(500);
   gfx->fillScreen(BLACK);
   delay(500);
+
+  touchCalibrationInit();
   
   lv_i18n_init(lv_i18n_language_pack);
   lv_init();
@@ -312,51 +393,59 @@ void setup()
 
     lv_i18n_set_locale("ko-KR");
 
-    upsLog upslog;
-    for (int i = 0; i < 16; i++)
-      Serial.printf("\n%s", upslog.converter_status_eng[i]);
-    for (int i = 0; i < 16; i++)
-      Serial.printf("\n%s", upslog.operation_falut_eng[i]);
+    // upsLog upslog;
+    // for (int i = 0; i < 16; i++)
+    //   Serial.printf("\n%s", upslog.converter_status_eng[i]);
+    // for (int i = 0; i < 16; i++)
+    //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
-    for (int i = 0; i < 16; i++)
-      Serial.printf("\n%s", upslog.converter_status_eng[i]);
-    for (int i = 0; i < 16; i++)
-      Serial.printf("\n%s", upslog.operation_falut_eng[i]);
+    // for (int i = 0; i < 16; i++)
+    //   Serial.printf("\n%s", upslog.converter_status_eng[i]);
+    // for (int i = 0; i < 16; i++)
+    //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
     ui_init();
-    touchCalibrationInit();
-    setTime();
+    //setTime();
 
     /* System setting screen*/
-    tm nowTime;
-    getLocalTime(&nowTime);
-    lv_label_set_text(ui_lblYearSet, String(nowTime.tm_year + 1900).c_str());
-    lv_label_set_text(ui_lblMonthSet, String(nowTime.tm_mon).c_str());
-    lv_label_set_text(ui_lblDaySet, String(nowTime.tm_mday).c_str());
-    lv_label_set_text(ui_lblSetHour, String(nowTime.tm_hour).c_str());
-    lv_label_set_text(ui_lblSetMinute, String(nowTime.tm_min).c_str());
-    lv_label_set_text(ui_lblSetSecond, String(nowTime.tm_sec).c_str());
+    timeval tmv;
+    gettimeofday(&tmv, NULL);
+    RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
+    lv_label_set_text(ui_lblYearSet, String(nowTime.Year()).c_str());
+    lv_label_set_text(ui_lblMonthSet, String(nowTime.Month()).c_str());
+    lv_label_set_text(ui_lblDaySet, String(nowTime.Day()).c_str());
+    lv_label_set_text(ui_lblSetHour, String(nowTime.Hour()).c_str());
+    lv_label_set_text(ui_lblSetMinute, String(nowTime.Minute()).c_str());
+    lv_label_set_text(ui_lblSetSecond, String(nowTime.Second()).c_str());
 
-    lv_slider_set_value(ui_SliderYear, nowTime.tm_year + 1900, LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderMonth, nowTime.tm_mon, LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderDay, nowTime.tm_mday, LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderHour, nowTime.tm_hour, LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderMinute, nowTime.tm_min, LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderSecond, nowTime.tm_sec, LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderBrightness, ipAddress_struct.bright, LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderLedOffTime, ipAddress_struct.LED_OFF_TIME, LV_ANIM_OFF);
-    lv_label_set_text(ui_lblOffTime, String(ipAddress_struct.LED_OFF_TIME).c_str());
+    lv_slider_set_value(ui_SliderYear, nowTime.Year(), LV_ANIM_OFF);
+    lv_slider_set_value(ui_SliderMonth, nowTime.Month(), LV_ANIM_OFF);
+    lv_slider_set_value(ui_SliderDay, nowTime.Day(), LV_ANIM_OFF);
+    lv_slider_set_value(ui_SliderHour, nowTime.Hour(), LV_ANIM_OFF);
+    lv_slider_set_value(ui_SliderMinute, nowTime.Minute(), LV_ANIM_OFF);
+    lv_slider_set_value(ui_SliderSecond, nowTime.Second(), LV_ANIM_OFF);
+    lv_slider_set_value(ui_SliderBrightness, nvsSystemEEPRom.lcdBright, LV_ANIM_OFF);
+    lv_slider_set_value(ui_SliderLedOffTime, nvsSystemEEPRom.systemLedOffTime, LV_ANIM_OFF);
+    lv_label_set_text(ui_lblOffTime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
     // lv_label_set_text(ui_NiceLabel,_("RunAniButton"));
     Serial.println("Setup done");
+    pinMode(18,INPUT);
+    Serial1.begin(nvsSystemEEPRom.BAUDRATE,SERIAL_8N1 ,18 /* RX */,17 /* TX*/);
+    Serial1.println("Serial 1 started");
+    modbusSetup();
+    Serial.println("modbus started");
+    //Modbus는 내부적으로 task를 사용하고 있다.
+    //xTaskCreate(modbusTask,"modbusTask",5000,NULL,1,h_pxModbusTask); 
   }
 #ifdef USEWIFI
   wifiOTAsetup() ;
 #endif
-  EEPROM.readBytes(1, (byte *)&ipAddress_struct, sizeof(ipAddress_struct));
+  EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemEEPRom));
   setMemoryDataToLCD();
 };
 static int interval = 1000;
-static unsigned long previousmills = 0;
+static unsigned long previous100mills = 0;
+static unsigned long previous1000mills = 0;
 static int everySecondInterval = 1000;
 static int every100ms= 100;
 static unsigned long now;
@@ -366,31 +455,29 @@ void loop()
   void *parameters;
   wifiOtaloop();
   now = millis();
-  if ((now - previousmills > every100ms))
+  if ((now - previous100mills > every100ms))
   {
-    previousmills = now;
-    incTime++;
+    previous100mills = now;
   }
-  if ((incTime % 10) == 0) // 100*10 = 1S
+  if ((now - previous1000mills > everySecondInterval ))
   {
-    lcdOntime++;
+    previous1000mills = now;
     incTime++;
+    lcdOntime++;
     showSystemDateTime();
-    if(lcdOntime >= ipAddress_struct.LED_OFF_TIME) //lv_led_off(led);
+    if(lcdOntime >= nvsSystemEEPRom.systemLedOffTime) //lv_led_off(led);
       ledcWrite(0,0);
   }
-  //touchTest(0);
+
   lv_timer_handler(); /* let the GUI do its work */
-  vTaskDelay(5);
+  vTaskDelay(50);  // Every 50ms
 }
-  // struct tm tm;
-  // tm.tm_year = 2023 - 1900;
-  // tm.tm_mon = 11;
-  // tm.tm_mday = 13;
-  // tm.tm_hour = 15;
-  // tm.tm_min = 13;
-  // tm.tm_sec = 00;
-  // struct timeval tv;
-  // tv.tv_sec = mktime(&tm);
-  // tv.tv_usec = 0;
-  // settimeofday(&tv, NULL);
+
+
+
+  //touchTest(0);
+  // while(1)
+  // if(Serial1.available()) { 
+  //   //Serial.printf(" %02x",Serial1.read());
+  //   Serial1.write(Serial1.read());
+  // }

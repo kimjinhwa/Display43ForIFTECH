@@ -18,7 +18,8 @@
 			"vector": "cpp",
 			"string_view": "cpp",
 			"initializer_list": "cpp",
-			"lvgl.h": "c"
+			"lvgl.h": "c",
+			"new": "cpp"
 		}
 	}
 }
