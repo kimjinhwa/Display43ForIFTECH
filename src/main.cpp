@@ -135,7 +135,8 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
       touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
       data->point.x = touch_last_x;
       data->point.y = touch_last_y;
-      ledcWrite(0, nvsSystemEEPRom.lcdBright );
+      long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255); 
+      ledcWrite(0, brightness );
       lcdOntime = 0;
       Serial.print("Data xx ");
       Serial.println(data->point.x);
@@ -183,6 +184,13 @@ void showSystemDateTime(){
   sprintf(buf,"%d-%02d-%02d %s",
      nowTime.Year(),nowTime.Month(),nowTime.Day(),dayofweek[nowTime.DayOfWeek()]);
   lv_label_set_text(ui_lblDate,buf);
+
+  lv_textarea_set_text(ui_txtYear, String(nowTime.Year()).c_str());
+  lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
+  lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
+  lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
+  lv_textarea_set_text(ui_txtMinute, String(nowTime.Minute()).c_str());
+  lv_textarea_set_text(ui_txtSecond, String(nowTime.Second()).c_str());
   //ESP_LOGI(TAG,"%s",buf);
 
   sprintf(buf,"%02d:%02d:%02d",
@@ -293,9 +301,9 @@ void setup()
   EEPROM.begin(sizeof(nvsSystemSet_t));
   //if (EEPROM.read(0) != 0x55)
   {
-    nvsSystemEEPRom.systemLanguage= 0;  // default Hangul
+    nvsSystemEEPRom.systemLanguage= 1;  // default Hangul
     nvsSystemEEPRom.systemModusId= 1;
-    nvsSystemEEPRom.lcdBright = 80;
+    nvsSystemEEPRom.lcdBright = 255/*0xFFFF*/;
     nvsSystemEEPRom.systemLedOffTime= 600;
     nvsSystemEEPRom.IPADDRESS = (uint32_t)IPAddress(192, 168, 0, 57);
     nvsSystemEEPRom.GATEWAY = (uint32_t)IPAddress(192, 168, 0, 1);
@@ -333,7 +341,9 @@ void setup()
 
   ledcSetup(0, 300, 8);
   ledcAttachPin(TFT_BL, 0);
-  ledcWrite(0, nvsSystemEEPRom.lcdBright); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
+
+  long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255); 
+  ledcWrite(0, brightness );
 
   gfx->fillScreen(RED);
   delay(500);
@@ -347,11 +357,12 @@ void setup()
   touchCalibrationInit();
   
   lv_i18n_init(lv_i18n_language_pack);
+  lv_i18n_set_locale("ko-KR");
   lv_init();
 
   //led = lv_led_create(lv_scr_act());
 
-  // Init touch device
+  // Init touch devicSeconde
   // pinMode(TOUCH_GT911_RST, OUTPUT);
   // digitalWrite(TOUCH_GT911_RST, LOW);
   // delay(10);
@@ -391,7 +402,8 @@ void setup()
 
     lv_indev_drv_register(&indev_drv);
 
-    lv_i18n_set_locale("ko-KR");
+    //lv_i18n_set_locale("ko-KR");
+    //lv_i18n_set_locale("en-GB");
 
     // upsLog upslog;
     // for (int i = 0; i < 16; i++)
@@ -411,22 +423,16 @@ void setup()
     timeval tmv;
     gettimeofday(&tmv, NULL);
     RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
-    lv_label_set_text(ui_lblYearSet, String(nowTime.Year()).c_str());
-    lv_label_set_text(ui_lblMonthSet, String(nowTime.Month()).c_str());
-    lv_label_set_text(ui_lblDaySet, String(nowTime.Day()).c_str());
-    lv_label_set_text(ui_lblSetHour, String(nowTime.Hour()).c_str());
-    lv_label_set_text(ui_lblSetMinute, String(nowTime.Minute()).c_str());
-    lv_label_set_text(ui_lblSetSecond, String(nowTime.Second()).c_str());
+    lv_textarea_set_text(ui_txtYear, String(nowTime.Year()).c_str());
+    lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
+    lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
+    lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
+    lv_textarea_set_text(ui_txtMinute, String(nowTime.Minute()).c_str());
+    lv_textarea_set_text(ui_txtSecond, String(nowTime.Second()).c_str());
 
-    lv_slider_set_value(ui_SliderYear, nowTime.Year(), LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderMonth, nowTime.Month(), LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderDay, nowTime.Day(), LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderHour, nowTime.Hour(), LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderMinute, nowTime.Minute(), LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderSecond, nowTime.Second(), LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderBrightness, nvsSystemEEPRom.lcdBright, LV_ANIM_OFF);
-    lv_slider_set_value(ui_SliderLedOffTime, nvsSystemEEPRom.systemLedOffTime, LV_ANIM_OFF);
-    lv_label_set_text(ui_lblOffTime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
+
+    lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
+    lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
     // lv_label_set_text(ui_NiceLabel,_("RunAniButton"));
     Serial.println("Setup done");
     pinMode(18,INPUT);
@@ -470,7 +476,7 @@ void loop()
   }
 
   lv_timer_handler(); /* let the GUI do its work */
-  vTaskDelay(50);  // Every 50ms
+  vTaskDelay(10);  // Every 50ms
 }
 
 

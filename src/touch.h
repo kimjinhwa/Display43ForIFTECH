@@ -15,8 +15,8 @@
 #define TOUCH_XPT2046_ROTATION 0
 #define TOUCH_MAP_X1 4000 //4000
 #define TOUCH_MAP_X2 100
-#define TOUCH_MAP_Y1 100
-#define TOUCH_MAP_Y2 4000 //4000
+#define TOUCH_MAP_Y1 150
+#define TOUCH_MAP_Y2 3800 //4000
 
 int touch_last_x = 0, touch_last_y = 0;
 

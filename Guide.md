@@ -10,6 +10,10 @@
 ```sh
 
 
- lv_i18n compile -t 'translations/*.yml' -o 'src/lv_i18n'
+lv_i18n compile -t 'translations/*.yml' -o 'src/lv_i18n'
+or
+lv_i18n compile -t 'src/resource/*.yml' -o 'lib/lv_i18n/src/'
+
 lv_i18n compile -t 'C:/DevWork/99.SquireLineWave/IFTECH_UI/UPS1P1P_V001/export/SquareLine_Project/libraries/ui/translations/*.yml' -o 'C:\DevWork\4.IFTechWork\1.UPS1P1P\Display4.3\lib\lv_i18n\src'
 ``` 
+

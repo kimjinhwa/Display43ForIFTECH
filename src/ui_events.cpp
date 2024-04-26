@@ -9,6 +9,8 @@
 #include <EEPROM.h>
 #include "lv_i18n.h"
 
+lv_obj_t *ui_txtTempory ;
+
 void ChangeLanguage(lv_event_t * e)
 {
 	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 )
@@ -23,25 +25,30 @@ void ChangeLanguage(lv_event_t * e)
 
 void btnEvnetSaveSetting(lv_event_t * e)
 {
-	nvsSystemEEPRom.lcdBright = lv_slider_get_value(ui_SliderBrightness);
-	Serial.printf("\nSet Brigtness is %d", nvsSystemEEPRom.lcdBright);
-	ledcWrite(0, nvsSystemEEPRom.lcdBright);
-	nvsSystemEEPRom.systemLedOffTime = lv_slider_get_value(ui_SliderLedOffTime);
+	// nvsSystemEEPRom.lcdBright = lv_slider_get_value(ui_SliderBrightness);
+	// Serial.printf("\nSet Brigtness is %d", nvsSystemEEPRom.lcdBright);
+	// ledcWrite(0, nvsSystemEEPRom.lcdBright);
+    long brightness = String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
+    nvsSystemEEPRom.lcdBright= map(brightness , 0, 255, 0, 255); 
+    ledcWrite(0, nvsSystemEEPRom.lcdBright ); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
+	ESP_LOGI("TEST","Bright ness is %d",nvsSystemEEPRom.lcdBright );
 
-	tm nowTime;
-	nowTime.tm_year = String(lv_label_get_text(ui_lblYearSet)).toInt() - 1900;
-	nowTime.tm_mon = String(lv_label_get_text(ui_lblMonthSet)).toInt();
-	nowTime.tm_mday = String(lv_label_get_text(ui_lblDaySet)).toInt();
-	nowTime.tm_hour = String(lv_label_get_text(ui_lblSetHour)).toInt();
-	nowTime.tm_min = String(lv_label_get_text(ui_lblSetMinute)).toInt();
-	nowTime.tm_sec = String(lv_label_get_text(ui_lblSetSecond)).toInt();
-  	time_t now = mktime(&nowTime);
-	timeval tVal;
-	tVal.tv_sec = now;
-	settimeofday(&tVal,NULL);
+	// nvsSystemEEPRom.systemLedOffTime = lv_slider_get_value(ui_SliderLedOffTime);
 
-	EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
-	EEPROM.commit();
+	// tm nowTime;
+	// nowTime.tm_year = String(lv_label_get_text(ui_lblYearSet)).toInt() - 1900;
+	// nowTime.tm_mon = String(lv_label_get_text(ui_lblMonthSet)).toInt();
+	// nowTime.tm_mday = String(lv_label_get_text(ui_lblDaySet)).toInt();
+	// nowTime.tm_hour = String(lv_label_get_text(ui_lblSetHour)).toInt();
+	// nowTime.tm_min = String(lv_label_get_text(ui_lblSetMinute)).toInt();
+	// nowTime.tm_sec = String(lv_label_get_text(ui_lblSetSecond)).toInt();
+  	// time_t now = mktime(&nowTime);
+	// timeval tVal;
+	// tVal.tv_sec = now;
+	// settimeofday(&tVal,NULL);
+
+	// EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+	// EEPROM.commit();
 }
 
 void btnEventRunUps(lv_event_t * e)
@@ -52,4 +59,127 @@ void btnEventRunUps(lv_event_t * e)
 void btnEventStopUps(lv_event_t * e)
 {
 	// Your code here
+}
+void keyBoardValueChangedEvent(lv_event_t * e)
+{
+	// Your code here
+	//ESP_LOGI("LVGL","%d %d",btn_id ,txt);
+	//if(strcmp(txt,1007180992)== 0){
+	lv_obj_t *kb = lv_event_get_target(e);
+	uint32_t btn_id = lv_keyboard_get_selected_btn(kb);
+	const char *txt = lv_keyboard_get_btn_text(kb,btn_id);
+	if(btn_id  ==  7)
+	{
+		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
+		if(ui_txtTempory != nullptr)
+			lv_textarea_set_text(ui_txtTempory ,lv_textarea_get_text( ui_txtInputArea)) ; 
+	}
+
+}
+
+
+
+
+void CommonEevntProc(lv_event_t * e){
+	 ui_txtTempory = lv_event_get_target(e);
+	lv_textarea_set_text(ui_txtInputArea,lv_textarea_get_text(ui_txtTempory));
+    _ui_flag_modify( ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+}
+
+void EventTxtBatCurrset(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtBatVolSet(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtInvVolSet(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtInputVoltGain(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtInputCurrGain(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtInputVdcLinkGain(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtVbatVoltGain(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtBatCurrGain(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtInvVoltGain(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtInvCurrGain(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtOutputCurrGain(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtOfftime(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtBrigtness(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtYear(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtMonth(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtDay(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtHour(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtMinute(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+
+void EventTxtSecond(lv_event_t * e)
+{
+	CommonEevntProc(e);
+}
+void EventLogNext(lv_event_t * e){
+
 }
