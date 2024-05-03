@@ -1,0 +1,1 @@
+_ui_flag_modify( ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);

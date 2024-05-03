@@ -1,0 +1,75 @@
+Capacity : 정격용량
+Input_Voltage : 입력전압
+Output_Voltage : 출력전압
+Battery_Voltagte : 배터리전압
+UPS_ON : UPS 운전
+UPS_OFF : UPS 정지
+ALARM_RESET : 알람 초기화
+Bat_Curr_Set : 충전전류 설정 
+Bat_Volt_Set : 배터리전압 설정 
+Inv_Volt_Set : 출력전압 설정
+HF_Mode : 고효율 모드
+R_C_Start_Run_Event : 충전기 운전
+R_C_Re-Start_Event : 충전기 자동운전
+R_C_Stop_by_Command_Event : 충전기 정지
+R_C_Stop_by_Fault_Event : 이상발생 충전기 정지
+DC_DC_Start_Run_Event : DC/DC 운전
+DC_DC_Re-Start_Event : DC/DC 자동운전
+DC_DC_Stop_by_Command_Event : DC/DC 정지 
+DC_DC_Stop_by_Fault_Event : 이상발생 DC/DC 정지
+Inverter_Start_Run_Event : 인버터 운전
+Inverter_Re-Start_Run_Event : 인버터 자동운전
+Inverter_Stop_by_Command_Event : 인버터 정지 
+Inverter_Stop_by_Fault_Event : 이상발생 인버터 정지
+Transfer_to_Inverter_Event : 인버터로 절환
+Transfer_to_Bypass_by_Com_Event : 바이패스 절환
+Transfer_to_Bypass_by_fault_Event : 이상발생 바이패스 절환
+Input_OC : 입력 과전류       
+Inverter_Over_Current_fault : 인버터 과전류 이상
+DC_Link_OV_fault : 직류링크 과전압 이상    
+Converter_GDU_fault : 충전기 GDU 이상
+Inverter_GDU_fault : 인버터 GDU 이상
+DC_DC_GDU_fault : DC/DC GDU 이상
+Common_GDU_fault : N상 게이트 이상          
+Battery_Fuse_fault : 배터리 퓨즈 이상
+Module_OT : 모듈 과온
+EEPROM_ERR : 메모리 이상
+Battery_MCCB_Fault : 배터리 차단기 이상
+converter_current_limit_fault : 충전기 전류제한 이상
+Vdc_link_OV_limit_fault : 직류링크 과전압 제한이상
+Vdc_link_UV_limit_fault : 직류링크 저전압 제한이상
+input_under_voltage_fault : 입력 저전압 이상
+input_over_voltage_fault : 입력 고전압 이상
+Input_Frequency_fault : 입력 주파수 이상
+Inverter_Frequency_fault : 인버터 주파수 이상
+utility_line_failure : 정전
+battery_current_limit_fault : 배터리 전류제한 이상
+Battery_OV_limit_fault : 배터리 과전압 제한이상
+battery_UV_limit_fault : 배터리 저전압 제한이상
+inverter_output_voltage_fault : 인버터 출력전압 이상
+Output_Overload : 출력 과부하
+Inverter_Overload_Stop : 인버터 과부하 정지
+OFFSET_Check_ERR : 옵셋체크 이상
+input_volt_rms : 입력 전압
+input_current_rms : 입력 전류
+vdc_link_volt_rms : 직류링크 전압
+bat_volt_rms : 배터리 전압
+bat_current_rms : 배터리 전류
+inverter_volt_rms : 인버터 전압
+inverter_current_rms : 인버터 전류
+output_volt_rms : 출력 전압
+output_current_rms : 출력 전류
+input_freqency : 입력 주파수
+inv_freqency : 인버터 주파수
+bypass_freqency : 바이패스 주파수
+Battery_Capacity : 배터리 용량
+Load_Percent : 부하율
+UPS_Inner_Temp : UPS 내부 온도
+Input_volt_gain : 입력전압 이득
+input_current_gain : 입력전류 이득
+vdc_link_volt_gain : 직류링크전압 이득
+vbat_volt_gain : 배터리전압 이득
+bat_current_gain : 배터리전류 이득
+inverter_volt_gain : 인버터전압 이득
+inverter_current_gain : 인버터전류 이득
+output_current_gain : 출력 전류이득

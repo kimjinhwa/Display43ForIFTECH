@@ -7,10 +7,34 @@
 #include "main.h"
 #include "mainGrobal.h"
 #include <EEPROM.h>
+#include <RtcDS1302.h>
 #include "lv_i18n.h"
+#include "upsLog.h"
+#include <sstream>
+extern upsLog  upslogEvent;
+extern upsLog  upslogAlarm;
 
 lv_obj_t *ui_txtTempory ;
 
+void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::string>*newStr*/)
+{
+	std::string retStr(source);
+	std::vector<std::string> newStr;
+	std::istringstream iss(retStr);
+	std::string line;
+	lv_textarea_set_text(obj,"");//기존 데이타를 클리어 하고
+	while (std::getline(iss, line, '\n'))
+	{
+		newStr.push_back(line);
+	}
+	retStr="";
+	for (const auto &str : newStr)
+	{
+		retStr.append( _(str.c_str()));
+		retStr.append("\n");
+	}
+	lv_textarea_set_text(obj, retStr.c_str());
+}
 void ChangeLanguage(lv_event_t * e)
 {
 	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 )
@@ -23,32 +47,67 @@ void ChangeLanguage(lv_event_t * e)
 	// Your code here
 }
 
+void evtSystemTabClicked(lv_event_t *e)
+{
+	timeval tmv;
+	gettimeofday(&tmv, NULL);
+	RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
+
+	lv_textarea_set_text(ui_txtYear, String(nowTime.Year()-2000).c_str());
+	lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
+	lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
+	lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
+	lv_textarea_set_text(ui_txtMinute, String(nowTime.Minute()).c_str());
+	lv_textarea_set_text(ui_txtSecond, String(nowTime.Second()).c_str());
+
+	lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
+	lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
+
+	lv_obj_add_flag(ui_lblMessage,LV_OBJ_FLAG_HIDDEN);
+}
+void showMessageLabel()
+{
+	_ui_flag_modify( ui_lblMessage, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+}
+void evtMessageLblClick(lv_event_t * e){
+	lv_obj_add_flag(ui_lblMessage,LV_OBJ_FLAG_HIDDEN);
+	//_ui_flag_modify( ui_lblMessage, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+}
+void setRtcNewTime(RtcDateTime rtc);
 void btnEvnetSaveSetting(lv_event_t * e)
 {
-	// nvsSystemEEPRom.lcdBright = lv_slider_get_value(ui_SliderBrightness);
-	// Serial.printf("\nSet Brigtness is %d", nvsSystemEEPRom.lcdBright);
-	// ledcWrite(0, nvsSystemEEPRom.lcdBright);
-    long brightness = String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
+    uint16_t brightness = String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
     nvsSystemEEPRom.lcdBright= map(brightness , 0, 255, 0, 255); 
     ledcWrite(0, nvsSystemEEPRom.lcdBright ); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
-	ESP_LOGI("TEST","Bright ness is %d",nvsSystemEEPRom.lcdBright );
 
-	// nvsSystemEEPRom.systemLedOffTime = lv_slider_get_value(ui_SliderLedOffTime);
+    uint16_t offtime= String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
+    nvsSystemEEPRom.systemLedOffTime = offtime; 
 
-	// tm nowTime;
-	// nowTime.tm_year = String(lv_label_get_text(ui_lblYearSet)).toInt() - 1900;
-	// nowTime.tm_mon = String(lv_label_get_text(ui_lblMonthSet)).toInt();
-	// nowTime.tm_mday = String(lv_label_get_text(ui_lblDaySet)).toInt();
-	// nowTime.tm_hour = String(lv_label_get_text(ui_lblSetHour)).toInt();
-	// nowTime.tm_min = String(lv_label_get_text(ui_lblSetMinute)).toInt();
-	// nowTime.tm_sec = String(lv_label_get_text(ui_lblSetSecond)).toInt();
-  	// time_t now = mktime(&nowTime);
-	// timeval tVal;
-	// tVal.tv_sec = now;
-	// settimeofday(&tVal,NULL);
+	if(strcmp(lv_label_get_text(ui_Label8), "English") == 0)
+		nvsSystemEEPRom.systemLanguage = 0 ; //한글 
+	else 
+		nvsSystemEEPRom.systemLanguage = 1 ;// English 
 
-	// EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
-	// EEPROM.commit();
+
+	// timeval tmv;
+	tm nowTime;
+	nowTime.tm_year = String(lv_textarea_get_text(ui_txtYear)).toInt()  ;
+	nowTime.tm_mon = String(lv_textarea_get_text(ui_txtMonth)).toInt();
+	nowTime.tm_mday = String(lv_textarea_get_text(ui_txtDay)).toInt();
+	nowTime.tm_hour = String(lv_textarea_get_text(ui_txtHour)).toInt();
+	nowTime.tm_min = String(lv_textarea_get_text(ui_txtMinute)).toInt();
+	nowTime.tm_sec = String(lv_textarea_get_text(ui_txtSecond)).toInt();
+	// gettimeofday(&tmv, NULL);
+	RtcDateTime nowRtc = RtcDateTime(nowTime.tm_year,nowTime.tm_mon,nowTime.tm_mday,nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
+	setRtcNewTime(nowRtc );
+ 	ESP_LOGI("Set Rtc","Set Rtc");
+  	// // time_t now = mktime(&nowTime);
+	// // timeval tVal;
+	// // tVal.tv_sec = now;
+	// // settimeofday(&tVal,NULL);
+	showMessageLabel();
+	EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+	EEPROM.commit();
 }
 
 void btnEventRunUps(lv_event_t * e)
@@ -180,6 +239,116 @@ void EventTxtSecond(lv_event_t * e)
 {
 	CommonEevntProc(e);
 }
+
+void setLogTextArea(lv_obj_t *obj,upsLog  *upslog)
+{
+	upslog_t log;
+	String retStr;
+	retStr = "";
+	retStr = upslog->readCurrentLog( &log, LOG_PER_PAGE);
+	lv_textarea_set_text(obj, retStr.c_str());
+	//ESP_LOGW("UI EventLog","log \n%s",retStr.c_str() );
+	while( lv_textarea_get_cursor_pos(obj)){
+		//ESP_LOGW("UI EventAlarm","lv_textarea_cursor_up%d",lv_textarea_get_cursor_pos(ui_eventTextArea) );
+		lv_textarea_cursor_up(obj);
+	}
+}
+
+void evtLogScreenLoaded(lv_event_t * e){
+	uint16_t selectedTab=0;
+	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
+	//ESP_LOGW("UI","Tab selected %d",selectedTab);
+	upslog_t log;
+	//if(selectedTab ==0 )
+	{
+		upslogEvent.readCurrentLog(&log,LOG_PER_PAGE	);
+		setLogTextArea(ui_eventTextArea,&upslogEvent);
+		//lv_textarea_set_text(ui_eventTextArea, retStr.c_str() );
+	}
+	//else 
+	{
+		upslogAlarm.readCurrentLog(&log,LOG_PER_PAGE	);
+		setLogTextArea(ui_alarmTextArea,&upslogAlarm);
+		//lv_textarea_set_text(ui_alarmTextArea, retStr.c_str() );
+		//ESP_LOGW("UI EventAlarm","log %s",retStr.c_str() );
+	}
+    //lv_textarea_set_cursor_pos(ui_alarmTextArea,0);
+	//lv_textarea_set_cursor_pos(ui_eventTextArea,LV_TEXTAREA_CURSOR_);
+	while( lv_textarea_get_cursor_pos(ui_eventTextArea)){
+		//ESP_LOGW("UI EventAlarm","lv_textarea_cursor_up%d",lv_textarea_get_cursor_pos(ui_eventTextArea) );
+		lv_textarea_cursor_up(ui_eventTextArea);
+	}
+	while( lv_textarea_get_cursor_pos(ui_alarmTextArea)){
+		//ESP_LOGW("UI EventAlarm","lv_textarea_cursor_up%d",lv_textarea_get_cursor_pos(ui_alarmTextArea) );
+		lv_textarea_cursor_up(ui_alarmTextArea);
+	}
+	//lv_obj_set_scroll_snap_y(ui_eventTextArea,LV_SCROLL_SNAP_START);
+	//lv_obj_set_scroll_snap_y(ui_alarmTextArea,LV_SCROLL_SNAP_START);
+	
+    //lv_obj_scroll_to(ui_alarmTextArea,(lv_coord_t )0,(lv_coord_t )0,LV_ANIM_OFF);
+	// lv_event_t lpl;
+	// lv_obj_t * cont = ui_eventTextArea;
+	// lv_obj_add_event_cb(cont, scroll_event_cb, LV_EVENT_SCROLL, NULL);
+	//lv_event_send(ui_alarmTextArea,LV_SCROLL_SNAP_START);
+	//ESP_LOGW("UI EventAlarm","cursor %d",lv_textarea_get_cursor_pos(ui_alarmTextArea) );
+}
 void EventLogNext(lv_event_t * e){
+	uint16_t selectedTab=0;
+	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
+	if(selectedTab ==0 ){
+		upslogEvent.filePos = upslogEvent.filePos  - LOG_PER_PAGE;
+ 		ESP_LOGI("LOG","upslogAlarm.filePos %d",upslogEvent.filePos);
+		setLogTextArea(ui_eventTextArea,&upslogEvent);
+	}
+	else {
+		upslogAlarm.filePos = upslogAlarm.filePos + LOG_PER_PAGE;
+ 		ESP_LOGI("LOG","upslogAlarm.filePos %d",upslogAlarm.filePos);
+		setLogTextArea(ui_alarmTextArea,&upslogAlarm);
+	}
 
 }
+void EventLogPrev(lv_event_t * e){
+	uint16_t selectedTab=0;
+	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
+	if(selectedTab ==0 ){
+		upslogEvent.filePos = upslogEvent.filePos  + LOG_PER_PAGE;
+ 		ESP_LOGI("LOG","upslogAlarm.filePos %d",upslogEvent.filePos);
+		setLogTextArea(ui_eventTextArea,&upslogEvent);
+	}
+	else {
+		upslogAlarm.filePos = upslogAlarm.filePos + LOG_PER_PAGE;
+ 		ESP_LOGI("LOG","upslogAlarm.filePos %d",upslogAlarm.filePos);
+		setLogTextArea(ui_alarmTextArea,&upslogAlarm);
+	}
+}
+	// int32_t bret;
+  	// for(int i =0;i<100;i++ ){
+  	// 	lv_timer_handler(); /* let the GUI do its work */
+	// 	delay(10);
+	// }; /* let the GUI do its work */
+  	// //lv_timer_handler(); /* let the GUI do its work */
+	// lv_obj_add_flag(ui_lblMessage,LV_OBJ_FLAG_HIDDEN);
+	// lv_obj_t *ui_lblMessage;
+	// ui_lblMessage = lv_label_create(ui_SettingScreen);
+	// lv_obj_set_width(ui_lblMessage, lv_pct(70));
+	// lv_obj_set_height(ui_lblMessage, lv_pct(30));
+	// lv_obj_set_align(ui_lblMessage, LV_ALIGN_CENTER);
+	// lv_label_set_text(ui_lblMessage, _("SAVED"));
+	// lv_obj_add_flag(ui_lblMessage, /*LV_OBJ_FLAG_HIDDEN | */ LV_OBJ_FLAG_FLOATING); /// Flags
+	// //_ui_flag_modify( ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+	// lv_obj_set_scrollbar_mode(ui_lblMessage, LV_SCROLLBAR_MODE_OFF);
+	// lv_obj_set_style_text_color(ui_lblMessage, lv_color_hex(0x0921E1), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_text_opa(ui_lblMessage, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_text_align(ui_lblMessage, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_text_font(ui_lblMessage, &ui_font_digitalWatch26, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_radius(ui_lblMessage, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_bg_color(ui_lblMessage, lv_color_hex(0xB4A8A8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_bg_opa(ui_lblMessage, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_border_color(ui_lblMessage, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_border_opa(ui_lblMessage, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_border_width(ui_lblMessage, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_pad_left(ui_lblMessage, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_pad_right(ui_lblMessage, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_pad_top(ui_lblMessage, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+	// lv_obj_set_style_pad_bottom(ui_lblMessage, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+	//lv_obj_del(ui_lblMessage);

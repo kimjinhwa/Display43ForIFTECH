@@ -1,0 +1,131 @@
+en-GB: 
+  ESC: 'ESC'
+  ON: 'RUN'
+  OFF: 'STOP' 
+  INTRO: 'INTRO'
+  SYSTEM: 'SYSTEM'
+  UPS_SETUP: 'UPS SETUP'
+  Gain_SETUP: 'Gain SETUP' 
+  GainVIEW: 'Gain View' 
+  Input_OC: 'Input_OC'
+  Inverter_OC: 'Inverter OC'
+  Vdc_link_OV: 'Vdc link OV'
+  CONVERTER_OFF: 'CONVERTER OFF'
+  DC_DC_OFF: 'DC/DC OFF'
+  Converter_GDU: 'Converter GDU'
+  Inverter_GDU: 'Inverter_GDU'
+  DC_DC_GDU: 'DC/DC GDU'
+  Common_GDU: 'Common GDU'
+  Earth_fault: 'Earth fault'
+  Fuse_Open: 'Fuse Open'
+  EEPROM_Error: 'EEPROM Error'
+  Bypass_mode: 'Bypass mode'
+  screen_set: 'SET'
+  controll: 'CONTROLL'
+  MEASURE: 'MEASURE'
+  info: 'LOG Data'
+  Language: '언어'
+  English: '한국어'
+  Brigtness: 'Brigtness'
+  OFFTIME: 'OFF TIME'
+  Year: 'Year'
+  Month: 'Month'
+  Day: 'Month'
+  Hour: 'Hour'
+  Minute: 'Minute'
+  Second: 'Second'
+  SET: 'SET'
+  SetVTVol: 'Bat Voltage'
+  SetVTCurrent: 'Bat Current'
+  SetOutVol: 'OUTPUT Voltage'
+  SetBatLowVol: 'Bat. Low Voltage'
+  Back: 'Back'
+  RUN: 'RUN'
+  STOP: 'STOP'
+  UPS_SYSTEM: '무정전전원공급장치'
+  dcLink: 'DC LINK'
+  Battery: 'BATTERY'
+  Inverter: 'INVERTER'
+  output: 'OUTPUT'
+  input: 'INPUT'
+  Mesurement: 'Mesurement'
+  LogData: 'Log Data'
+  Prev: 'Prev'
+  Next: 'Next'
+  alarmStatus: 'Alarm Status'
+  alarmHistory: 'Alarm History'
+  Capacity: Capacity
+  Input_Voltage: Input Voltage
+  Output_Voltage: Output Voltage
+  Battery_Voltagte: Battery Voltagte
+  UPS_ON: UPS_ON
+  UPS_OFF: UPS_OFF
+  ALARM_RST: ALARM RST
+  Bat_Curr_Set: Bat Curr Set
+  Bat_Volt_Set: Bat Volt Set
+  Inv_Volt_Set: Inv Volt Set
+  HF_Mode: HF Mode
+  R_C_Start_Run_Event: R/C Start Run Event
+  R_C_Re_Start_Event: R/C Re-Start Event
+  R_C_Stop_by_Command_Event: R/C Stop by Command Event
+  R_C_Stop_by_Fault_Event: R/C Stop by Fault Event
+  DC_DC_Start_Run_Event: DC/DC Start Run Event
+  DC_DC_Re_Start_Event: DC/DC Re-Start Event
+  DC_DC_Stop_by_Command_Event: DC/DC Stop by Command Event
+  DC_DC_Stop_by_Fault_Event: DC/DC Stop by Fault Event
+  Inverter_Start_Run_Event: Inverter Start Run Event
+  Inverter_Re_Start_Run_Event: Inverter Re-Start Run Event
+  Inverter_Stop_by_Command_Event: Inverter Stop by Command Event
+  Inverter_Stop_by_Fault_Event: Inverter Stop by Fault Event
+  Transfer_to_Inverter_Event: Transfer to Inverter Event
+  Transfer_to_Bypass_by_Com_Event: Transfer to Bypass by Com Event
+  Transfer_to_Bypass_by_fault_Event: Transfer to Bypass by fault Event
+  Inverter_Over_Current_fault: Inverter Over Current fault
+  DC_Link_OV_fault: DC Link OV fault
+  Converter_GDU_fault: Converter GDU fault
+  Inverter_GDU_fault: Inverter GDU fault
+  DC_DC_GDU_fault: DC/DC GDU fault
+  Common_GDU_fault: Common GDU fault
+  Module_OT: 'Module OT'
+  Battery_Fuse_fault: Battery Fuse fault
+  EEPROM_ERR: EEPROM ERR
+  Battery_MCCB_Fault: Battery MCCB Fault
+  converter_current_limit_fault: converter current limit fault
+  Vdc_link_OV_limit_fault: Vdc_link OV limit fault
+  Vdc_link_UV_limit_fault: Vdc_link UV limit fault
+  input_under_voltage_fault: input under voltage fault
+  input_over_voltage_fault: input over voltage fault
+  Input_Frequency_fault: Input Frequency fault
+  Inverter_Frequency_fault: Inverter Frequency fault
+  utility_line_failure: utility line failure
+  battery_current_limit_fault: battery current limit fault
+  Battery_OV_limit_fault: Battery OV limit fault
+  battery_UV_limit_fault: battery UV limit fault
+  inverter_output_voltage_fault: inverter output voltage fault
+  Output_Overload: Output Overload
+  Inverter_Overload_Stop: Inverter Overload Stop
+  OFFSET_Check_ERR: OFFSET Check ERR
+  input_volt_rms: input_volt_rms         
+  input_curr_rms: input_curr_rms
+  vdc_link_volt_rms: vdc_link_volt_rms
+  bat_volt_rms: bat_volt_rms
+  bat_current_rms: bat_current_rms
+  inv_volt_rms: inv_volt_rms
+  inv_current_rms: inv_current_rms
+  output_volt_rms: output_volt_rms
+  output_curr_rms: output_curr_rms
+  input_freqency: input_freqency
+  inv_freqency: inv_freqency
+  bypass_freqency: bypass_freqency
+  Battery_Capacity: Battery Capacity
+  Load_Percent: Load Percent
+  UPS_Inner_Temp: UPS Inner Temp
+  Input_volt_gain: Input_volt_gain
+  input_curr_gain: input_curr_gain
+  vdc_link_volt_gain: vdc_link_volt_gain
+  vbat_volt_gain: vbat_volt_gain
+  bat_current_gain: bat_current_gain
+  inverter_volt_gain: inverter_volt_gain
+  inverter_curr_gain: inverter_curr_gain
+  output_curr_gain: output_curr_gain
+  SAVED: SAVED
