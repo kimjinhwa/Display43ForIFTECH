@@ -42,7 +42,7 @@ en-GB:
   Back: 'Back'
   RUN: 'RUN'
   STOP: 'STOP'
-  UPS_SYSTEM: '무정전전원공급장치'
+  UPS_SYSTEM: 'UPS SYSTEM'
   dcLink: 'DC LINK'
   Battery: 'BATTERY'
   Inverter: 'INVERTER'
@@ -129,3 +129,6 @@ en-GB:
   inverter_curr_gain: inverter_curr_gain
   output_curr_gain: output_curr_gain
   SAVED: SAVED
+  SAVE: SAVE
+  CANCEL: CANCEL 
+  BACKSPACE: DEL 

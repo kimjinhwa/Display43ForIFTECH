@@ -60,7 +60,7 @@ ko-KR:
   Battery_Voltagte: 배터리전압
   UPS_ON: UPS 운전
   UPS_OFF: UPS 정지
-  ALARM_RST: 초기화
+  ALARM_RST: 알람정지 
   Bat_Curr_Set: 충전전류 설정 
   Bat_Volt_Set: 배터리전압 설정 
   Inv_Volt_Set: 출력전압 설정
@@ -129,3 +129,6 @@ ko-KR:
   inverter_curr_gain: 인버터전류 이득
   output_curr_gain: 출력 전류이득
   SAVED: 저장완료  
+  SAVE: 저장 
+  CANCEL: 취소 
+  BACKSPACE: 삭제 

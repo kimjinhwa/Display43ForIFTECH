@@ -14,6 +14,7 @@
 extern upsLog  upslogEvent;
 extern upsLog  upslogAlarm;
 
+void showMessageLabel(const char *message);
 lv_obj_t *ui_txtTempory ;
 
 void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::string>*newStr*/)
@@ -35,14 +36,27 @@ void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::str
 	}
 	lv_textarea_set_text(obj, retStr.c_str());
 }
+void mainScrUpdata();
 void ChangeLanguage(lv_event_t * e)
 {
-	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 )
+	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 ){
     	lv_i18n_set_locale("en-GB");
+		nvsSystemEEPRom.systemLanguage = 1;
+	}
     else 	
+	{
 		lv_i18n_set_locale("ko-KR");
-    ui_init();
-	
+		nvsSystemEEPRom.systemLanguage = 0;
+	}
+    EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+    EEPROM.commit();
+	showMessageLabel(_("REBOOT"));
+  	lv_timer_handler(); 
+	vTaskDelay(1500);
+	esp_restart();
+ 	//   ui_init();
+ 	//mainScrUpdata();
+	//lv_disp_load_scr( ui_SettingScreen);
     //lv_i18n_set_locale("en-GB");
 	// Your code here
 }
@@ -52,7 +66,7 @@ void evtSystemTabClicked(lv_event_t *e)
 	timeval tmv;
 	gettimeofday(&tmv, NULL);
 	RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
-
+	
 	lv_textarea_set_text(ui_txtYear, String(nowTime.Year()-2000).c_str());
 	lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
 	lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
@@ -65,8 +79,9 @@ void evtSystemTabClicked(lv_event_t *e)
 
 	lv_obj_add_flag(ui_lblMessage,LV_OBJ_FLAG_HIDDEN);
 }
-void showMessageLabel()
+void showMessageLabel(const char *message)
 {
+	lv_label_set_text( ui_lblMessage,message);
 	_ui_flag_modify( ui_lblMessage, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 }
 void evtMessageLblClick(lv_event_t * e){
@@ -105,38 +120,279 @@ void btnEvnetSaveSetting(lv_event_t * e)
 	// // timeval tVal;
 	// // tVal.tv_sec = now;
 	// // settimeofday(&tVal,NULL);
-	showMessageLabel();
+	showMessageLabel(_("SAVED"));
 	EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
 	EEPROM.commit();
 }
 
 void btnEventRunUps(lv_event_t * e)
 {
-	// Your code here
+
+  upsModbusData.upsRun.upsRunCommandBit.UpsON = 1;
+  upsModbusData.upsRun.upsRunCommandBit.UpsOFF =0;
+    lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT );
 }
 
 void btnEventStopUps(lv_event_t * e)
 {
 	// Your code here
+  upsModbusData.upsRun.upsRunCommandBit.UpsOFF =1;
+  upsModbusData.upsRun.upsRunCommandBit.UpsON =0;
+    lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT );
 }
-void keyBoardValueChangedEvent(lv_event_t * e)
-{
 	// Your code here
 	//ESP_LOGI("LVGL","%d %d",btn_id ,txt);
 	//if(strcmp(txt,1007180992)== 0){
+
+enum TextId {
+	BATCURR_REF=8,
+	BATVOL_REF=9,
+	OUTPUTVOL_REF=10,
+	INPUTVOLTGAIN = 38,
+	INPUTCURRGAIN = 39,
+	VDCLINKVOLTGAIN = 40,
+	VBATVOLTGAIN = 41,
+	BAT_CURRENT_GAIN= 42,
+	INVERTER_VOLT_GAIN= 43,
+	INVERTER_CURRENT_GAIN= 44,
+	OUTPUT_CURRENT_GAIN= 46,
+	EVENTTXTOFFTIME_ = 12,
+	BRIGHTNESSCONSTRAIN_ = 13,
+	SYSTEMYEAR= 60,
+	SYSTEMMONTH= 61,
+	SYSTEMDAY= 62,
+	SYSTEMHOUR= 63,
+	SYSTEMMINUTE= 64,
+	SYSTEMSECOND =65 
+};
+
+int WriteHoldRegistor(int index,int value,uint32_t Token);
+int checkValidation()
+{
+	uint32_t *p; 
+	uint16_t inputTextId=0;
+	p = (uint32_t  *)lv_obj_get_user_data(ui_txtTempory );
+	inputTextId = *p >> 24; 
+	*p = *p & 0x00ffffff;
+	//NULL이면 정상으로 본다.
+	if (p != NULL)
+	{
+		uint32_t consData = *p;
+		if (consData == 0)
+			return 1;
+		uint32_t lowValue = consData >> 16;
+		uint32_t highValue = consData & 0x0000FFFF;
+		// if (String(lv_textarea_get_text(ui_txtInputArea)).length() > 0)
+		uint16_t inputData = String(lv_textarea_get_text(ui_txtInputArea)).toInt();
+		ESP_LOGW("EVENT", "User id %d value %d  %d - %d", inputTextId, inputData, lowValue, highValue);
+		if (inputData < lowValue || inputData > highValue)
+		{
+			String str;
+			str = "입력범위(";
+			str += lowValue;
+			str += "-";
+			str += highValue;
+			str += ")";
+			if (inputData < lowValue)
+				lv_textarea_set_text(ui_txtInputArea, String(lowValue).c_str());
+			if (inputData > highValue)
+				lv_textarea_set_text(ui_txtInputArea, String(highValue).c_str());
+			showMessageLabel(str.c_str());
+			return 0;
+		}
+		switch (inputTextId)
+		{
+		case BATCURR_REF:
+		case BATVOL_REF:
+		case OUTPUTVOL_REF:
+		case INPUTVOLTGAIN:
+		case INPUTCURRGAIN:
+		case VDCLINKVOLTGAIN:
+		case VBATVOLTGAIN:
+		case BAT_CURRENT_GAIN:
+		case INVERTER_VOLT_GAIN:
+		case INVERTER_CURRENT_GAIN:
+		case OUTPUT_CURRENT_GAIN:
+			WriteHoldRegistor(inputTextId,inputData ,inputTextId);
+			break;
+		case EVENTTXTOFFTIME_:
+			break;
+		case BRIGHTNESSCONSTRAIN_:
+			break;
+		case SYSTEMYEAR:
+			break;
+		case SYSTEMMONTH:
+			break;
+		case SYSTEMDAY:
+			break;
+		case SYSTEMHOUR:
+			break;
+		case SYSTEMMINUTE:
+			break;
+		case SYSTEMSECOND:
+			break;
+		default:
+			break;
+		}
+	}
+	return 1;
+}
+void keyBoardValueChangedEvent(lv_event_t * e)
+{
 	lv_obj_t *kb = lv_event_get_target(e);
 	uint32_t btn_id = lv_keyboard_get_selected_btn(kb);
 	const char *txt = lv_keyboard_get_btn_text(kb,btn_id);
-	if(btn_id  ==  7)
+	if(btn_id  ==  3)  //확인 키가 눌리면...
 	{
+		//checkValidation();
 		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
-		if(ui_txtTempory != nullptr)
-			lv_textarea_set_text(ui_txtTempory ,lv_textarea_get_text( ui_txtInputArea)) ; 
+		// if(ui_txtTempory != nullptr){
+		// 	//ui_txtTempory 이것은 해당 Text이다.
+		// 	lv_textarea_set_text(ui_txtTempory ,lv_textarea_get_text( ui_txtInputArea)) ; 
+		// }
 	}
-
+	if(btn_id  ==  7)  //확인 키가 눌리면...
+	{
+		checkValidation();
+		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
+		if(ui_txtTempory != nullptr){
+			//ui_txtTempory 이것은 해당 Text이다.
+			lv_textarea_set_text(ui_txtTempory ,lv_textarea_get_text( ui_txtInputArea)) ; 
+			//ui_txtTempory.get
+		}
+	}
 }
 
+void changeKeyboardText()
+{
+	//ui_Keyboard1;
+//   static const char * kb_map[] = {
+// 	"1", "2", "3", _("CANCEL")/*LV_SYMBOL_CLOSE*/,"\n",
+// 	"4", "5", "6", _("SAVE")/*LV_SYMBOL_OK*/ ,"\n",
+// 	"7", "8", "9", _("BACKSPACE")/*LV_SYMBOL_BACKSPACE*/,"\n",
+// 	"<"/*LV_SYMBOL_LEFT*/, "0", ">"/*LV_SYMBOL_RIGHT*/,"",  NULL
+//      };		
+  static const char * kb_map[] = {
+	"1", "2", "3", LV_SYMBOL_CLOSE,"\n",
+	"4", "5", "6", LV_SYMBOL_OK ,"\n",
+	"7", "8", "9", LV_SYMBOL_BACKSPACE,"\n",
+	LV_SYMBOL_LEFT, "0", LV_SYMBOL_RIGHT," ",  NULL
+     };		
+	
+  static const lv_btnmatrix_ctrl_t kb_ctrl[] = 
+  {
+	4, 4, 4, 6, 
+ 	4, 4, 4, 6, 
+   	4, 4, 4, 6, 
+    4, 4, 4, LV_BTNMATRIX_CTRL_HIDDEN | 6, 
+  };
+	//ui_Keyboard1 = lv_keyboard_create(ui_pnlKeyBoard);
 
+	lv_keyboard_set_map(ui_Keyboard1,LV_KEYBOARD_MODE_USER_1,kb_map,kb_ctrl);
+	lv_keyboard_set_mode(ui_Keyboard1, LV_KEYBOARD_MODE_USER_1);
+
+	//lv_keyboard_set_mode(ui_Keyboard1, LV_KEYBOARD_MODE_NUMBER);
+	lv_obj_set_width(ui_Keyboard1, lv_pct(100));
+	lv_obj_set_height(ui_Keyboard1, lv_pct(80));
+	lv_obj_set_x(ui_Keyboard1, -9);
+	lv_obj_set_y(ui_Keyboard1, 29);
+	lv_obj_set_align(ui_Keyboard1, LV_ALIGN_CENTER);
+	lv_obj_set_flex_flow(ui_Keyboard1, LV_FLEX_FLOW_ROW);
+	lv_obj_set_flex_align(ui_Keyboard1, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+	lv_obj_add_flag(ui_Keyboard1, LV_OBJ_FLAG_IGNORE_LAYOUT); /// Flags
+	lv_obj_set_style_radius(ui_Keyboard1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_color(ui_Keyboard1, lv_color_hex(0xCECACA), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_opa(ui_Keyboard1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+	lv_obj_set_style_text_color(ui_Keyboard1, lv_color_hex(0x090808), LV_PART_ITEMS | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_opa(ui_Keyboard1, 255, LV_PART_ITEMS | LV_STATE_DEFAULT);
+	//lv_obj_set_style_text_font(ui_Keyboard1, &ui_font_malgun26, LV_PART_ITEMS| LV_STATE_DEFAULT);
+	lv_obj_set_style_text_font(ui_Keyboard1, &lv_font_montserrat_26, LV_PART_ITEMS| LV_STATE_DEFAULT);
+}
+void scrSettingScreen(){
+  //설정화면 
+  lv_textarea_set_text(ui_txtBatCurrSet, String(upsModbusData.Bat_Current_Ref).c_str()); //2-20 default 2
+  lv_textarea_set_text(ui_txtBatVolSet, String(upsModbusData.Bat_Voltage_Ref).c_str()); //
+  lv_textarea_set_text(ui_txtInvVolSet, String(upsModbusData.Output_Voltage_Ref).c_str()); //
+  if(upsModbusData.HF_MODE==1)
+    lv_obj_add_state( ui_chkHFMode, LV_STATE_CHECKED );     /// States
+  else 
+    lv_obj_clear_state(ui_chkHFMode,LV_STATE_CHECKED );
+  lv_textarea_set_text(ui_txtInputVoltGain, 
+      String(upsModbusData.input_volt_gain).c_str()); //
+  lv_textarea_set_text(ui_txtInputCurrGain, 
+      String(upsModbusData.input_current_gain).c_str()); //
+  lv_textarea_set_text(ui_txtInputVdcLinkGain, 
+      String(upsModbusData.vdc_link_volt_gain).c_str()); //
+  lv_textarea_set_text(ui_txtVbatVoltGain, 
+      String(upsModbusData.vbat_volt_gain).c_str()); //
+  lv_textarea_set_text(ui_txtBatCurrGain, 
+      String(upsModbusData.bat_current_gain).c_str()); //
+  lv_textarea_set_text(ui_txtInvVoltGain, 
+      String(upsModbusData.inverter_volt_gain).c_str()); //
+  lv_textarea_set_text(ui_txtInvCurrGain, 
+      String(upsModbusData.inverter_current_gain).c_str()); //
+  lv_textarea_set_text(ui_txtOutputCurrGain, 
+      String(upsModbusData.output_current_gain).c_str()); //
+}
+void scrSettingScreenLoaded(lv_event_t * e){
+	changeKeyboardText();
+	scrSettingScreen();
+}
+void scrMeasureLoad(){
+
+  lv_label_set_text(ui_lblInputVoltRms, 
+      String(upsModbusData.Input_volt_rms).c_str()); //
+  lv_label_set_text(ui_lblInputCurrRms, 
+      String(upsModbusData.Input_current_rms).c_str()); //
+  lv_label_set_text(ui_lblVdcLinkVoltRms, 
+      String(upsModbusData.vdc_link_volt_rms).c_str()); //
+  lv_label_set_text(ui_lblBatVoltRms, 
+      String(upsModbusData.bat_volt_rms).c_str()); //
+  lv_label_set_text(ui_lblBatCurrentRms, 
+      String(upsModbusData.bat_current_rms).c_str()); //
+  lv_label_set_text(ui_lblInvVoltRms, 
+      String(upsModbusData.inverter_volt_rms).c_str()); //
+  lv_label_set_text(ui_lblInvCurrentRms, 
+      String(upsModbusData.inverter_current_rms).c_str()); //
+  lv_label_set_text(ui_lblOutputVoltRms, 
+      String(upsModbusData.output_volt_rms).c_str()); //
+	//TAB2
+  lv_label_set_text(ui_lblOutputCurrRms, 
+      String(upsModbusData.output_current_rms).c_str()); //
+  lv_label_set_text(ui_lblInputFreq, 
+      String(upsModbusData.bypass_Frequency).c_str()); //
+  lv_label_set_text(ui_lblInvFreq, 
+      String(upsModbusData.inv_Frequency).c_str()); //
+  lv_label_set_text(ui_lblBypassFreq, 
+      String(upsModbusData.bypass_Frequency).c_str()); //
+  lv_label_set_text(ui_lblBattCapacity, 
+      String(upsModbusData.battery_capacity).c_str()); //
+  lv_label_set_text(ui_lblUpsInnerTemp, 
+      String(upsModbusData.inv_internal_Temperature).c_str()); //
+  //GAIN
+  lv_label_set_text(ui_lblInputVoltGain, 
+      String(upsModbusData.input_volt_gain).c_str()); //
+  lv_label_set_text(ui_lblInputCurrGain, 
+      String(upsModbusData.input_current_gain).c_str()); //
+  lv_label_set_text(ui_lblVdcLinkVoltGain, 
+      String(upsModbusData.vdc_link_volt_gain).c_str()); //
+  lv_label_set_text(ui_lblVbatVoltGain, 
+      String(upsModbusData.vbat_volt_gain).c_str()); //
+  lv_label_set_text(ui_lblBatCurrentGain, 
+      String(upsModbusData.bat_current_gain).c_str()); //
+  lv_label_set_text(ui_lblInverterVoltGain, 
+      String(upsModbusData.inverter_volt_gain).c_str()); //
+  lv_label_set_text(ui_lblInvCurrGain, 
+      String(upsModbusData.inverter_current_gain).c_str()); //
+  lv_label_set_text(ui_lblOutputCurrGain, 
+      String(upsModbusData.output_current_gain).c_str()); //
+}
+void scrMeasureLoadEvent(lv_event_t * e){
+	scrMeasureLoad();
+}
 
 
 void CommonEevntProc(lv_event_t * e){
@@ -145,98 +401,193 @@ void CommonEevntProc(lv_event_t * e){
     _ui_flag_modify( ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 }
 
+uint32_t BatCurrsetConstrain=0x00020014;
 void EventTxtBatCurrset(lv_event_t * e)
 {
+	ui_txtTempory = lv_event_get_target(e);
+	int32_t id =  BATCURR_REF<<24;
+	BatCurrsetConstrain += id;
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&BatCurrsetConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t BatVoltageConstrain=0x00500118;
 void EventTxtBatVolSet(lv_event_t * e)
 {
+	int32_t id =  BATVOL_REF<<24;
+	BatVoltageConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&BatVoltageConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t outVoltageConstrain=0x006400F0;
 void EventTxtInvVolSet(lv_event_t * e)
 {
+	int32_t id =  OUTPUTVOL_REF<<24;
+	outVoltageConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&outVoltageConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t gainConstrain_1=0x000001F4;
 void EventTxtInputVoltGain(lv_event_t * e)
 {
+	int32_t id =  INPUTVOLTGAIN <<24;
+	gainConstrain_1 += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_1);
 	CommonEevntProc(e);
 }
 
+uint32_t gainConstrain_2=0x000001F4;
 void EventTxtInputCurrGain(lv_event_t * e)
 {
+	int32_t id =  INPUTCURRGAIN <<24;
+	gainConstrain_2 += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_2);
 	CommonEevntProc(e);
 }
 
+uint32_t gainConstrain_3=0x000001F4;
 void EventTxtInputVdcLinkGain(lv_event_t * e)
 {
+	int32_t id =  VDCLINKVOLTGAIN <<24;
+	gainConstrain_3 += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_3);
 	CommonEevntProc(e);
 }
 
+uint32_t gainConstrain_4=0x000001F4;
 void EventTxtVbatVoltGain(lv_event_t * e)
 {
+	int32_t id =  VBATVOLTGAIN <<24;
+	gainConstrain_4 += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_4);
 	CommonEevntProc(e);
 }
 
+uint32_t gainConstrain_5=0x000001F4;
 void EventTxtBatCurrGain(lv_event_t * e)
 {
+	int32_t id =  BAT_CURRENT_GAIN<<24;
+	gainConstrain_5 += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_5);
 	CommonEevntProc(e);
 }
 
+uint32_t gainConstrain_6=0x000001F4;
 void EventTxtInvVoltGain(lv_event_t * e)
 {
+	int32_t id =  INVERTER_VOLT_GAIN<<24;
+	gainConstrain_6 += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_6);
 	CommonEevntProc(e);
 }
 
+uint32_t gainConstrain_7=0x000001F4;
 void EventTxtInvCurrGain(lv_event_t * e)
 {
+	int32_t id =  INVERTER_CURRENT_GAIN<<24;
+	gainConstrain_7 += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_7);
 	CommonEevntProc(e);
 }
 
+uint32_t gainConstrain_8=0x000001F4;
 void EventTxtOutputCurrGain(lv_event_t * e)
 {
+	int32_t id =  OUTPUT_CURRENT_GAIN<<24;
+	gainConstrain_8 += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_8);
 	CommonEevntProc(e);
 }
 
+uint32_t offtimeConstrain=0x000AFFFF;
 void EventTxtOfftime(lv_event_t * e)
 {
+	int32_t id =  EVENTTXTOFFTIME_ <<24;
+	offtimeConstrain += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&offtimeConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t brightnessConstrain=0x005000FF;
 void EventTxtBrigtness(lv_event_t * e)
 {
+	int32_t id =  BRIGHTNESSCONSTRAIN_ <<24;
+	brightnessConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&brightnessConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t yearConstrain=0x07E8081A;
 void EventTxtYear(lv_event_t * e)
 {
+	int32_t id =  SYSTEMYEAR<<24;
+	yearConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&yearConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t monthConstrain=0x0001000C;
 void EventTxtMonth(lv_event_t * e)
 {
+	int32_t id =  SYSTEMMONTH<<24;
+	monthConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&monthConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t dayConstrain=0x0001001F;
 void EventTxtDay(lv_event_t * e)
 {
+	int32_t id =  SYSTEMDAY<<24;
+	dayConstrain += id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&dayConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t hourConstrain=0x00000017;
 void EventTxtHour(lv_event_t * e)
 {
+	int32_t id =  SYSTEMHOUR<<24;
+	hourConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&hourConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t minuteConstrain=0x0000003B;
 void EventTxtMinute(lv_event_t * e)
 {
+	int32_t id =  SYSTEMMINUTE<<24;
+	minuteConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&minuteConstrain);
 	CommonEevntProc(e);
 }
 
+uint32_t secondConstrain=0x0000003B;
 void EventTxtSecond(lv_event_t * e)
 {
+	int32_t id =  SYSTEMSECOND <<24;
+	secondConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&secondConstrain);
 	CommonEevntProc(e);
 }
 
@@ -321,6 +672,13 @@ void EventLogPrev(lv_event_t * e){
 		setLogTextArea(ui_alarmTextArea,&upslogAlarm);
 	}
 }
+
+
+void btnAlarmRunStop(lv_event_t * e){
+      //fadeOnOff_Animation(ui_btnAlarm, 0);
+	  //lv_anim_del_all();
+}
+
 	// int32_t bret;
   	// for(int i =0;i<100;i++ ){
   	// 	lv_timer_handler(); /* let the GUI do its work */
@@ -352,3 +710,7 @@ void EventLogPrev(lv_event_t * e){
 	// lv_obj_set_style_pad_top(ui_lblMessage, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
 	// lv_obj_set_style_pad_bottom(ui_lblMessage, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 	//lv_obj_del(ui_lblMessage);
+  //chkHFMode
+  //lv_obj_add_state( ui_chkHFMode, LV_STATE_CHECKED );     /// States
+  //lv_obj_clear_state(ui_chkHFMode,LV_STATE_CHECKED );
+  //lv_state_t state = lv_obj_get_state( ui_chkHFMode);

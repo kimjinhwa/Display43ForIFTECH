@@ -22,6 +22,13 @@
 #define TFT_BL 2
 #define RTCEN 19
 #define BUZZER 20
+
+#define OFFSCR_COLOR 0x495E80 
+#define ONSCR_COLOR 0xF4C834 
+#define OFFCONV_COLOR 0x0
+#define ONCONV_COLOR 0xFB0101
+#define ONLINE_COLOR 0x1DF32C
+#define OFFLINE_COLOR 0x0
 // #define BRIGHT 80
 // SimpleBLE SerialBT;
 TaskHandle_t *h_pxModbusTask;
@@ -45,6 +52,14 @@ int16_t minDisMessageTime = 1;
 // #define DISPLAY_7
 static char TAG[] = "main";
 
+upsLog upslogEvent("/spiffs/eventLog.hex", 0);
+upsLog upslogAlarm("/spiffs/eventAlarm.hex", 1); //
+
+void mainScrUpdata();
+void GetSetEventData();
+void modbusTask(void *parameter);
+void scrSettingScreen();
+void scrMeasureLoad();
 #define DISPLAY_43
 
 #ifdef DISPLAY_7
@@ -141,7 +156,7 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
       data->point.x = touch_last_x;
       data->point.y = touch_last_y;
       long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
-      ledcWrite(0, brightness);
+      ledcWrite(0, brightness<80?80:brightness);
       lcdOntime = 0;
       Serial.print("Data xx ");
       Serial.println(data->point.x);
@@ -220,11 +235,27 @@ void showSystemUpdate()
           nowTime.Hour(), nowTime.Minute(), nowTime.Second());
   lv_label_set_text(ui_lblDateTime, buf);
 
-  sprintf(buf, "%d", rand() % (4) + 90);
-  lv_label_set_text(ui_lbaBatCapacity, buf);
-  sprintf(buf, "%d", rand() % (10) + 20);
-  lv_label_set_text(ui_lblLoadCapacity, buf);
+// 초기 화면
+  lv_label_set_text(ui_lblCapacity, String(upsModbusData.Nominal_Capacity).c_str());
+  lv_label_set_text(ui_lblBatteryCellNo, String(upsModbusData.Nominal_BatVoltage/12).c_str());
+  lv_label_set_text(ui_lblInputVol, String(upsModbusData.Nominal_InputVoltage).c_str());
+  lv_label_set_text(ui_lblOutputVol, String(upsModbusData.Nominal_OutputVoltage).c_str());
+
+
+  //메인화면 //battery 용량 //sprintf(buf, "%d", rand() % (4) + 90);
+  lv_label_set_text(ui_lbaBatCapacity, String(upsModbusData.battery_capacity).c_str());
+  //sprintf(buf, "%d", rand() % (10) + 20);
+  lv_label_set_text(ui_lblLoadCapacity, String(upsModbusData.load_percentage).c_str());
+
+  lv_label_set_text(ui_lblDcLinkVol, String(upsModbusData.vdc_link_volt_rms).c_str());
+  lv_label_set_text(ui_lblBatteryVol, String(upsModbusData.bat_volt_rms).c_str());
+  lv_label_set_text(ui_lblInverterVol, String(upsModbusData.inverter_volt_rms).c_str());
+  lv_label_set_text(ui_lblOutputV, String(upsModbusData.output_volt_rms).c_str());
+
+  scrSettingScreen();
+  scrMeasureLoad();
 }
+
 void drawCursor(int16_t x, int16_t y, uint16_t color)
 {
   int16_t r = 40;
@@ -327,8 +358,139 @@ void setRtcNewTime(RtcDateTime rtc)
   // SPI.begin(SCK,MISO,MOSI,RTCEN );
 }
 
-upsLog upslogEvent("/spiffs/eventLog.hex", 0);
-upsLog upslogAlarm("/spiffs/eventAlarm.hex", 1); //
+void GetSetEventData()
+{
+  int16_t isEventLogChanged = 0;
+  int16_t isAlarmLogChanged = 0;
+  upslog_t log;
+  isEventLogChanged = upslogEvent.setEventCode(upsModbusData.ModuleState.status,
+                                               upsModbusData.HWState.status,
+                                               upsModbusData.upsOperationFault.status);
+
+  isAlarmLogChanged = upslogAlarm.setEventCode(upsModbusData.ModuleState.status,
+                                               upsModbusData.HWState.status,
+                                               upsModbusData.upsOperationFault.status);
+  if (isEventLogChanged)
+  {
+    ESP_LOGW("UI", "%d %d %d %d", isAlarmLogChanged,
+             upsModbusData.ModuleState.status,
+             upsModbusData.HWState.status,
+             upsModbusData.upsOperationFault.status);
+    upslogEvent.readLastLog(&log);
+    String retStr = upslogEvent.readCurrentLog(&log, LOG_PER_PAGE);
+    lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
+    while (lv_textarea_get_cursor_pos(ui_eventTextArea))
+    {
+      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_eventTextArea));
+      lv_textarea_cursor_up(ui_eventTextArea);
+    }
+  }
+
+  if (isAlarmLogChanged)
+  {
+    upslogAlarm.readLastLog(&log);
+    String retStr = upslogAlarm.readCurrentLog(&log, LOG_PER_PAGE);
+    lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
+    while (lv_textarea_get_cursor_pos(ui_alarmTextArea))
+    {
+      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_alarmTextArea));
+      lv_textarea_cursor_up(ui_alarmTextArea);
+    }
+  }
+}
+
+void mainScrUpdata(){
+    //lv_obj_set_style_bg_img_recolor(ui_imgConvPowerLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+  //정전일때 꺼지고, 평상시는 파워가 인가 된다.
+  if (upsModbusData.upsOperationFault.Bit.utility_line_failure == 1) 
+    {
+      lv_obj_set_style_bg_opa(ui_pnlMainPower1, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlMainPower2, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlMainPower3, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+    }
+  else {
+      lv_obj_set_style_bg_opa(ui_pnlMainPower1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlMainPower2, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlMainPower3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+  }
+  //바이패스모드 Change 바이패스와 인버터 SCR은 항상 반대로 
+  if (upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE == 0 ) 
+    {
+      lv_obj_set_style_bg_color(ui_imgScrBypass, lv_color_hex(ONSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+      lv_obj_set_style_bg_color(ui_imgScrOutput, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+      lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+      // Bypass인데 정전이 아니어야 한다.  물론 이경우는 생기지는 않느다. 
+      // 이미 정전을 감지 했으면 이 루틴으로 들어오지 않으며, 그것도 아니면 이미 셧다운이다. 
+      // 단지 Simulation을 위해 사용한다.
+      if (upsModbusData.upsOperationFault.Bit.utility_line_failure == 0) 
+        lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+      else 
+        lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+    }
+  else {
+      lv_obj_set_style_bg_color(ui_imgScrBypass, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+      lv_obj_set_style_bg_color(ui_imgScrOutput, lv_color_hex(ONSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+  }
+  // 충전부 운전
+  if(upsModbusData.HWState.Bit.CONVERTER_RUN_STOP_STATE){
+    lv_obj_set_style_bg_color(ui_imgConvertor, lv_color_hex(ONCONV_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_obj_set_style_bg_opa(ui_pnlConvPower1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_pnlConvPower2, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+  }
+  else{
+    lv_obj_set_style_bg_color(ui_imgConvertor, lv_color_hex(OFFCONV_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_obj_set_style_bg_opa(ui_pnlConvPower1, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+    if(upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE==0)
+      lv_obj_set_style_bg_opa(ui_pnlConvPower2, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+    else 
+      lv_obj_set_style_bg_opa(ui_pnlConvPower2, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+  }
+  if(upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE)
+  {
+      lv_obj_set_style_bg_opa(ui_pnlConvPower3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+  }
+  else{
+      lv_obj_set_style_bg_opa(ui_pnlConvPower3, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+  }
+  //인버터 시작 ,인버터와 연결되는 라인도 같이 전원을 인가한다.
+  if(upsModbusData.HWState.Bit.INVERTER_RUN_STOP_STATE ){
+    lv_obj_set_style_bg_color(ui_imgInvertor, lv_color_hex(ONCONV_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_obj_set_style_bg_opa(ui_pnlInvPower, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+    //lv_obj_set_style_bg_color(ui_imgInvertorPowerLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+  }
+  else //인버터 정지,인버터와 연결되는 라인도 같이 전원을 제거 한다.
+  {
+    lv_obj_set_style_bg_color(ui_imgInvertor, lv_color_hex(OFFCONV_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_obj_set_style_bg_opa(ui_pnlInvPower, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+    //lv_obj_set_style_bg_color(ui_imgInvertorPowerLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+  }
+
+ //
+//  if(upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE ) {
+//     lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+//  }
+//  else
+//     lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+  
+
+// if(upsModbusData.HWState.Bit.BAT_MCCB_Fault == 0 &&  upsModbusData.HWState.Bit.BAT_FUSE == 0)
+// {
+//   lv_obj_set_style_bg_color(ui_imgBattery, lv_color_hex(0x1DF32C), LV_PART_MAIN | LV_STATE_DEFAULT );
+// }
+// else
+//   lv_obj_set_style_bg_color(ui_imgBattery, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
+
+//   if(upsModbusData.upsRun.upsRunCommandBit.UpsON){
+//     lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT );
+//     lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT );
+//   }
+//   else{
+//     lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT );
+//     lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT );
+
+//   }
+}
 
 void setup()
 {
@@ -370,6 +532,7 @@ void setup()
   EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
   // nvsSystemEEPRom.BAUDRATE = 9600;
   //  while (!Serial);
+  nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
   Serial.println("\nInit RTC");
   Serial.printf("\nbaud Rate %d", nvsSystemEEPRom.BAUDRATE);
   Serial.printf("\nlanguage %d", nvsSystemEEPRom.systemLanguage);
@@ -482,20 +645,37 @@ void setup()
 
     lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
     lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
+
+    // lv_obj_set_style_bg_img_recolor(ui_imgMainPower, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN| LV_STATE_DEFAULT);
+    // lv_obj_set_style_bg_img_recolor(ui_imgScrBypass, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+    // lv_obj_set_style_bg_img_recolor(ui_imgScrOutput, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+    // lv_obj_set_style_bg_img_recolor(ui_imgConvertor, lv_color_hex(OFFCONV_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+    // lv_obj_set_style_bg_img_recolor(ui_imgInvertor, lv_color_hex(OFFCONV_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+    // lv_obj_set_style_bg_img_recolor(ui_imgInvertorPowerLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+
     // lv_label_set_text(ui_NiceLabel,_("RunAniButton"));
-    Serial.println("Setup done");
-    pinMode(18, INPUT);
-    Serial1.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, 18 /* RX */, 17 /* TX*/);
-    Serial1.println("Serial 1 started");
-    modbusSetup();
-    Serial.println("modbus started");
-    // Modbus는 내부적으로 task를 사용하고 있다.
-    // xTaskCreate(modbusTask,"modbusTask",5000,NULL,1,h_pxModbusTask);
   }
+  Serial.println("Setup done");
+  pinMode(18, INPUT);
+  Serial1.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, 18 /* RX */, 17 /* TX*/);
+  Serial1.println("Serial 1 started");
+  modbusSetup();
+  Serial.println("modbus started");
+  // Modbus는 내부적으로 task를 사용하고 있다.
+  xTaskCreate(modbusTask, "modbusTask", 8000, NULL, 1, h_pxModbusTask);
 #ifdef USEWIFI
   wifiOTAsetup();
 #endif
   EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemEEPRom));
+
+  // 시스템 시작시에는 바이패스로 놓는다
+  upsModbusData.ModuleState.Bit.To_Bypass_ModeChange = 1;
+  // 충전기 모듈은 정지되어 있는 상태이다
+  upsModbusData.ModuleState.Bit.Charger_RUN = 0;
+  // 인버터 정지 상태이다;
+  upsModbusData.ModuleState.Bit.Inverter_RUN = 0;
+  // upsModbusData.HWState.status;
+  // upsModbusData.upsOperationFault.status;
   setMemoryDataToLCD();
 };
 static int interval = 1000;
@@ -512,47 +692,8 @@ void toggleBuzzer()
 {
   digitalWrite(BUZZER, !digitalRead(BUZZER));
 }
-
-void getModbusData()
-{
-  int16_t isEventLogChanged = 0;
-  int16_t isAlarmLogChanged = 0;
-  upslog_t log;
-  isEventLogChanged = upslogEvent.setEventCode(upsModbusData.ModuleState.status,
-                                               upsModbusData.HWState.status,
-                                               upsModbusData.upsOperationFault.status);
-
-  isAlarmLogChanged = upslogAlarm.setEventCode(upsModbusData.ModuleState.status,
-                                               upsModbusData.HWState.status,
-                                               upsModbusData.upsOperationFault.status);
-  if (isEventLogChanged)
-  {
-    ESP_LOGW("UI", "%d %d %d %d", isAlarmLogChanged,
-             upsModbusData.ModuleState.status,
-             upsModbusData.HWState.status,
-             upsModbusData.upsOperationFault.status);
-    upslogEvent.readLastLog(&log);
-    String retStr = upslogEvent.readCurrentLog(&log, LOG_PER_PAGE);
-    lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
-    while (lv_textarea_get_cursor_pos(ui_eventTextArea))
-    {
-      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_eventTextArea));
-      lv_textarea_cursor_up(ui_eventTextArea);
-    }
-  }
-
-  if (isAlarmLogChanged)
-  {
-    upslogAlarm.readLastLog(&log);
-    String retStr = upslogAlarm.readCurrentLog(&log, LOG_PER_PAGE);
-    lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
-    while (lv_textarea_get_cursor_pos(ui_alarmTextArea))
-    {
-      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_alarmTextArea));
-      lv_textarea_cursor_up(ui_alarmTextArea);
-    }
-  }
-}
+// int modbusEventSendLoop(int timeout);
+// int modbusEventGetLoop();
 void loop()
 {
   void *parameters;
@@ -563,7 +704,8 @@ void loop()
   {
     // 여기서 모드버스 통신을 하자
     //
-    getModbusData();
+    //modbusEventSendLoop(30);
+    GetSetEventData();
     previous300mills = now;
   }
   if ((now - previous500mills > every500ms))
@@ -577,13 +719,13 @@ void loop()
     incTime++;
     lcdOntime++;
     showSystemUpdate();
+    mainScrUpdata();
     if (lcdOntime >= nvsSystemEEPRom.systemLedOffTime) // lv_led_off(led);
     {
       _ui_screen_change(&ui_InitScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_InitScreen_screen_init); // lv_disp_load_scr( ui_InitScreen);
       ledcWrite(0, 0);
     }
   }
-
   lv_timer_handler(); /* let the GUI do its work */
   vTaskDelay(10);     // Every 50ms
 }

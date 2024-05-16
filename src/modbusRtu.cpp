@@ -2,15 +2,81 @@
 #include <EEPROM.h>
 #include "modbusRtu.h"
 #include "mainGrobal.h"
+#ifdef MODBUSSERVER
 #include <ModbusServerRTU.h>
+#else
+#include "ModbusClientRTU.h"
+#endif
 #include <RtcDS1302.h>
 
 #define COILSRUNTATUS_START  0
 #define COILSUPSTATUS_START  16
 #define COILSHWSATUUS_START  32 
 #define COILSUPSOPERATIONFAULT_START  48 
-ups_modbus_data_t upsModbusData;
-ModbusServerRTU upsModbus232(2000);
+ups_modbus_data_t upsModbusData = {
+  .Nominal_Capacity=30,             // 0  10의 배수
+  .Nominal_InputVoltage=220,         // 1 [###V]
+  .Nominal_OutputVoltage=220,        // 2 [###V]
+  .Nominal_BatVoltage=240,           // 3 [###V]
+  .upsRun=0,                       // 6
+  .Bat_Current_Ref=2,              // 8  [2-20]
+  .Bat_Voltage_Ref=120,              // 9 [80-280]
+  .Output_Voltage_Ref=220,           // 10 [110-240]
+  .HF_MODE=0,                      // 11 0:Normal 1: High Efficiency
+  .Input_volt_rms=0,               // 20
+  .Input_current_rms=0,            // 21
+  .vdc_link_volt_rms=0,            // 22
+  .bat_volt_rms=0,                 // 23
+  .bat_current_rms=0,              // 24
+  .inverter_volt_rms=0,            // 25
+  .inverter_current_rms=0,         // 26
+  .output_volt_rms=0,              // 27
+  .output_current_rms=0,           // 28
+  .conv_Frequency=0,               // 29
+  .inv_Frequency=0,                // 30
+  .bypass_Frequency=0,             // 31
+  .battery_capacity=0,             // 32
+  .load_percentage=0,              // 33
+  .inv_internal_Temperature=0,     // 34
+  .reserved_9=0,                   // 35
+  .reserved_10=0,                  // 36
+  .reserved_11=0,                  // 37
+  .input_volt_gain=250,              // 38
+  .input_current_gain=250,           // 39
+  .vdc_link_volt_gain=250,           // 40
+  .vbat_volt_gain=250,               // 41
+  .bat_current_gain=250,             // 42
+  .inverter_volt_gain=250,           // 43
+  .inverter_current_gain=250,        // 44
+  .GND_1=0,                        // 45
+  .output_current_gain=250,          // 46
+  .input_volt_offset=0,            // 50
+  .input_current_offset=0,         // 51
+  .vdc_link_volt_offset=0,         // 52
+  .bat_volt_offset=0,              // 53
+  .bat_current_offset=0,           // 54
+  .inverter_volt_offset=0,         // 55
+  .inverter_current_offset=0,      // 56
+  .output_current_offset=0,        // 58
+  .systemModusId=1,                // 66
+  .systemBaudRate=9600,               // 68
+  .systemModbusQInterval=1000,        // 70  0 : Agent, 1: Server
+  .systemLedOffTime=60,             // 71
+  .systemLedBright=255,              // 72 maximum : 100,
+  .ipAddress1=192,                   // 73 maximum : 100,
+  .ipAddress2=168,                   // 74 maximum : 100,
+  .ipAddress3=0,                   // 75 maximum : 100,
+  .ipAddress4=54,                   // 76 maximum : 100,
+  .subnetMask1=255,                  // 77 maximum : 100,
+  .subnetMask2=255,                  // 78 maximum : 100,
+  .subnetMask3=255,                  // 79 maximum : 100,
+  .subnetMask4=0,                  // 80 maximum : 100,
+  .gateWay1=192,                     // 81 maximum : 100,
+  .gateWay2=168,                     // 82 maximum : 100,
+  .gateWay3=0,                     // 83 maximum : 100,
+  .gateWay4=1                     // 84 maximum : 100,
+
+};
 uint8_t _CoilData[16*4]; // converter status 16개, inverter fault status 16개
 void setRtcNewTime(RtcDateTime rtc);
 
@@ -137,6 +203,8 @@ void UpsdataTosyncUpsCoilStatus()
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.OFFSET_CHECK_ERR;
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.reserved;
 }
+#ifdef MODBUSSERVER
+ModbusServerRTU upsModbus232(2000);
 void modbusSetup(){
   int address_485 = nvsSystemEEPRom.systemModusId;
   upsModbus232.registerWorker(address_485,READ_COIL,&FC01);
@@ -510,3 +578,166 @@ ModbusMessage FC06(ModbusMessage request)
   }
   return response;
 };
+#else
+ModbusClientRTU MB(-1,100);
+char request_response;
+bool data_ready = false;
+int modbustimeout;
+char requestToken[12]={'E','E','E','A','E','E','E','A','E','E','E','A'};
+int tokenLoopCount=0;
+void handleData(ModbusMessage response, uint32_t token)
+{
+  // First value is on pos 3, after server ID, function code and length byte
+  uint16_t offs = 3;
+  // The device has values all as IEEE754 float32 in two consecutive registers
+  // Read the requested in a loop
+  uint16_t *values;
+  values = (uint16_t *)&upsModbusData;
+  uint8_t func = response.getFunctionCode();
+  
+  if (func == READ_INPUT_REGISTER)
+  {
+    offs = 3;
+    if (token == 'E')
+    { // 이벤트를 요청한것이며 15,16,17번지이다
+      // ESP_LOGE("MODBUS","%c", token);
+      for (uint8_t i = 0; i < 3; ++i)
+      {
+        offs = response.get(offs, values[15 + i]);
+      }
+      // for (uint8_t i = 0; i < 3; ++i)
+      //   ESP_LOGE("MODBUS","%2d", values[15+i]);
+    }
+    if (token == 'A')
+    { // 이벤트를 요청한것이며 15,16,17번지이다
+      // ESP_LOGE("MODBUS","%c", token);
+      for (uint8_t i = 0; i < 58; ++i)
+      {
+        offs = response.get(offs, values[i]);
+      }
+      // for (uint8_t i = 0; i < 58; ++i)
+      //   ESP_LOGE("MODBUS","%2d", values[i]);
+    }
+    // Signal "data is complete"
+    request_response = token;
+    data_ready = true;
+  }
+  else if (func == WRITE_HOLD_REGISTER)
+  {
+
+    request_response = token;
+    data_ready = true;
+    int address ; 
+    const uint8_t *rev =  response.data();
+    int len = response.size();
+    address = rev[2]<<8 | rev[3];
+    //values[address ] =  rev[4]<<8 | rev[5];
+    for(int i=0;i<len;i++)
+      ESP_LOGE("MODBUS"," %02x",rev[i]);
+    offs = 4;
+    offs = response.get(offs, values[token]);
+    ESP_LOGE("MODBUS","func %d token %d address %d value %d",func, token,address, values[token]);
+  }
+}
+void handleError(Error error, uint32_t token) 
+{
+  // ModbusError wraps the error code and provides a readable error message for it
+  ModbusError me(error);
+  ESP_LOGE("MODBUS","Error response: %02X - %s\n", (int)me, (const char *)me);
+}
+/* 데이타를 보낼때 Time out을 결정한다. 
+*  @timeout milisecond
+*/
+int WriteHoldRegistor(int index,int value,uint32_t Token){
+  tokenLoopCount = -1;
+  vTaskDelay(300);
+  Error err = MB.addRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
+  if (err!=SUCCESS) {
+    ModbusError e(err);
+    ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
+  }
+  tokenLoopCount = 0;
+  return 0;
+}
+int modbusEventSendLoop(int timeout)
+{
+  if (tokenLoopCount == -1)
+    return -1; // -1은 데이타 요청을 중지한다.
+               // 나중에 데이타를 요청할 경우를 대비 하기 위하여
+  modbustimeout = timeout;
+  data_ready = false;
+  
+  if (tokenLoopCount >= 12)
+    tokenLoopCount = 0;
+  FunctionCode func;
+  int16_t startAddress;
+  int16_t dataCount;
+  switch (requestToken[tokenLoopCount])
+  {
+  case 'E':
+    /* code */
+    func = READ_INPUT_REGISTER;
+    startAddress = 15;
+    dataCount =3;
+    break;
+  case 'A':
+    func = READ_INPUT_REGISTER;
+    startAddress = 0;
+    dataCount =58;
+    break;
+  
+  default:
+    break;
+  }
+  Error err = MB.addRequest(requestToken[tokenLoopCount], 1, func, startAddress, dataCount * 2);
+  //Error err = MB.addRequest(requestToken[tokenLoopCount], 1, READ_INPUT_REGISTER, 0, 58 * 2);
+  if (err != SUCCESS)
+  {
+    ModbusError e(err);
+    ESP_LOGE("MODBUS", "Error creating request: %02X - %s\n", (int)e, (const char *)e);
+    return 0;
+  }
+  tokenLoopCount++;  // 전송이 제대로 됬다면 다음 루틴으로 간다
+  return 1;
+}
+void modbusStop(){
+  tokenLoopCount=-1;
+}
+int modbusEventGetLoop()
+{
+  if (data_ready)
+  {
+    data_ready = false;
+    //ESP_LOGE("MODBUS", "Data Read OK");
+    return 1;
+  }
+  return 0;
+}
+
+void modbusSetup()
+{
+  MB.onDataHandler(&handleData);
+  MB.onErrorHandler(&handleError);
+  MB.setTimeout(1000);
+  MB.begin(Serial1,nvsSystemEEPRom.BAUDRATE,1);
+}
+
+static int every300ms = 300;
+static unsigned long previous300mills = 0;
+static unsigned long now;
+void modbusTask(void *parameter)
+{
+  modbusSetup();
+  for (;;)
+  {
+    now = millis();
+    if ((now - previous300mills > every300ms))
+    {
+      modbusEventSendLoop(30);
+      previous300mills = now;
+    }
+    modbusEventGetLoop();
+    vTaskDelay(100);
+  };
+}
+#endif

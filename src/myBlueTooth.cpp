@@ -157,12 +157,14 @@ void bleCheck()
   if (deviceConnected)
   {
     if(SerialBT.available()){
+        lsFile.setOutputStream(&Serial);
+        simpleCli.outputStream = &Serial;
         cmd = SerialBT.readString().c_str();
         simpleCli.parse(cmd );
-        Serial.printf("*** %s",cmd.c_str());
-        SerialBT.printf("\nHello %s",cmd.c_str());
-        SerialBT.printf("\nThis is a ");
-        SerialBT.printf("\n wonderful land.....!!! ");
+        SerialBT.printf("*** %s",cmd.c_str());
+        // SerialBT.printf("\nHello %s",cmd.c_str());
+        // SerialBT.printf("\nThis is a ");
+        // SerialBT.printf("\n wonderful land.....!!! ");
     }
     //pTxCharacteristic->setValue(&txValue, 1);
     // pTxCharacteristic->notify();
