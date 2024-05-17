@@ -150,27 +150,30 @@ void bleSetup(){
   pServer->getAdvertising()->start();
   Serial.println("Waiting a client connection to notify...");
 }
-myBlueToothStream SerialBT;
+myBlueToothStream mySerialBT;
 void bleCheck()
 {
   String cmd;
   if (deviceConnected)
   {
-    if(SerialBT.available()){
+    mySerialBT.deviceConnected=true;
+    if(mySerialBT.available()){
         lsFile.setOutputStream(&Serial);
         simpleCli.outputStream = &Serial;
-        cmd = SerialBT.readString().c_str();
+        cmd = mySerialBT.readString().c_str();
         simpleCli.parse(cmd );
-        SerialBT.printf("*** %s",cmd.c_str());
-        // SerialBT.printf("\nHello %s",cmd.c_str());
-        // SerialBT.printf("\nThis is a ");
-        // SerialBT.printf("\n wonderful land.....!!! ");
+        mySerialBT.printf("*** %s",cmd.c_str());
+        // mySerialBT.printf("\nHello %s",cmd.c_str());
+        // mySerialBT.printf("\nThis is a ");
+        // mySerialBT.printf("\n wonderful land.....!!! ");
     }
     //pTxCharacteristic->setValue(&txValue, 1);
     // pTxCharacteristic->notify();
     // txValue++;
     // delay(10); // bluetooth stack will go into congestion, if too many packets are sent
   }
+  else 
+    mySerialBT.deviceConnected=false;
 
 
   // disconnecting
@@ -188,7 +191,7 @@ void bleCheck()
   {
     // do stuff here on connecting
     oldDeviceConnected = deviceConnected;
-    // lsFile.setOutputStream(&SerialBT);
-    // simpleCli.outputStream = &SerialBT;
+    // lsFile.setOutputStream(&mySerialBT);
+    // simpleCli.outputStream = &mySerialBT;
   }
 }

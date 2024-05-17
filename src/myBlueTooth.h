@@ -25,6 +25,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 
 class myBlueToothStream : public Stream {
     public:
+    bool deviceConnected = false;
     myBlueToothStream(void);
     ~myBlueToothStream(void);
     int peek(void);

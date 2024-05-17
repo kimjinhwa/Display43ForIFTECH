@@ -13,8 +13,36 @@
 #include <sstream>
 extern upsLog  upslogEvent;
 extern upsLog  upslogAlarm;
+extern bool data_ready ;
 
+enum TextId {
+	UPSONOFF=6,
+	BATCURR_REF=8,
+	BATVOL_REF=9,
+	OUTPUTVOL_REF=10,
+	INPUTVOLTGAIN = 38,
+	INPUTCURRGAIN = 39,
+	VDCLINKVOLTGAIN = 40,
+	VBATVOLTGAIN = 41,
+	BAT_CURRENT_GAIN= 42,
+	INVERTER_VOLT_GAIN= 43,
+	INVERTER_CURRENT_GAIN= 44,
+	OUTPUT_CURRENT_GAIN= 46,
+	EVENTTXTOFFTIME_ = 12,
+	BRIGHTNESSCONSTRAIN_ = 13,
+	SYSTEMYEAR= 60,
+	SYSTEMMONTH= 61,
+	SYSTEMDAY= 62,
+	SYSTEMHOUR= 63,
+	SYSTEMMINUTE= 64,
+	SYSTEMSECOND =65 
+};
+int WriteHoldRegistor(int index,int value,uint32_t Token);
 void showMessageLabel(const char *message);
+
+uint32_t waitDataReceive();
+uint32_t getReceiveToken();
+uint32_t getDataReady ();
 lv_obj_t *ui_txtTempory ;
 
 void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::string>*newStr*/)
@@ -61,6 +89,23 @@ void ChangeLanguage(lv_event_t * e)
 	// Your code here
 }
 
+void evtTabUpsSetup(lv_event_t * e)
+{
+	ESP_LOGI("SET","Tab upsSetup clicked");
+    //lv_obj_add_flag(ui_batSaveSetting, LV_OBJ_FLAG_HIDDEN );     /// Flags
+}
+void evtTabGainSetup1(lv_event_t * e)
+{
+	ESP_LOGI("SET","Tab setup1 clicked");
+    //lv_obj_add_flag(ui_batSaveSetting, LV_OBJ_FLAG_HIDDEN );     /// Flags
+}
+
+void evtTabGainSetup2(lv_event_t * e)
+{
+	ESP_LOGI("SET","Tab setup2 clicked");
+    //lv_obj_add_flag(ui_batSaveSetting, LV_OBJ_FLAG_HIDDEN );     /// Flags
+}
+
 void evtSystemTabClicked(lv_event_t *e)
 {
 	timeval tmv;
@@ -77,7 +122,10 @@ void evtSystemTabClicked(lv_event_t *e)
 	lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
 	lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
 
-	lv_obj_add_flag(ui_lblMessage,LV_OBJ_FLAG_HIDDEN);
+	//lv_obj_add_flag(ui_lblMessage,LV_OBJ_FLAG_HIDDEN);
+	//lv_obj_clear_flag(ui_batSaveSetting,LV_OBJ_FLAG_HIDDEN );
+	//_ui_flag_modify( ui_batSaveSetting , LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+	ESP_LOGI("SET","Tab System clicked");
 }
 void showMessageLabel(const char *message)
 {
@@ -91,6 +139,11 @@ void evtMessageLblClick(lv_event_t * e){
 void setRtcNewTime(RtcDateTime rtc);
 void btnEvnetSaveSetting(lv_event_t * e)
 {
+	uint16_t selectedTab=0;
+	selectedTab = lv_tabview_get_tab_act(ui_TabView1);
+	ESP_LOGW("UI","Tab selected %d",selectedTab);
+	if (selectedTab != 3) return ;
+
     uint16_t brightness = String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
     nvsSystemEEPRom.lcdBright= map(brightness , 0, 255, 0, 255); 
     ledcWrite(0, nvsSystemEEPRom.lcdBright ); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
@@ -127,52 +180,51 @@ void btnEvnetSaveSetting(lv_event_t * e)
 
 void btnEventRunUps(lv_event_t * e)
 {
+	upsModbusData.upsRun.upsRunCommandBit.UpsON =
+		upsModbusData.upsRun.upsRunCommandBit.UpsON ? 0 : 1;
+	// upsModbusData.upsRun.upsRunCommandBit.UpsOFF = 0;
+	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  upsModbusData.upsRun.upsRunCommandBit.UpsON = 1;
-  upsModbusData.upsRun.upsRunCommandBit.UpsOFF =0;
-    lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT );
-    lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT );
+	WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	uint32_t token = waitDataReceive();
+	ESP_LOGI("MODUBS", "Received token %d..",token );
+	// uint16_t waitingCount = 0;
+	// while (!getDataReady())
+	// {
+	// 	vTaskDelay(100);
+	// 	ESP_LOGI("MODUBS", "Wating...%d", waitingCount++);
+	// }
+	// ESP_LOGI("MODUBS", "Received %d..", getReceiveToken());
 }
 
 void btnEventStopUps(lv_event_t * e)
 {
-	// Your code here
-  upsModbusData.upsRun.upsRunCommandBit.UpsOFF =1;
-  upsModbusData.upsRun.upsRunCommandBit.UpsON =0;
-    lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT );
-    lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT );
+	// upsModbusData.upsRun.upsRunCommandBit.UpsOFF = 1;
+	upsModbusData.upsRun.upsRunCommandBit.UpsOFF =
+		upsModbusData.upsRun.upsRunCommandBit.UpsOFF ? 0 : 1;
+	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	uint32_t token = waitDataReceive();
+	ESP_LOGI("MODUBS", "Received token %d..",token );
+	// uint16_t waitingCount = 0;
+	// while (!getDataReady())
+	// {
+	// 	vTaskDelay(100);
+	// 	ESP_LOGI("MODUBS", "Wating...%d..", waitingCount++);
+	// }
+	// ESP_LOGI("MODUBS", "Received %d ", getReceiveToken());
 }
-	// Your code here
 	//ESP_LOGI("LVGL","%d %d",btn_id ,txt);
 	//if(strcmp(txt,1007180992)== 0){
 
-enum TextId {
-	BATCURR_REF=8,
-	BATVOL_REF=9,
-	OUTPUTVOL_REF=10,
-	INPUTVOLTGAIN = 38,
-	INPUTCURRGAIN = 39,
-	VDCLINKVOLTGAIN = 40,
-	VBATVOLTGAIN = 41,
-	BAT_CURRENT_GAIN= 42,
-	INVERTER_VOLT_GAIN= 43,
-	INVERTER_CURRENT_GAIN= 44,
-	OUTPUT_CURRENT_GAIN= 46,
-	EVENTTXTOFFTIME_ = 12,
-	BRIGHTNESSCONSTRAIN_ = 13,
-	SYSTEMYEAR= 60,
-	SYSTEMMONTH= 61,
-	SYSTEMDAY= 62,
-	SYSTEMHOUR= 63,
-	SYSTEMMINUTE= 64,
-	SYSTEMSECOND =65 
-};
 
-int WriteHoldRegistor(int index,int value,uint32_t Token);
 int checkValidation()
 {
 	uint32_t *p; 
 	uint16_t inputTextId=0;
+	uint32_t token ;
 	p = (uint32_t  *)lv_obj_get_user_data(ui_txtTempory );
 	inputTextId = *p >> 24; 
 	*p = *p & 0x00ffffff;
@@ -216,6 +268,8 @@ int checkValidation()
 		case INVERTER_CURRENT_GAIN:
 		case OUTPUT_CURRENT_GAIN:
 			WriteHoldRegistor(inputTextId,inputData ,inputTextId);
+			token = waitDataReceive();
+			ESP_LOGI("MODUBS", "Received token %d..",token );
 			break;
 		case EVENTTXTOFFTIME_:
 			break;
@@ -340,6 +394,8 @@ void scrSettingScreen(){
 void scrSettingScreenLoaded(lv_event_t * e){
 	changeKeyboardText();
 	scrSettingScreen();
+    //lv_obj_add_flag(ui_batSaveSetting, LV_OBJ_FLAG_HIDDEN );     /// Flags
+	//_ui_flag_modify( ui_batSaveSetting , LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 }
 void scrMeasureLoad(){
 
@@ -643,20 +699,28 @@ void evtLogScreenLoaded(lv_event_t * e){
 	//lv_event_send(ui_alarmTextArea,LV_SCROLL_SNAP_START);
 	//ESP_LOGW("UI EventAlarm","cursor %d",lv_textarea_get_cursor_pos(ui_alarmTextArea) );
 }
-void EventLogNext(lv_event_t * e){
-	uint16_t selectedTab=0;
+void EventLogNext(lv_event_t *e)
+{
+	uint16_t selectedTab = 0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
-	if(selectedTab ==0 ){
-		upslogEvent.filePos = upslogEvent.filePos  - LOG_PER_PAGE;
- 		ESP_LOGI("LOG","upslogAlarm.filePos %d",upslogEvent.filePos);
-		setLogTextArea(ui_eventTextArea,&upslogEvent);
+	if (selectedTab == 0)
+	{
+		if ((upslogEvent.filePos - LOG_PER_PAGE) > 0)
+		{
+			upslogEvent.filePos = upslogEvent.filePos - LOG_PER_PAGE;
+			ESP_LOGI("LOG", "upslogEevnt.filePos %d", upslogEvent.filePos);
+			setLogTextArea(ui_eventTextArea, &upslogEvent);
+		}
 	}
-	else {
-		upslogAlarm.filePos = upslogAlarm.filePos + LOG_PER_PAGE;
- 		ESP_LOGI("LOG","upslogAlarm.filePos %d",upslogAlarm.filePos);
-		setLogTextArea(ui_alarmTextArea,&upslogAlarm);
+	else
+	{
+		if (upslogAlarm.filePos - LOG_PER_PAGE >= 0)
+		{
+			upslogAlarm.filePos = upslogAlarm.filePos - LOG_PER_PAGE;
+			ESP_LOGI("LOG", "upslogAlarm.filePos %d", upslogAlarm.filePos);
+			setLogTextArea(ui_alarmTextArea, &upslogAlarm);
+		}
 	}
-
 }
 void EventLogPrev(lv_event_t * e){
 	uint16_t selectedTab=0;
@@ -674,8 +738,16 @@ void EventLogPrev(lv_event_t * e){
 }
 
 
+void btnAlarmRunStopAtLog(lv_event_t * e){
+	upslogAlarm.runBuzzStatus =upslogAlarm.runBuzzStatus  ? 0:1;
+	upsModbusData.upsRun.upsRunCommandBit.ALARM_RESET = upsModbusData.upsRun.upsRunCommandBit.ALARM_RESET ? 0: 1;
+	WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	uint32_t token = waitDataReceive();
+	ESP_LOGI("MODUBS", "Received token %d..",token );
+}
 void btnAlarmRunStop(lv_event_t * e){
-      //fadeOnOff_Animation(ui_btnAlarm, 0);
+ 	ESP_LOGI("ANI","Animation start");
+	upslogAlarm.runBuzzStatus =upslogAlarm.runBuzzStatus  ? 0:1;
 	  //lv_anim_del_all();
 }
 

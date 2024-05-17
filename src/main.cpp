@@ -10,6 +10,7 @@
 #include <modbusRtu.h>
 // #include "SimpleBLE.h"
 #include "ui.h"
+#include "myui.h"
 #include "upsLog.h"
 
 #include <EEPROM.h>
@@ -25,12 +26,12 @@
 
 #define OFFSCR_COLOR 0x495E80 
 #define ONSCR_COLOR 0xF4C834 
-#define OFFCONV_COLOR 0x0
+#define OFFCONV_COLOR 0x000000
 #define ONCONV_COLOR 0xFB0101
-#define ONLINE_COLOR 0x1DF32C
+//#define ONLINE_COLOR 0x20945E 
 #define OFFLINE_COLOR 0x0
 // #define BRIGHT 80
-// SimpleBLE SerialBT;
+// SimpleBLE mySerialBT;
 TaskHandle_t *h_pxModbusTask;
 
 ThreeWire myWire(MOSI, SCK /*12*/, RTCEN); // IO, SCLK, CE
@@ -60,6 +61,7 @@ void GetSetEventData();
 void modbusTask(void *parameter);
 void scrSettingScreen();
 void scrMeasureLoad();
+void toggleBuzzer();
 #define DISPLAY_43
 
 #ifdef DISPLAY_7
@@ -414,22 +416,35 @@ void mainScrUpdata(){
       lv_obj_set_style_bg_opa(ui_pnlMainPower3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
   }
   //바이패스모드 Change 바이패스와 인버터 SCR은 항상 반대로 
-  if (upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE == 0 ) 
+  if (upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE == 0 ) // 바이패스 모드
     {
       lv_obj_set_style_bg_color(ui_imgScrBypass, lv_color_hex(ONSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
       lv_obj_set_style_bg_color(ui_imgScrOutput, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
-      lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+
+      lv_obj_set_style_bg_opa(ui_pnlInvPower1 , 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlInvPower2 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlInvPower3 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlInvPower4 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      //lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+
+      //lv_obj_set_style_bg_opa(ui_pnlInvPower1, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
       // Bypass인데 정전이 아니어야 한다.  물론 이경우는 생기지는 않느다. 
       // 이미 정전을 감지 했으면 이 루틴으로 들어오지 않으며, 그것도 아니면 이미 셧다운이다. 
       // 단지 Simulation을 위해 사용한다.
-      if (upsModbusData.upsOperationFault.Bit.utility_line_failure == 0) 
-        lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
-      else 
-        lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+      // if (upsModbusData.upsOperationFault.Bit.utility_line_failure == 0) 
+      //   lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
+      // else 
+      //   lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
     }
   else {
       lv_obj_set_style_bg_color(ui_imgScrBypass, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
       lv_obj_set_style_bg_color(ui_imgScrOutput, lv_color_hex(ONSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+
+      lv_obj_set_style_bg_opa(ui_pnlInvPower1 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlInvPower2 , 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlInvPower3 , 0, LV_PART_MAIN| LV_STATE_DEFAULT);
+      lv_obj_set_style_bg_opa(ui_pnlInvPower4 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      //lv_obj_set_style_bg_opa(ui_pnlInvPower1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
   }
   // 충전부 운전
   if(upsModbusData.HWState.Bit.CONVERTER_RUN_STOP_STATE){
@@ -465,7 +480,7 @@ void mainScrUpdata(){
     lv_obj_set_style_bg_opa(ui_pnlInvPower, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
     //lv_obj_set_style_bg_color(ui_imgInvertorPowerLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
   }
-
+  toggleBuzzer();
  //
 //  if(upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE ) {
 //     lv_obj_set_style_bg_img_recolor(ui_imgOutputLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
@@ -501,7 +516,7 @@ void setup()
   digitalWrite(BUZZER, LOW);
 
   bleSetup();
-  // SerialBT.begin("UPS1P1P_BLE");
+  // mySerialBT.begin("UPS1P1P_BLE");
   if (EEPROM.read(0) != 0x55)
   {
     nvsSystemEEPRom.systemLanguage = 0; // default Hangul
@@ -630,6 +645,7 @@ void setup()
     //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
     ui_init();
+    myui_MainScreen_screen_init();
     // setTime();
 
     /* System setting screen*/
@@ -669,7 +685,7 @@ void setup()
   EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemEEPRom));
 
   // 시스템 시작시에는 바이패스로 놓는다
-  upsModbusData.ModuleState.Bit.To_Bypass_ModeChange = 1;
+  //upsModbusData.ModuleState.Bit.To_Bypass_ModeChange = 1;
   // 충전기 모듈은 정지되어 있는 상태이다
   upsModbusData.ModuleState.Bit.Charger_RUN = 0;
   // 인버터 정지 상태이다;
@@ -688,9 +704,33 @@ static unsigned long previous500mills = 0;
 static int every500ms = 500;
 static unsigned long now;
 unsigned long incTime = 1;
+/* 부저는 UPS에서 설정하면 작동을 시작한다. 
+*  하지만 사용자가 강제 중지하는 경우 애니매이션은 제외하고 부저음은 작동을 멈춘다.
+*  다시 작동시키기 위서는 부저 버튼을 클릭한다.
+*/
 void toggleBuzzer()
 {
-  digitalWrite(BUZZER, !digitalRead(BUZZER));
+  // 서버에서는 현재 알람 상태이다.
+  if (upslogAlarm.alarmStatus)
+  {
+    if (upslogAlarm.runBuzzStatus) // 이 값은 서버에서 값에 의해서도 변경된다.
+    {
+      digitalWrite(BUZZER, !digitalRead(BUZZER));
+    }
+    else 
+      digitalWrite(BUZZER, LOW);
+
+    lv_opa_t current_opa = lv_obj_get_style_bg_img_opa(ui_btnAlarm, LV_PART_MAIN);
+    if (current_opa == 0)
+      lv_obj_set_style_bg_img_opa(ui_btnAlarm, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    else
+      lv_obj_set_style_bg_img_opa(ui_btnAlarm, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+  }
+  else  //알람상태가 아니다 
+  {
+    digitalWrite(BUZZER, LOW);
+    lv_obj_set_style_bg_img_opa(ui_btnAlarm, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+  }
 }
 // int modbusEventSendLoop(int timeout);
 // int modbusEventGetLoop();
@@ -710,7 +750,6 @@ void loop()
   }
   if ((now - previous500mills > every500ms))
   {
-    // toggleBuzzer();
     previous500mills = now;
   }
   if ((now - previous1000mills > everySecondInterval))

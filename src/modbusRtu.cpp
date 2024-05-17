@@ -580,8 +580,8 @@ ModbusMessage FC06(ModbusMessage request)
 };
 #else
 ModbusClientRTU MB(-1,100);
-char request_response;
-bool data_ready = false;
+static uint32_t request_response;
+static bool data_ready = false;
 int modbustimeout;
 char requestToken[12]={'E','E','E','A','E','E','E','A','E','E','E','A'};
 int tokenLoopCount=0;
@@ -625,8 +625,6 @@ void handleData(ModbusMessage response, uint32_t token)
   else if (func == WRITE_HOLD_REGISTER)
   {
 
-    request_response = token;
-    data_ready = true;
     int address ; 
     const uint8_t *rev =  response.data();
     int len = response.size();
@@ -637,7 +635,17 @@ void handleData(ModbusMessage response, uint32_t token)
     offs = 4;
     offs = response.get(offs, values[token]);
     ESP_LOGE("MODBUS","func %d token %d address %d value %d",func, token,address, values[token]);
+    data_ready = true;
+    request_response = token;
   }
+}
+uint32_t getDataReady ()
+{
+  return data_ready;
+}
+uint32_t getReceiveToken()
+{
+  return request_response ;
 }
 void handleError(Error error, uint32_t token) 
 {
@@ -645,18 +653,33 @@ void handleError(Error error, uint32_t token)
   ModbusError me(error);
   ESP_LOGE("MODBUS","Error response: %02X - %s\n", (int)me, (const char *)me);
 }
+uint32_t waitDataReceive()
+{
+
+	uint16_t waitingCount = 0;
+	while (!data_ready)  // 1초간 Waiting한다.
+	{
+		vTaskDelay(10);
+		//ESP_LOGI("MODUBS", "Wating...%d", waitingCount++);
+    if(waitingCount>100) break;
+	}
+	ESP_LOGI("MODUBS", "WatingCount %d Received %d..",waitingCount, request_response );
+  tokenLoopCount = 0;
+  return request_response ;
+}
 /* 데이타를 보낼때 Time out을 결정한다. 
 *  @timeout milisecond
 */
 int WriteHoldRegistor(int index,int value,uint32_t Token){
   tokenLoopCount = -1;
   vTaskDelay(300);
+  data_ready = false;
   Error err = MB.addRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
   if (err!=SUCCESS) {
     ModbusError e(err);
     ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
   }
-  tokenLoopCount = 0;
+  //waitDataReceive();
   return 0;
 }
 int modbusEventSendLoop(int timeout)
