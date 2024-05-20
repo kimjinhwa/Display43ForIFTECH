@@ -1,11 +1,13 @@
 .pio
-/lib/Arduino_GFX-master
+#/lib/Arduino_GFX-master
 #/lib/ArduinoJson
 #/lib/AsyncTCP
-/lib/ESP32-audioI2S-master
+#/lib/ESP32-audioI2S-master
 /lib/Gt911-arduino-main
-/lib/Lvgl
-
+/lib/Lvgl/demos
+/lib/Lvgl/docs
+/lib/Lvgl/examples
+/lib/Lvgl/tests
 /test
 .vscode/.browse.c_cpp.db*
 .vscode/c_cpp_properties.json
