@@ -258,12 +258,18 @@ void showSystemUpdate()
   scrSettingScreen();
   scrMeasureLoad();
 
-  lv_textarea_set_text(ui_txtYear,String(nowTime.Year()).c_str());
-  lv_textarea_set_text(ui_txtMonth,String(nowTime.Month()).c_str());
-  lv_textarea_set_text(ui_txtDay,String(nowTime.Day()).c_str());
-  lv_textarea_set_text(ui_txtHour,String(nowTime.Hour()).c_str());
-  lv_textarea_set_text(ui_txtMinute,String(nowTime.Minute()).c_str());
-  lv_textarea_set_text(ui_txtSecond,String(nowTime.Second()).c_str());
+
+	uint16_t selectedTab=0;
+	selectedTab = lv_tabview_get_tab_act(ui_TabView1);
+  if (selectedTab != 3) //탭이 활성화 되어 있다면 update를 하지 않는다.
+  {
+    lv_textarea_set_text(ui_txtYear, String(nowTime.Year()).c_str());
+    lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
+    lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
+    lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
+    lv_textarea_set_text(ui_txtMinute, String(nowTime.Minute()).c_str());
+    lv_textarea_set_text(ui_txtSecond, String(nowTime.Second()).c_str());
+  }
 }
 
 void drawCursor(int16_t x, int16_t y, uint16_t color)
