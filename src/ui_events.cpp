@@ -80,7 +80,6 @@ void ChangeLanguage(lv_event_t * e)
     EEPROM.commit();
 	showMessageLabel(_("REBOOT"));
   	lv_timer_handler(); 
-	vTaskDelay(1500);
 	esp_restart();
  	//   ui_init();
  	//mainScrUpdata();
@@ -165,14 +164,9 @@ void btnEvnetSaveSetting(lv_event_t * e)
 	nowTime.tm_hour = String(lv_textarea_get_text(ui_txtHour)).toInt();
 	nowTime.tm_min = String(lv_textarea_get_text(ui_txtMinute)).toInt();
 	nowTime.tm_sec = String(lv_textarea_get_text(ui_txtSecond)).toInt();
-	// gettimeofday(&tmv, NULL);
 	RtcDateTime nowRtc = RtcDateTime(nowTime.tm_year,nowTime.tm_mon,nowTime.tm_mday,nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
 	setRtcNewTime(nowRtc );
  	ESP_LOGI("Set Rtc","Set Rtc");
-  	// // time_t now = mktime(&nowTime);
-	// // timeval tVal;
-	// // tVal.tv_sec = now;
-	// // settimeofday(&tVal,NULL);
 	showMessageLabel(_("SAVED"));
 	EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
 	EEPROM.commit();
@@ -182,25 +176,16 @@ void btnEventRunUps(lv_event_t * e)
 {
 	upsModbusData.upsRun.upsRunCommandBit.UpsON =
 		upsModbusData.upsRun.upsRunCommandBit.UpsON ? 0 : 1;
-	// upsModbusData.upsRun.upsRunCommandBit.UpsOFF = 0;
 	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
 	lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
 
 	WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
 	uint32_t token = waitDataReceive();
 	ESP_LOGI("MODUBS", "Received token %d..",token );
-	// uint16_t waitingCount = 0;
-	// while (!getDataReady())
-	// {
-	// 	vTaskDelay(100);
-	// 	ESP_LOGI("MODUBS", "Wating...%d", waitingCount++);
-	// }
-	// ESP_LOGI("MODUBS", "Received %d..", getReceiveToken());
 }
 
 void btnEventStopUps(lv_event_t * e)
 {
-	// upsModbusData.upsRun.upsRunCommandBit.UpsOFF = 1;
 	upsModbusData.upsRun.upsRunCommandBit.UpsOFF =
 		upsModbusData.upsRun.upsRunCommandBit.UpsOFF ? 0 : 1;
 	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -208,16 +193,7 @@ void btnEventStopUps(lv_event_t * e)
 	WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
 	uint32_t token = waitDataReceive();
 	ESP_LOGI("MODUBS", "Received token %d..",token );
-	// uint16_t waitingCount = 0;
-	// while (!getDataReady())
-	// {
-	// 	vTaskDelay(100);
-	// 	ESP_LOGI("MODUBS", "Wating...%d..", waitingCount++);
-	// }
-	// ESP_LOGI("MODUBS", "Received %d ", getReceiveToken());
 }
-	//ESP_LOGI("LVGL","%d %d",btn_id ,txt);
-	//if(strcmp(txt,1007180992)== 0){
 
 
 int checkValidation()
@@ -786,3 +762,26 @@ void btnAlarmRunStop(lv_event_t * e){
   //lv_obj_add_state( ui_chkHFMode, LV_STATE_CHECKED );     /// States
   //lv_obj_clear_state(ui_chkHFMode,LV_STATE_CHECKED );
   //lv_state_t state = lv_obj_get_state( ui_chkHFMode);
+	// upsModbusData.upsRun.upsRunCommandBit.UpsOFF = 0;
+	// uint16_t waitingCount = 0;
+	// while (!getDataReady())
+	// {
+	// 	vTaskDelay(100);
+	// 	ESP_LOGI("MODUBS", "Wating...%d", waitingCount++);
+	// }
+	// ESP_LOGI("MODUBS", "Received %d..", getReceiveToken());
+	// gettimeofday(&tmv, NULL);
+  	// // time_t now = mktime(&nowTime);
+	// // timeval tVal;
+	// // tVal.tv_sec = now;
+	// // settimeofday(&tVal,NULL);
+	// upsModbusData.upsRun.upsRunCommandBit.UpsOFF = 1;
+	// uint16_t waitingCount = 0;
+	// while (!getDataReady())
+	// {
+	// 	vTaskDelay(100);
+	// 	ESP_LOGI("MODUBS", "Wating...%d..", waitingCount++);
+	// }
+	// ESP_LOGI("MODUBS", "Received %d ", getReceiveToken());
+	//ESP_LOGI("LVGL","%d %d",btn_id ,txt);
+	//if(strcmp(txt,1007180992)== 0){

@@ -720,8 +720,15 @@ int modbusEventSendLoop(int timeout)
     ESP_LOGE("MODBUS", "Error creating request: %02X - %s\n", (int)e, (const char *)e);
     return 0;
   }
+  if(timeout>0)
+  for(int i=0;i<timeout;i++){
+    vTaskDelay(1);
+    if(data_ready) 
+      break;
+  }
+
   tokenLoopCount++;  // 전송이 제대로 됬다면 다음 루틴으로 간다
-  return 1;
+  return data_ready;
 }
 void modbusStop(){
   tokenLoopCount=-1;
@@ -750,13 +757,13 @@ static unsigned long previous300mills = 0;
 static unsigned long now;
 void modbusTask(void *parameter)
 {
-  modbusSetup();
+  //modbusSetup();
   for (;;)
   {
     now = millis();
     if ((now - previous300mills > every300ms))
     {
-      modbusEventSendLoop(30);
+      modbusEventSendLoop(100);
       previous300mills = now;
     }
     modbusEventGetLoop();

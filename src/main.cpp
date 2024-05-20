@@ -5,6 +5,7 @@
 #include <RtcDS1302.h>
 #include "mainGrobal.h"
 #include "myBlueTooth.h"
+#include "../Version.h"
 // #include "fileSystem.h"
 
 #include <modbusRtu.h>
@@ -507,6 +508,7 @@ void mainScrUpdata(){
 //   }
 }
 
+int modbusEventSendLoop(int timeout);
 void setup()
 {
   Serial.begin(BAUDRATEDEF);
@@ -548,13 +550,13 @@ void setup()
   // nvsSystemEEPRom.BAUDRATE = 9600;
   //  while (!Serial);
   nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
-  Serial.println("\nInit RTC");
-  Serial.printf("\nbaud Rate %d", nvsSystemEEPRom.BAUDRATE);
-  Serial.printf("\nlanguage %d", nvsSystemEEPRom.systemLanguage);
-  Serial.printf("\nlcdBright language %d", nvsSystemEEPRom.lcdBright);
-  Serial.printf("\nsystemLedOffTime %d", nvsSystemEEPRom.systemLedOffTime);
   setRtc();
 
+  Serial.println("Setup done");
+  pinMode(18, INPUT);
+  Serial1.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, 18 /* RX */, 17 /* TX*/);
+  Serial1.println("Serial 1 started");
+  modbusSetup();
   // Init Display
   // Add
   gfx->begin();
@@ -570,14 +572,28 @@ void setup()
   ledcWrite(0, brightness);
 
   gfx->fillScreen(RED);
-  delay(500);
+  delay(200);
   gfx->fillScreen(GREEN);
-  delay(500);
+  delay(200);
   gfx->fillScreen(BLUE);
-  delay(500);
+  delay(200);
   gfx->fillScreen(BLACK);
-  delay(500);
-
+  delay(200);
+  gfx->setCursor(0,10);
+  gfx->setTextColor(WHITE);
+  gfx->printf("\nVER:%s",version1);
+  gfx->print("\nInit RTC");
+  gfx->printf("\nbaud Rate %d", nvsSystemEEPRom.BAUDRATE);
+  gfx->printf("\nlanguage %d", nvsSystemEEPRom.systemLanguage);
+  gfx->printf("\nlcdBright language %d", nvsSystemEEPRom.lcdBright);
+  gfx->printf("\nsystemLedOffTime %d", nvsSystemEEPRom.systemLedOffTime);
+  gfx->println("\nmodbus started");
+  gfx->println("\nCheck modbus Serial comm...");
+  while(! modbusEventSendLoop(1000) ){
+    gfx->print(".");
+  }
+  gfx->println("\nCheck modbus Serial OK");
+  //vTaskDelay(1000);
   touchCalibrationInit();
 
   lv_i18n_init(lv_i18n_language_pack);
@@ -671,12 +687,6 @@ void setup()
 
     // lv_label_set_text(ui_NiceLabel,_("RunAniButton"));
   }
-  Serial.println("Setup done");
-  pinMode(18, INPUT);
-  Serial1.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, 18 /* RX */, 17 /* TX*/);
-  Serial1.println("Serial 1 started");
-  modbusSetup();
-  Serial.println("modbus started");
   // Modbus는 내부적으로 task를 사용하고 있다.
   xTaskCreate(modbusTask, "modbusTask", 8000, NULL, 1, h_pxModbusTask);
 #ifdef USEWIFI
