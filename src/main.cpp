@@ -257,6 +257,13 @@ void showSystemUpdate()
 
   scrSettingScreen();
   scrMeasureLoad();
+
+  lv_textarea_set_text(ui_txtYear,String(nowTime.Year()).c_str());
+  lv_textarea_set_text(ui_txtMonth,String(nowTime.Month()).c_str());
+  lv_textarea_set_text(ui_txtDay,String(nowTime.Day()).c_str());
+  lv_textarea_set_text(ui_txtHour,String(nowTime.Hour()).c_str());
+  lv_textarea_set_text(ui_txtMinute,String(nowTime.Minute()).c_str());
+  lv_textarea_set_text(ui_txtSecond,String(nowTime.Second()).c_str());
 }
 
 void drawCursor(int16_t x, int16_t y, uint16_t color)
@@ -771,7 +778,8 @@ void loop()
     mainScrUpdata();
     if (lcdOntime >= nvsSystemEEPRom.systemLedOffTime) // lv_led_off(led);
     {
-      _ui_screen_change(&ui_InitScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_InitScreen_screen_init); // lv_disp_load_scr( ui_InitScreen);
+      //_ui_screen_change(&ui_InitScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_InitScreen_screen_init); // lv_disp_load_scr( ui_InitScreen);
+      _ui_screen_change(&ui_MainScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_MainScreen_screen_init);
       ledcWrite(0, 0);
     }
   }
