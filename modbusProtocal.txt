@@ -1,0 +1,35 @@
+Function 04
+
+	Add 	Fun	add_h	add_l count_h	count_l chekH	checkL
+send	01 	04	00	0F 	00      03	xx      xx   <- 8 byte
+respo   01	04	06	YY	YY	YY	YY	YY	YY 	xx xx <- 11 byte		
+waiting 300ms
+
+send	01 	04	00	0F 	00      03	xx      xx   <- 8 byte
+respo   01	04	06	YY	YY	YY	YY	YY	YY 	xx xx <- 11 byte		
+waiting 300ms
+
+send	01 	04	00	0F 	00      03	xx      xx   <- 8 byte
+respo   01	04	06	YY	YY	YY	YY	YY	YY 	xx xx <- 11 byte		
+waiting 300ms
+
+send	01 	04	00	0F 	00      3A	xx      xx   <- 8 byte
+respo   01   	04	06	YY	YY	YY	YY	YY	YY 	Yx xx <- 3 + 58*2 + 2 = 163 byte 
+
+repeat.....
+
+
+
+// 1개의 데이타를 쓰는 경우 
+// 요청번지 1번이 address 0에 해당하지만 
+// 0번지를 사용할일은 없으므로 요청번지 1은 ups의 메모리 번지 1번으로 한다.
+// 1번지의 데이타 1개를 0x1234로 쓰라고 요청할 경우
+Function 16
+		Add Fun	a_h	a_l d_h	d_l d_h	d_l	c_H	c_L
+send	01 	10	00	01 	00 	01	12  34   xx  xx <- 8 byte
+
+		Add Fun	a_h	a_l c_h	c_l	c_H	c_L
+respo   01	10	00	01	00	01	xx 	xx <- 8 byte		
+
+// 15번지의 데이타 2개를 0x000A , 0x0102로 쓰라고 요청할 경우
+send	01 	10	00	01 	00 	01	12  34   xx  xx <- 8 byte
