@@ -19,7 +19,8 @@
 			"string_view": "cpp",
 			"initializer_list": "cpp",
 			"lvgl.h": "c",
-			"new": "cpp"
+			"new": "cpp",
+			"myui.h": "c"
 		}
 	}
 }

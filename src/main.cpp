@@ -6,6 +6,7 @@
 #include "mainGrobal.h"
 #include "myBlueTooth.h"
 #include "../Version.h"
+//#include "font/FreeSansBold12pt7b.h"
 // #include "fileSystem.h"
 
 #include <modbusRtu.h>
@@ -201,6 +202,7 @@ void showSystemUpdate()
   RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
   // tm *nowTime= gmtime(&tmv.tv_sec);
   String date;
+  
   date = nowTime.Year() + ".  ";
   date += nowTime.Month() + ".  ";
   date += nowTime.Day() + "  ";
@@ -593,6 +595,9 @@ void setup()
   gfx->fillScreen(BLACK);
   delay(200);
   gfx->setCursor(0,10);
+  //GFXfont *f;
+  //f->bitmap = (uint8_t *)&FreeSansBold12pt7bBitmaps;
+  //gfx->setFont(f);
   gfx->setTextColor(WHITE);
   gfx->printf("\nVER:%s",version1);
   gfx->print("\nInit RTC");

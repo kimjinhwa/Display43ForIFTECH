@@ -712,7 +712,7 @@ int modbusEventSendLoop(int timeout)
   default:
     break;
   }
-  Error err = MB.addRequest(requestToken[tokenLoopCount], 1, func, startAddress, dataCount * 2);
+  Error err = MB.addRequest(requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
   //Error err = MB.addRequest(requestToken[tokenLoopCount], 1, READ_INPUT_REGISTER, 0, 58 * 2);
   if (err != SUCCESS)
   {
