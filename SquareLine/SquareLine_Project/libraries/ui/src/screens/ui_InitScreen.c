@@ -46,7 +46,7 @@ void ui_InitScreen_screen_init(void)
     lv_obj_set_style_text_font(ui_lblDate, &ui_font_digitalWatch32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblTime = lv_label_create(ui_Panel2);
-    lv_obj_set_width(ui_lblTime, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_width(ui_lblTime, lv_pct(100));
     lv_obj_set_height(ui_lblTime, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_lblTime, -7);
     lv_obj_set_y(ui_lblTime, 13);
@@ -54,6 +54,7 @@ void ui_InitScreen_screen_init(void)
     lv_label_set_text(ui_lblTime, "14 : 30");
     lv_obj_set_style_text_color(ui_lblTime, lv_color_hex(0x3EB02C), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_lblTime, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_lblTime, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_lblTime, &ui_font_digitalWatch56, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel1 = lv_obj_create(ui_InitScreen);

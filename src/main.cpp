@@ -55,8 +55,8 @@ int16_t minDisMessageTime = 1;
 // #define DISPLAY_7
 static char TAG[] = "main";
 
-upsLog upslogEvent("/spiffs/eventLog.hex", 0);
-upsLog upslogAlarm("/spiffs/eventAlarm.hex", 1); //
+upsLog upslogEvent("/spiffs/eventLog.hex", EVENT_TYPE);
+upsLog upslogAlarm(FAULT_TYPE); //
 
 void mainScrUpdata();
 void GetSetEventData();
@@ -124,6 +124,7 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
 }
 
 extern XPT2046_Touchscreen ts;
+extern int modbusErrorCounter;
 void touchTest(int loopCount)
 {
   uint16_t x, y;
@@ -390,30 +391,36 @@ void GetSetEventData()
                                                upsModbusData.upsOperationFault.status);
   if (isEventLogChanged)
   {
-    ESP_LOGW("UI", "%d %d %d %d", isAlarmLogChanged,
-             upsModbusData.ModuleState.status,
-             upsModbusData.HWState.status,
-             upsModbusData.upsOperationFault.status);
-    upslogEvent.readLastLog(&log);
-    String retStr = upslogEvent.readCurrentLog(&log, LOG_PER_PAGE);
-    lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
-    while (lv_textarea_get_cursor_pos(ui_eventTextArea))
-    {
-      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_eventTextArea));
-      lv_textarea_cursor_up(ui_eventTextArea);
-    }
+    // ESP_LOGW("UI", "%d %d %d %d", isAlarmLogChanged,
+    //          upsModbusData.ModuleState.status,
+    //          upsModbusData.HWState.status,
+    //          upsModbusData.upsOperationFault.status);
+    //String retStr = upslogEvent.readCurrentLog(CURRENTLOG);
+    //upslogEvent.readCurrentLog(&log, LOG_PER_PAGE);
+    // lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
+    // while (lv_textarea_get_cursor_pos(ui_eventTextArea))
+    // {
+    //   //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_eventTextArea));
+    //   lv_textarea_cursor_up(ui_eventTextArea);
+    // }
+
+    if(upslogAlarm.totalPage>0) upslogAlarm.currentMemoryPage = upslogAlarm.totalPage-1;
+    lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
   }
 
   if (isAlarmLogChanged)
   {
-    upslogAlarm.readLastLog(&log);
-    String retStr = upslogAlarm.readCurrentLog(&log, LOG_PER_PAGE);
-    lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
-    while (lv_textarea_get_cursor_pos(ui_alarmTextArea))
-    {
-      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_alarmTextArea));
-      lv_textarea_cursor_up(ui_alarmTextArea);
-    }
+    // String retStr = upslogAlarm.readCurrentLog(CURRENTLOG);
+    // if(upslogAlarm.alarmStatus ==0 ) retStr =""; //알람이 없으므로 클리어 하여 준다.
+    // lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
+    // ESP_LOGW("UI EventAlarm", "ui_alarmTextArea %s", retStr.c_str());
+    // while (lv_textarea_get_cursor_pos(ui_alarmTextArea))
+    // {
+    //   //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_alarmTextArea));
+    //   lv_textarea_cursor_up(ui_alarmTextArea);
+    // }
+    upslogAlarm.currentMemoryPage = 0;
+    lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
   }
 }
 
@@ -533,6 +540,7 @@ void setup()
   digitalWrite(BUZZER, LOW);
 
   bleSetup();
+  upslogEvent.getFileSize();
   // mySerialBT.begin("UPS1P1P_BLE");
   if (EEPROM.read(0) != 0x55)
   {
@@ -679,6 +687,7 @@ void setup()
     //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
     ui_init();
+    //lv_obj_add_flag(ui_TabView2,LV_OBJ_FLAG_GESTURE_BUBBLE);
     myui_MainScreen_screen_init();
     // setTime();
 
@@ -762,12 +771,17 @@ void toggleBuzzer()
 }
 // int modbusEventSendLoop(int timeout);
 // int modbusEventGetLoop();
+void showMessageLabel(const char *message);
+//extern lv_obj_t * ui_MainScreen;
+
 void loop()
 {
   void *parameters;
   wifiOtaloop();
   bleCheck();
   now = millis();
+  if(modbusErrorCounter>2)
+    showMessageLabel(_("Comm_Error"));
   if ((now - previous300mills > every300ms))
   {
     // 여기서 모드버스 통신을 하자

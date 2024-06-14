@@ -11,6 +11,8 @@
 #include "lv_i18n.h"
 #include "upsLog.h"
 #include <sstream>
+//#include "string.h"
+//#include <cstring>
 extern upsLog  upslogEvent;
 extern upsLog  upslogAlarm;
 extern bool data_ready ;
@@ -45,6 +47,12 @@ uint32_t getReceiveToken();
 uint32_t getDataReady ();
 lv_obj_t *ui_txtTempory ;
 
+// void change_tab_name(lv_obj_t * tab, const char * new_name) {
+//     lv_obj_t * tab_label = lv_obj_get_child(tab, 0); // 탭의 첫 번째 자식 객체가 라벨 객체임
+//     if (tab_label != NULL && lv_obj_check_type(tab_label, &lv_label_class)) {
+//         lv_label_set_text(tab_label, new_name);
+//     }
+// }
 void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::string>*newStr*/)
 {
 	std::string retStr(source);
@@ -128,6 +136,9 @@ void evtSystemTabClicked(lv_event_t *e)
 }
 void showMessageLabel(const char *message)
 {
+	lv_obj_t * current_screen = lv_scr_act();
+    lv_obj_set_parent( ui_lblMessage,current_screen );
+
 	lv_label_set_text( ui_lblMessage,message);
 	_ui_flag_modify( ui_lblMessage, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 }
@@ -623,12 +634,13 @@ void EventTxtSecond(lv_event_t * e)
 	CommonEevntProc(e);
 }
 
-void setLogTextArea(lv_obj_t *obj,upsLog  *upslog)
+void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction)
 {
 	upslog_t log;
 	String retStr;
 	retStr = "";
-	retStr = upslog->readCurrentLog( &log, LOG_PER_PAGE);
+	retStr = upslog->readCurrentLog(direction);
+
 	lv_textarea_set_text(obj, retStr.c_str());
 	//ESP_LOGW("UI EventLog","log \n%s",retStr.c_str() );
 	while( lv_textarea_get_cursor_pos(obj)){
@@ -644,14 +656,12 @@ void evtLogScreenLoaded(lv_event_t * e){
 	upslog_t log;
 	//if(selectedTab ==0 )
 	{
-		upslogEvent.readCurrentLog(&log,LOG_PER_PAGE	);
-		setLogTextArea(ui_eventTextArea,&upslogEvent);
+		setLogTextArea(ui_eventTextArea,&upslogEvent,CURRENTLOG);
 		//lv_textarea_set_text(ui_eventTextArea, retStr.c_str() );
 	}
 	//else 
 	{
-		upslogAlarm.readCurrentLog(&log,LOG_PER_PAGE	);
-		setLogTextArea(ui_alarmTextArea,&upslogAlarm);
+		setLogTextArea(ui_alarmTextArea,&upslogAlarm,CURRENTLOG);
 		//lv_textarea_set_text(ui_alarmTextArea, retStr.c_str() );
 		//ESP_LOGW("UI EventAlarm","log %s",retStr.c_str() );
 	}
@@ -665,6 +675,29 @@ void evtLogScreenLoaded(lv_event_t * e){
 		//ESP_LOGW("UI EventAlarm","lv_textarea_cursor_up%d",lv_textarea_get_cursor_pos(ui_alarmTextArea) );
 		lv_textarea_cursor_up(ui_alarmTextArea);
 	}
+	std::string strMessage;
+	if (upslogEvent.logCount > 0)
+	{
+		strMessage.append(_("alarmStatus"));
+		strMessage.append("(");
+		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
+		strMessage.append("/");
+		strMessage.append(std::to_string(upslogEvent.totalPage));
+		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+	}
+	if (upslogAlarm.logCount > 0)
+	{
+		strMessage = "";
+		strMessage.append(_("alarmHistory"));
+		strMessage.append("(");
+		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
+		strMessage.append("/");
+		strMessage.append(std::to_string(upslogAlarm.totalPage));
+		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	}
+
 	//lv_obj_set_scroll_snap_y(ui_eventTextArea,LV_SCROLL_SNAP_START);
 	//lv_obj_set_scroll_snap_y(ui_alarmTextArea,LV_SCROLL_SNAP_START);
 	
@@ -677,42 +710,80 @@ void evtLogScreenLoaded(lv_event_t * e){
 }
 void EventLogNext(lv_event_t *e)
 {
+
+	uint16_t selectedTab = 0;
+	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
+	if (selectedTab == 0){
+		ESP_LOGI("EVENT", "logEvent  Next Selected");
+		setLogTextArea(ui_eventTextArea, &upslogEvent,NEXTLOG);
+	}
+	else{
+		ESP_LOGI("EVENT", "Alarm Next Selected");
+		setLogTextArea(ui_alarmTextArea, &upslogAlarm,NEXTLOG);
+	}
+	std::string strMessage;
+	if (upslogEvent.logCount > 0)
+	{
+		strMessage.append(_("alarmStatus"));
+		strMessage.append("(");
+		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
+		strMessage.append("/");
+		strMessage.append(std::to_string(upslogEvent.totalPage));
+		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+	}
+	if (upslogAlarm.logCount > 0)
+	{
+		strMessage = "";
+		strMessage.append(_("alarmHistory"));
+		strMessage.append("(");
+		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
+		strMessage.append("/");
+		strMessage.append(std::to_string(upslogAlarm.totalPage));
+		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	}
+
+}
+void EventLogPrev(lv_event_t *e)
+{
+
 	uint16_t selectedTab = 0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	if (selectedTab == 0)
 	{
-		if ((upslogEvent.filePos - LOG_PER_PAGE) > 0)
-		{
-			upslogEvent.filePos = upslogEvent.filePos - LOG_PER_PAGE;
-			ESP_LOGI("LOG", "upslogEevnt.filePos %d", upslogEvent.filePos);
-			setLogTextArea(ui_eventTextArea, &upslogEvent);
-		}
+		ESP_LOGI("EVENT", "logEvent  Prev Selected");
+		setLogTextArea(ui_eventTextArea, &upslogEvent, PREVLOG);
 	}
 	else
 	{
-		if (upslogAlarm.filePos - LOG_PER_PAGE >= 0)
-		{
-			upslogAlarm.filePos = upslogAlarm.filePos - LOG_PER_PAGE;
-			ESP_LOGI("LOG", "upslogAlarm.filePos %d", upslogAlarm.filePos);
-			setLogTextArea(ui_alarmTextArea, &upslogAlarm);
-		}
+		ESP_LOGI("EVENT", "Alarm Prev Selected");
+		setLogTextArea(ui_alarmTextArea, &upslogAlarm, PREVLOG);
 	}
-}
-void EventLogPrev(lv_event_t * e){
-	uint16_t selectedTab=0;
-	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
-	if(selectedTab ==0 ){
-		upslogEvent.filePos = upslogEvent.filePos  + LOG_PER_PAGE;
- 		ESP_LOGI("LOG","upslogAlarm.filePos %d",upslogEvent.filePos);
-		setLogTextArea(ui_eventTextArea,&upslogEvent);
-	}
-	else {
-		upslogAlarm.filePos = upslogAlarm.filePos + LOG_PER_PAGE;
- 		ESP_LOGI("LOG","upslogAlarm.filePos %d",upslogAlarm.filePos);
-		setLogTextArea(ui_alarmTextArea,&upslogAlarm);
-	}
-}
 
+	std::string strMessage;
+	if (upslogEvent.logCount > 0)
+	{
+		strMessage.append(_("alarmStatus"));
+		strMessage.append("(");
+		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
+		strMessage.append("/");
+		strMessage.append(std::to_string(upslogEvent.totalPage));
+		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+	}
+	if (upslogAlarm.logCount > 0)
+	{
+		strMessage = "";
+		strMessage.append(_("alarmHistory"));
+		strMessage.append("(");
+		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
+		strMessage.append("/");
+		strMessage.append(std::to_string(upslogAlarm.totalPage));
+		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	}
+}
 
 void btnAlarmRunStopAtLog(lv_event_t * e){
 	upslogAlarm.runBuzzStatus =upslogAlarm.runBuzzStatus  ? 0:1;

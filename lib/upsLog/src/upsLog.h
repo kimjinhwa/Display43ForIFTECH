@@ -1,87 +1,90 @@
 #ifndef _UPS_LOG_H
 #define _UPS_LOG_H
+#define ESP32DEF 
+#ifndef WINDOWS
 #include <Arduino.h>
+#endif
 
 #include <stdio.h>
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <tuple>
 #include <cstring>
 #include "lv_i18n.h"
+#ifndef WINDOWS
 #include "../../../src/mainGrobal.h"
+#else
+#include "main.h"
+#endif
 //#define VSCODE
 #define MAX_LOG_COUNT   1000
-#define MAX_NUM_PAGE     7 
 
 
-typedef struct {
+typedef struct upslog_t{
     uint16_t logId;
     uint32_t logTime;
     uint16_t modulestatus ;
     uint16_t HWstatus ;
     uint16_t operationFault;
+    uint8_t  message[50];
 } upslog_t;
+
+enum directionType_t 
+{
+    PREVLOG= -1,
+    CURRENTLOG= 0,
+    NEXTLOG= 1,
+};
+    enum eventType_t 
+    {
+        EVENT_TYPE = 0,
+        FAULT_TYPE = 1,
+    };
+
 class upsLog
 {
 private:
     char filename[30];
-    uint16_t eventType;
-    uint16_t numPerPage=MAX_NUM_PAGE;
-    //upslog_t logArray[MAX_NUM_PAGE]     ;
-    uint16_t logCount=0;
-    uint16_t totalPage;
-    int16_t actualReadCount;
+    eventType_t eventType;
     uint16_t old_moduleStatusEvent=0;
     uint16_t old_HwStatusEvent=0;
     uint16_t old_upsOperationFault=0;
     HWState_t oldHWState;                     // 16  trnms->1
     uint16_t logid=0;
-
-    long logfile_size ;
     uint16_t mask_moduleStatusEvent =0b0111111111111111;
     uint16_t mask_HwStatusEvent     =0b0110110111100111;
     uint16_t mask_upsOperationFault =0b0111111111111111;
 
-    long getFileSize();
-    int writeLog(upslog_t *log);
     int shrinkFile();
 
 public:
- 
-    // enum eventType_t 
-    // {
-    //     EVENT = 0,
-    //     FAULT = 1,
-    // };
-
+    uint16_t logCount=0;
+    uint16_t totalPage;
+    int16_t currentMemoryPage=0;
+    long getFileSize();
     enum upsStatus_t
     {
         MODULE_STATUS = 0,
         HW_STATUS = 1,
         OPERATIONAL_FAULT = 2,
-        // UPS_STATUS_ENG = 0,
-        // UPS_FALULT_ENG = 1,
-        // UPS_STATUS_HAN = 2,
-        // UPS_FALULT_HAN = 3,
     };
-    //std::vector <upslog_t>vlogs;
-    int16_t  filePos;
+    std::vector <std::tuple<uint16_t , std::string> >vlogs;
+    std::vector <std::tuple<uint16_t , std::string> >vWarninglogs;
+    //int16_t  vlogMemPos=0 ;
     uint16_t runBuzzStatus=0;
     uint16_t alarmStatus=0;
     upsLog();
-    upsLog(const char* filename,uint16_t eventType);
+    upsLog(eventType_t eventType);
+    upsLog(const char* filename,eventType_t eventType);
+    int writeLog(upslog_t *log);
+    int writeLogToVmem(upslog_t *log);
     int setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint16_t upsOperationFault);
-    void parseMessage( std::string *string_t,uint16_t value, upsStatus_t ups_status,uint32_t logtime);
-
-    int getLogFromFile(uint16_t index, upslog_t *retLog );
-    int readLastLog(upslog_t *upsLog);
-    int readFirstLog(upslog_t *upsLog);
-    int readCurrentLog(upslog_t *upsLog);
-    const char * readCurrentLog(upslog_t *upsLog,int count);
-    int readPrevLog(upslog_t *upsLog);
-    int readNextLog(upslog_t *upsLog);
-
+    void parseMessage(std::string *string_t,uint16_t logId,uint16_t value, upsStatus_t ups_status,uint32_t logtime);
     const char* getLogString(const upslog_t *logArray);
+    const char * readCurrentLog(directionType_t direction);
+    const char * readCurrentLogFromVector(directionType_t direction);
+ 
 
    const char *Module_state_event[16] = {
         "R_C_Start_Run_Event",               /* 0 */
@@ -138,6 +141,8 @@ public:
         "",                              /* 15 reserved*/
     };
 };
+#endif
+
 // class upsLog
 // {
 // private:
@@ -253,4 +258,22 @@ public:
 //         _(""),                              /* 15 reserved*/
 //     };
 // };
-#endif
+    // enum eventType_t 
+    // {
+    //     EVENT = 0,
+    //     FAULT = 1,
+    // };
+    // int readPrevLog(upslog_t *upsLog);
+    // int readNextLog(upslog_t *upsLog);
+    //int getLogFromFile(uint16_t index, upslog_t *retLog );
+    //int readLogToVector(int16_t memoryPage);
+
+    //const char * readStartLog();
+    //const char * readLastLog();
+    //const char * readPrevLog();
+    //const char * readNextLog();
+
+    //int readFirstLog(upslog_t *upsLog);
+    //int readCurrentLog(upslog_t *upsLog);
+
+    //void getLogStringToVlogs(const upslog_t *logArray);

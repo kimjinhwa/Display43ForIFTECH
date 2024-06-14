@@ -585,6 +585,7 @@ static bool data_ready = false;
 int modbustimeout;
 char requestToken[12]={'E','E','E','A','E','E','E','A','E','E','E','A'};
 int tokenLoopCount=0;
+int modbusErrorCounter=0;
 void handleData(ModbusMessage response, uint32_t token)
 {
   // First value is on pos 3, after server ID, function code and length byte
@@ -594,7 +595,7 @@ void handleData(ModbusMessage response, uint32_t token)
   uint16_t *values;
   values = (uint16_t *)&upsModbusData;
   uint8_t func = response.getFunctionCode();
-  
+  modbusErrorCounter=0;
   if (func == READ_INPUT_REGISTER)
   {
     offs = 3;
@@ -650,6 +651,7 @@ uint32_t getReceiveToken()
 void handleError(Error error, uint32_t token) 
 {
   // ModbusError wraps the error code and provides a readable error message for it
+  modbusErrorCounter++;
   ModbusError me(error);
   ESP_LOGE("MODBUS","Error response: %02X - %s\n", (int)me, (const char *)me);
 }

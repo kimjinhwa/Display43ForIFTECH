@@ -52,8 +52,8 @@ en-GB:
   LogData: 'Log Data'
   Prev: 'Prev'
   Next: 'Next'
-  alarmStatus: 'Alarm Status'
-  alarmHistory: 'Alarm History'
+  alarmStatus: 'Alarm History'
+  alarmHistory: 'Alarm Status'
   Capacity: Capacity
   Input_Voltage: Input Voltage
   Output_Voltage: Output Voltage
@@ -132,3 +132,4 @@ en-GB:
   SAVE: SAVE
   CANCEL: CANCEL 
   BACKSPACE: DEL 
+  Comm_Error: Comm Error

@@ -2,7 +2,7 @@
 #define _MAIN_GROVAL_H
 #include <Arduino.h>
 
-#define LOG_PER_PAGE	7
+#define LOG_PER_PAGE	5
 
 typedef struct{
   uint16_t UpsON  : 1;
