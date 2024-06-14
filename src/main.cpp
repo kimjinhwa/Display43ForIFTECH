@@ -595,13 +595,13 @@ void setup()
   ledcWrite(0, brightness);
 
   gfx->fillScreen(RED);
-  delay(200);
+  delay(100);
   gfx->fillScreen(GREEN);
-  delay(200);
+  delay(100);
   gfx->fillScreen(BLUE);
-  delay(200);
+  delay(100);
   gfx->fillScreen(BLACK);
-  delay(200);
+  delay(100);
   gfx->setCursor(0,10);
   //GFXfont *f;
   //f->bitmap = (uint8_t *)&FreeSansBold12pt7bBitmaps;
