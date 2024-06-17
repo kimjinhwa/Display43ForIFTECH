@@ -34,8 +34,8 @@ void ui_SettingScreen_screen_init(void)
     ui_TabView1 = lv_tabview_create(ui_SettingScreen, LV_DIR_LEFT, 100);
     lv_obj_set_width(ui_TabView1, lv_pct(100));
     lv_obj_set_height(ui_TabView1, lv_pct(82));
-    lv_obj_clear_flag(ui_TabView1, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
-                      LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
+    lv_obj_clear_flag(ui_TabView1, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE |
+                      LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
     lv_obj_set_style_pad_left(ui_TabView1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_right(ui_TabView1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_top(ui_TabView1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1434,7 +1434,8 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_flex_flow(ui_Panel17, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(ui_Panel17, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
     lv_obj_add_flag(ui_Panel17, LV_OBJ_FLAG_FLOATING);     /// Flags
-    lv_obj_clear_flag(ui_Panel17, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_clear_flag(ui_Panel17, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE |
+                      LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
     lv_obj_set_style_bg_color(ui_Panel17, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Panel17, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_Panel17, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);

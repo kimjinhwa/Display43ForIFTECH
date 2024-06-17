@@ -308,6 +308,7 @@ static lv_i18n_phrase_t ko_kr_singulars[] = {
     {"SAVE", "저장"},
     {"CANCEL", "취소"},
     {"BACKSPACE", "삭제"},
+    {"Comm_Error", "통신 에러"},
     {NULL, NULL} // End mark
 };
 

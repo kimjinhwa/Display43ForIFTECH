@@ -615,9 +615,12 @@ void setup()
   gfx->printf("\nsystemLedOffTime %d", nvsSystemEEPRom.systemLedOffTime);
   gfx->println("\nmodbus started");
   gfx->println("\nCheck modbus Serial comm...");
+
+  #ifndef DONOTUSECOMM
   while(! modbusEventSendLoop(1000) ){
     gfx->print(".");
   }
+  #endif
   gfx->println("\nCheck modbus Serial OK");
   //vTaskDelay(1000);
   touchCalibrationInit();
@@ -780,8 +783,10 @@ void loop()
   wifiOtaloop();
   bleCheck();
   now = millis();
+  #ifndef DONOTUSECOMM
   if(modbusErrorCounter>2)
     showMessageLabel(_("Comm_Error"));
+  #endif
   if ((now - previous300mills > every300ms))
   {
     // 여기서 모드버스 통신을 하자

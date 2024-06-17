@@ -8,7 +8,8 @@
 void ui_scrMeasure_screen_init(void)
 {
     ui_scrMeasure = lv_obj_create(NULL);
-    lv_obj_clear_flag(ui_scrMeasure, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_clear_flag(ui_scrMeasure, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC |
+                      LV_OBJ_FLAG_SCROLL_MOMENTUM);      /// Flags
     lv_obj_set_flex_flow(ui_scrMeasure, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(ui_scrMeasure, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
     lv_obj_set_style_bg_color(ui_scrMeasure, lv_color_hex(0xDCD4D4), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -27,7 +28,8 @@ void ui_scrMeasure_screen_init(void)
     ui_TabView3 = lv_tabview_create(ui_scrMeasure, LV_DIR_TOP, 50);
     lv_obj_set_width(ui_TabView3, lv_pct(100));
     lv_obj_set_height(ui_TabView3, lv_pct(100));
-    lv_obj_clear_flag(ui_TabView3, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_clear_flag(ui_TabView3, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE |
+                      LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
     lv_obj_set_style_radius(ui_TabView3, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_TabView3, lv_color_hex(0x706D6D), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_TabView3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);

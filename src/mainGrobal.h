@@ -1,7 +1,7 @@
 #ifndef _MAIN_GROVAL_H
 #define _MAIN_GROVAL_H
 #include <Arduino.h>
-
+//#define DONOTUSECOMM
 #define LOG_PER_PAGE	5
 
 typedef struct{
