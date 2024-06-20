@@ -58,11 +58,11 @@ void ui_scrAlarm1_screen_init(void)
                               LV_PART_ITEMS | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(lv_tabview_get_tab_btns(ui_TabView2), 255,  LV_PART_ITEMS | LV_STATE_DEFAULT);
 
-    ui_TabPage6 = lv_tabview_add_tab(ui_TabView2, _("alarmHistory"));
-    lv_obj_clear_flag(ui_TabPage6, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE |
+    ui_TabAlarmPage = lv_tabview_add_tab(ui_TabView2, _("alarmStatus"));
+    lv_obj_clear_flag(ui_TabAlarmPage, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE |
                       LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
 
-    ui_alarmTextArea = lv_textarea_create(ui_TabPage6);
+    ui_alarmTextArea = lv_textarea_create(ui_TabAlarmPage);
     lv_obj_set_width(ui_alarmTextArea, lv_pct(100));
     lv_obj_set_height(ui_alarmTextArea, lv_pct(100));
     lv_obj_set_x(ui_alarmTextArea, 0);
@@ -77,19 +77,20 @@ void ui_scrAlarm1_screen_init(void)
     lv_obj_set_style_text_font(ui_alarmTextArea, &ui_font_malgun20, LV_PART_SELECTED | LV_STATE_DEFAULT);
 
 
-    ui_TabPage1 = lv_tabview_add_tab(ui_TabView2, _("alarmStatus"));
-    lv_obj_set_flex_flow(ui_TabPage1, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(ui_TabPage1, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_clear_flag(ui_TabPage1, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE |
-                      LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
-    lv_obj_set_style_pad_left(ui_TabPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_TabPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_TabPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_TabPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_row(ui_TabPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_column(ui_TabPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_TabEventHistoryPage1 = lv_tabview_add_tab(ui_TabView2, _("eventHistory"));
+    lv_obj_set_flex_flow(ui_TabEventHistoryPage1, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ui_TabEventHistoryPage1, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(ui_TabEventHistoryPage1,
+                      LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC |
+                      LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
+    lv_obj_set_style_pad_left(ui_TabEventHistoryPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_TabEventHistoryPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_TabEventHistoryPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_TabEventHistoryPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_row(ui_TabEventHistoryPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_column(ui_TabEventHistoryPage1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Container10 = lv_obj_create(ui_TabPage1);
+    ui_Container10 = lv_obj_create(ui_TabEventHistoryPage1);
     lv_obj_remove_style_all(ui_Container10);
     lv_obj_set_width(ui_Container10, lv_pct(100));
     lv_obj_set_height(ui_Container10, lv_pct(100));

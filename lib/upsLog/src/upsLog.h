@@ -73,7 +73,7 @@ public:
     std::vector <std::tuple<uint16_t , std::string> >vWarninglogs;
     //int16_t  vlogMemPos=0 ;
     uint16_t runBuzzStatus=0;
-    uint16_t alarmStatus=0;
+    uint16_t eventHistory=0;
     upsLog();
     upsLog(eventType_t eventType);
     upsLog(const char* filename,eventType_t eventType);

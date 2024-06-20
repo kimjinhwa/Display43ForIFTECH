@@ -71,8 +71,8 @@ static lv_i18n_phrase_t en_gb_singulars[] = {
     {"LogData", "Log Data"},
     {"Prev", "Prev"},
     {"Next", "Next"},
-    {"alarmStatus", "Alarm History"},
-    {"alarmHistory", "Alarm Status"},
+    {"eventHistory", "Alarm History"},
+    {"alarmStatus", "Alarm Status"},
     {"Capacity", "Capacity"},
     {"Input_Voltage", "Input Voltage"},
     {"Output_Voltage", "Output Voltage"},
@@ -152,6 +152,10 @@ static lv_i18n_phrase_t en_gb_singulars[] = {
     {"CANCEL", "CANCEL"},
     {"BACKSPACE", "DEL"},
     {"Comm_Error", "Comm Error"},
+    {"INPUT", "INPUT"},
+    {"INVERTER", "INVERTER"},
+    {"OUTPUT", "OUTPUT"},
+    {"BATTERY", "BATTERY"},
     {NULL, NULL} // End mark
 };
 
@@ -228,8 +232,8 @@ static lv_i18n_phrase_t ko_kr_singulars[] = {
     {"LogData", "경보이력"},
     {"Prev", "이 전"},
     {"Next", "다 음"},
-    {"alarmStatus", "알람이력"},
-    {"alarmHistory", "경보상태"},
+    {"eventHistory", "알람이력"},
+    {"alarmStatus", "경보상태"},
     {"Capacity", "정격용량"},
     {"Input_Voltage", "입력전압"},
     {"Output_Voltage", "출력전압"},
@@ -309,6 +313,10 @@ static lv_i18n_phrase_t ko_kr_singulars[] = {
     {"CANCEL", "취소"},
     {"BACKSPACE", "삭제"},
     {"Comm_Error", "통신 에러"},
+    {"INPUT", "입력"},
+    {"INVERTER", "인버터"},
+    {"OUTPUT", "출력"},
+    {"BATTERY", "배터리"},
     {NULL, NULL} // End mark
 };
 

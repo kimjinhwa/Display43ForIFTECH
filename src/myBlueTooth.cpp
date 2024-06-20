@@ -117,8 +117,6 @@ size_t myBlueToothStream::printf(const char *format, ...)
 void bleSetup(){
  BLEDevice::init("UPS_IFTECH1P1P");
  //lsFile.littleFsInit(1);// 
- lsFile.littleFsInitFast(0);
- lsFile.setOutputStream(&Serial);
 
  simpleCli.outputStream = &Serial;
   // Create the BLE Server

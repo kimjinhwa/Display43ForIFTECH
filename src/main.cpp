@@ -5,7 +5,9 @@
 #include <RtcDS1302.h>
 #include "mainGrobal.h"
 #include "myBlueTooth.h"
+#include "fileSystem.h"
 #include "../Version.h"
+#include "esp_task_wdt.h"
 //#include "font/FreeSansBold12pt7b.h"
 // #include "fileSystem.h"
 
@@ -20,7 +22,7 @@
 #include "main.h"
 #include "wifiOTA.h"
 #include "lv_i18n.h"
-
+#define WDT_TIMEOUT 60 
 #define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
 #define TFT_BL 2
 #define RTCEN 19
@@ -54,6 +56,8 @@ uint16_t lcdOntime = 0;
 int16_t minDisMessageTime = 1;
 // #define DISPLAY_7
 static char TAG[] = "main";
+
+extern LittleFileSystem lsFile;
 
 upsLog upslogEvent("/spiffs/eventLog.hex", EVENT_TYPE);
 upsLog upslogAlarm(FAULT_TYPE); //
@@ -152,21 +156,23 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
   {
     if (ts.touched())
     {
-      data->state = LV_INDEV_STATE_PR;
-      //     /*Set the coordinates*/
-      // ts.readData(&x, &y, &z);
-      TS_Point p = ts.getPoint();
-      touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, gfx->width() - 1);
-      touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
-      data->point.x = touch_last_x;
-      data->point.y = touch_last_y;
-      long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
-      ledcWrite(0, brightness<80?80:brightness);
-      lcdOntime = 0;
-      Serial.print("Data xx ");
-      Serial.println(data->point.x);
-      Serial.print("Data yy ");
-      Serial.println(data->point.y);
+      ESP_LOGI("TOUCH", "Touch wait ");
+      vTaskDelay(10); //23 33  노이즈를 방지하기 위하여 한번 더 읽는다.
+      if (ts.touched())
+      {
+        data->state = LV_INDEV_STATE_PR;
+        //     /*Set the coordinates*/
+        // ts.readData(&x, &y, &z);
+        TS_Point p = ts.getPoint();
+        touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, gfx->width() - 1);
+        touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
+        data->point.x = touch_last_x;
+        data->point.y = touch_last_y;
+        long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
+        ledcWrite(0, brightness < 80 ? 80 : brightness);
+        lcdOntime = 0;
+        ESP_LOGI("TOUCH", "Data (x,y,z)(%d,%d,%d)", data->point.x, data->point.y, p.z);
+      }
     }
     else if (touch_released())
     {
@@ -258,15 +264,13 @@ void showSystemUpdate()
   lv_label_set_text(ui_lblInverterVol, String(upsModbusData.inverter_volt_rms).c_str());
   lv_label_set_text(ui_lblOutputV, String(upsModbusData.output_volt_rms).c_str());
 
-  scrSettingScreen();
-  scrMeasureLoad();
 
 
 	uint16_t selectedTab=0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView1);
-  if (selectedTab != 3) //탭이 활성화 되어 있다면 update를 하지 않는다.
+  if (selectedTab == 3) //탭이 활성화 되어 있다면 update를 하지 않는다.
   {
-    lv_textarea_set_text(ui_txtYear, String(nowTime.Year()).c_str());
+    lv_textarea_set_text(ui_txtYear, String(nowTime.Year()-2000).c_str());
     lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
     lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
     lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
@@ -395,31 +399,30 @@ void GetSetEventData()
     //          upsModbusData.ModuleState.status,
     //          upsModbusData.HWState.status,
     //          upsModbusData.upsOperationFault.status);
-    //String retStr = upslogEvent.readCurrentLog(CURRENTLOG);
-    //upslogEvent.readCurrentLog(&log, LOG_PER_PAGE);
-    // lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
+    if(upslogAlarm.totalPage>0) upslogAlarm.currentMemoryPage = upslogAlarm.totalPage-1;
+    String retStr = upslogEvent.readCurrentLog(CURRENTLOG);
+    lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
     // while (lv_textarea_get_cursor_pos(ui_eventTextArea))
     // {
     //   //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_eventTextArea));
     //   lv_textarea_cursor_up(ui_eventTextArea);
     // }
 
-    if(upslogAlarm.totalPage>0) upslogAlarm.currentMemoryPage = upslogAlarm.totalPage-1;
     lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
   }
 
   if (isAlarmLogChanged)
   {
-    // String retStr = upslogAlarm.readCurrentLog(CURRENTLOG);
-    // if(upslogAlarm.alarmStatus ==0 ) retStr =""; //알람이 없으므로 클리어 하여 준다.
-    // lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
-    // ESP_LOGW("UI EventAlarm", "ui_alarmTextArea %s", retStr.c_str());
+    upslogAlarm.currentMemoryPage = 0;
+    String retStr = upslogAlarm.readCurrentLog(CURRENTLOG);
+    if(upslogAlarm.eventHistory ==0 ) retStr =""; //알람이 없으므로 클리어 하여 준다.
+    ///lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
+    ESP_LOGW("UI EventAlarm", "ui_alarmTextArea %s", retStr.c_str());
     // while (lv_textarea_get_cursor_pos(ui_alarmTextArea))
     // {
     //   //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_alarmTextArea));
     //   lv_textarea_cursor_up(ui_alarmTextArea);
     // }
-    upslogAlarm.currentMemoryPage = 0;
     lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
   }
 }
@@ -529,6 +532,34 @@ void mainScrUpdata(){
 
 //   }
 }
+/* 부저는 UPS에서 설정하면 작동을 시작한다. 
+*  하지만 사용자가 강제 중지하는 경우 애니매이션은 제외하고 부저음은 작동을 멈춘다.
+*  다시 작동시키기 위서는 부저 버튼을 클릭한다.
+*/
+void toggleBuzzer()
+{
+  // 서버에서는 현재 알람 상태이다.
+  if (upslogAlarm.eventHistory)
+  {
+    if (upslogAlarm.runBuzzStatus) // 이 값은 서버에서 값에 의해서도 변경된다.
+    {
+      digitalWrite(BUZZER, !digitalRead(BUZZER));
+    }
+    else 
+      digitalWrite(BUZZER, LOW);
+
+    lv_opa_t current_opa = lv_obj_get_style_bg_img_opa(ui_btnAlarm, LV_PART_MAIN);
+    if (current_opa == 0)
+      lv_obj_set_style_bg_img_opa(ui_btnAlarm, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    else
+      lv_obj_set_style_bg_img_opa(ui_btnAlarm, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+  }
+  else  //알람상태가 아니다 
+  {
+    digitalWrite(BUZZER, LOW);
+    lv_obj_set_style_bg_img_opa(ui_btnAlarm, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+  }
+}
 
 int modbusEventSendLoop(int timeout);
 void setup()
@@ -538,6 +569,9 @@ void setup()
 
   pinMode(BUZZER, OUTPUT);
   digitalWrite(BUZZER, LOW);
+
+  lsFile.littleFsInitFast(0);
+  lsFile.setOutputStream(&Serial);
 
   bleSetup();
   upslogEvent.getFileSize();
@@ -602,12 +636,12 @@ void setup()
   delay(100);
   gfx->fillScreen(BLACK);
   delay(100);
-  gfx->setCursor(0,10);
-  //GFXfont *f;
-  //f->bitmap = (uint8_t *)&FreeSansBold12pt7bBitmaps;
-  //gfx->setFont(f);
+  gfx->setCursor(0, 10);
+  // GFXfont *f;
+  // f->bitmap = (uint8_t *)&FreeSansBold12pt7bBitmaps;
+  // gfx->setFont(f);
   gfx->setTextColor(WHITE);
-  gfx->printf("\nVER:%s",version1);
+  gfx->printf("\nVER:%s", version1);
   gfx->print("\nInit RTC");
   gfx->printf("\nbaud Rate %d", nvsSystemEEPRom.BAUDRATE);
   gfx->printf("\nlanguage %d", nvsSystemEEPRom.systemLanguage);
@@ -616,13 +650,14 @@ void setup()
   gfx->println("\nmodbus started");
   gfx->println("\nCheck modbus Serial comm...");
 
-  #ifndef DONOTUSECOMM
-  while(! modbusEventSendLoop(1000) ){
+#ifndef DONOTUSECOMM
+  while (!modbusEventSendLoop(1000))
+  {
     gfx->print(".");
   }
-  #endif
+#endif
   gfx->println("\nCheck modbus Serial OK");
-  //vTaskDelay(1000);
+  // vTaskDelay(1000);
   touchCalibrationInit();
 
   lv_i18n_init(lv_i18n_language_pack);
@@ -690,7 +725,7 @@ void setup()
     //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
     ui_init();
-    //lv_obj_add_flag(ui_TabView2,LV_OBJ_FLAG_GESTURE_BUBBLE);
+    // lv_obj_add_flag(ui_TabView2,LV_OBJ_FLAG_GESTURE_BUBBLE);
     myui_MainScreen_screen_init();
     // setTime();
 
@@ -698,7 +733,7 @@ void setup()
     timeval tmv;
     gettimeofday(&tmv, NULL);
     RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
-    lv_textarea_set_text(ui_txtYear, String(nowTime.Year()).c_str());
+    lv_textarea_set_text(ui_txtYear, String(nowTime.Year() - 2000).c_str());
     lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
     lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
     lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
@@ -718,14 +753,14 @@ void setup()
     // lv_label_set_text(ui_NiceLabel,_("RunAniButton"));
   }
   // Modbus는 내부적으로 task를 사용하고 있다.
-  xTaskCreate(modbusTask, "modbusTask", 8000, NULL, 1, h_pxModbusTask);
+  // xTaskCreate(modbusTask, "modbusTask", 5000, NULL, 1, h_pxModbusTask);
 #ifdef USEWIFI
   wifiOTAsetup();
 #endif
   EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemEEPRom));
 
   // 시스템 시작시에는 바이패스로 놓는다
-  //upsModbusData.ModuleState.Bit.To_Bypass_ModeChange = 1;
+  // upsModbusData.ModuleState.Bit.To_Bypass_ModeChange = 1;
   // 충전기 모듈은 정지되어 있는 상태이다
   upsModbusData.ModuleState.Bit.Charger_RUN = 0;
   // 인버터 정지 상태이다;
@@ -733,6 +768,8 @@ void setup()
   // upsModbusData.HWState.status;
   // upsModbusData.upsOperationFault.status;
   setMemoryDataToLCD();
+  // esp_task_wdt_init(WDT_TIMEOUT,true);
+  // esp_task_wdt_add(NULL);
 };
 static int interval = 1000;
 static unsigned long previous300mills = 0;
@@ -744,34 +781,6 @@ static unsigned long previous500mills = 0;
 static int every500ms = 500;
 static unsigned long now;
 unsigned long incTime = 1;
-/* 부저는 UPS에서 설정하면 작동을 시작한다. 
-*  하지만 사용자가 강제 중지하는 경우 애니매이션은 제외하고 부저음은 작동을 멈춘다.
-*  다시 작동시키기 위서는 부저 버튼을 클릭한다.
-*/
-void toggleBuzzer()
-{
-  // 서버에서는 현재 알람 상태이다.
-  if (upslogAlarm.alarmStatus)
-  {
-    if (upslogAlarm.runBuzzStatus) // 이 값은 서버에서 값에 의해서도 변경된다.
-    {
-      digitalWrite(BUZZER, !digitalRead(BUZZER));
-    }
-    else 
-      digitalWrite(BUZZER, LOW);
-
-    lv_opa_t current_opa = lv_obj_get_style_bg_img_opa(ui_btnAlarm, LV_PART_MAIN);
-    if (current_opa == 0)
-      lv_obj_set_style_bg_img_opa(ui_btnAlarm, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    else
-      lv_obj_set_style_bg_img_opa(ui_btnAlarm, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-  }
-  else  //알람상태가 아니다 
-  {
-    digitalWrite(BUZZER, LOW);
-    lv_obj_set_style_bg_img_opa(ui_btnAlarm, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-  }
-}
 // int modbusEventSendLoop(int timeout);
 // int modbusEventGetLoop();
 void showMessageLabel(const char *message);
@@ -780,6 +789,7 @@ void showMessageLabel(const char *message);
 void loop()
 {
   void *parameters;
+  //esp_task_wdt_reset();
   wifiOtaloop();
   bleCheck();
   now = millis();
@@ -792,9 +802,11 @@ void loop()
     // 여기서 모드버스 통신을 하자
     //
     //modbusEventSendLoop(30);
+    modbusEventSendLoop(100);
     GetSetEventData();
     previous300mills = now;
   }
+
   if ((now - previous500mills > every500ms))
   {
     previous500mills = now;

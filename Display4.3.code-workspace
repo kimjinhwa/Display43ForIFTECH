@@ -20,7 +20,21 @@
 			"initializer_list": "cpp",
 			"lvgl.h": "c",
 			"new": "cpp",
-			"myui.h": "c"
+			"myui.h": "c",
+			"locale": "cpp",
+			"thread": "cpp",
+			"xlocale": "cpp",
+			"xlocmes": "cpp",
+			"xlocmon": "cpp",
+			"xlocnum": "cpp",
+			"xloctime": "cpp",
+			"format": "cpp",
+			"iomanip": "cpp",
+			"random": "cpp",
+			"sstream": "cpp",
+			"system_error": "cpp",
+			"xlocbuf": "cpp",
+			"iosfwd": "cpp"
 		}
 	}
 }

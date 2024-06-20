@@ -22,6 +22,7 @@ enum TextId {
 	BATCURR_REF=8,
 	BATVOL_REF=9,
 	OUTPUTVOL_REF=10,
+	HFMODE=11,
 	INPUTVOLTGAIN = 38,
 	INPUTCURRGAIN = 39,
 	VDCLINKVOLTGAIN = 40,
@@ -39,10 +40,20 @@ enum TextId {
 	SYSTEMMINUTE= 64,
 	SYSTEMSECOND =65 
 };
+enum TIMESAVE {
+	S_YEAR = 1,
+	S_MONTH = 2,
+	S_DAY = 3,
+	S_HOUR = 4,
+	S_MIN = 5,
+	S_SEC = 6
+};
 int WriteHoldRegistor(int index,int value,uint32_t Token);
 void showMessageLabel(const char *message);
+void timeSave(TIMESAVE tType,int16_t value);
+void scrSettingScreen();
 
-uint32_t waitDataReceive();
+uint32_t waitDataReceive(int wCount);
 uint32_t getReceiveToken();
 uint32_t getDataReady ();
 lv_obj_t *ui_txtTempory ;
@@ -147,16 +158,85 @@ void evtMessageLblClick(lv_event_t * e){
 	//_ui_flag_modify( ui_lblMessage, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 }
 void setRtcNewTime(RtcDateTime rtc);
-void btnEvnetSaveSetting(lv_event_t * e)
+void timeSave(TIMESAVE tType,int16_t value){
+	// timeval tmv;
+	tm nowTime;
+	nowTime.tm_year = String(lv_textarea_get_text(ui_txtYear)).toInt() +2000  ;
+	nowTime.tm_mon = String(lv_textarea_get_text(ui_txtMonth)).toInt();
+	nowTime.tm_mday = String(lv_textarea_get_text(ui_txtDay)).toInt();
+	nowTime.tm_hour = String(lv_textarea_get_text(ui_txtHour)).toInt();
+	nowTime.tm_min = String(lv_textarea_get_text(ui_txtMinute)).toInt();
+	nowTime.tm_sec = String(lv_textarea_get_text(ui_txtSecond)).toInt();
+	switch (tType)
+	{
+	case S_YEAR :
+		nowTime.tm_year = value +2000  ;
+		break;
+	case S_MONTH:
+		nowTime.tm_mon = value;
+		break;
+	case S_DAY:
+		nowTime.tm_mday = value;
+		break;
+	case S_HOUR:
+		nowTime.tm_hour = value;
+		break;
+	case S_MIN:
+		nowTime.tm_min = value;
+		break;
+	case S_SEC:
+		nowTime.tm_sec = value;
+		break;
+	default:
+		break;
+	}
+	RtcDateTime nowRtc = RtcDateTime(nowTime.tm_year,nowTime.tm_mon,nowTime.tm_mday,nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
+ 	ESP_LOGI("Set Rtc","Set Rtc %d-%d-%d %d:%d:%d",
+			nowTime.tm_year,nowTime.tm_mon,nowTime.tm_mday,
+			nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
+	setRtcNewTime(nowRtc );
+}
+
+
+void TabEvtNextClick(lv_event_t * e)
+{
+	lv_tabview_set_act(ui_TabView1,2,LV_ANIM_OFF);
+}
+void TabEvtPrevClick(lv_event_t * e)
+{
+	lv_tabview_set_act(ui_TabView1,1,LV_ANIM_OFF);
+}
+
+void TabEvtOffsetClick(lv_event_t * e)
+{
+	lv_tabview_set_act(ui_TabView1,3,LV_ANIM_OFF); //TabGainSetup3
+}
+void TabEvtESCClick(lv_event_t * e)
 {
 	uint16_t selectedTab=0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView1);
 	ESP_LOGW("UI","Tab selected %d",selectedTab);
+	if(selectedTab == 3)  // 옵셋화면이면..
+	lv_tabview_set_act(ui_TabView1,1,LV_ANIM_OFF);
+	else 
+	lv_tabview_set_act(ui_TabView1,0,LV_ANIM_OFF);
+}
+void TabEventSetupVolClick(lv_event_t * e)
+{
+	lv_tabview_set_act(ui_TabView1,1,LV_ANIM_OFF);
+}
+void TabEventSetupTimeClick(lv_event_t * e)
+{
+	uint16_t selectedTab=0;
+	lv_tabview_set_act(ui_TabView1,4,LV_ANIM_OFF);
+	selectedTab = lv_tabview_get_tab_act(ui_TabView1);
+	ESP_LOGW("UI","Tab selected %d",selectedTab);
+	/*
 	if (selectedTab != 3) return ;
 
     uint16_t brightness = String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
     nvsSystemEEPRom.lcdBright= map(brightness , 0, 255, 0, 255); 
-    ledcWrite(0, nvsSystemEEPRom.lcdBright ); /* Screen brightness can be modified by adjusting this parameter. (0-255) */
+    ledcWrite(0, nvsSystemEEPRom.lcdBright ); // Screen brightness can be modified by adjusting this parameter. (0-255) 
 
     uint16_t offtime= String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
     nvsSystemEEPRom.systemLedOffTime = offtime; 
@@ -169,7 +249,7 @@ void btnEvnetSaveSetting(lv_event_t * e)
 
 	// timeval tmv;
 	tm nowTime;
-	nowTime.tm_year = String(lv_textarea_get_text(ui_txtYear)).toInt()  ;
+	nowTime.tm_year = String(lv_textarea_get_text(ui_txtYear)).toInt() +2000  ;
 	nowTime.tm_mon = String(lv_textarea_get_text(ui_txtMonth)).toInt();
 	nowTime.tm_mday = String(lv_textarea_get_text(ui_txtDay)).toInt();
 	nowTime.tm_hour = String(lv_textarea_get_text(ui_txtHour)).toInt();
@@ -181,6 +261,7 @@ void btnEvnetSaveSetting(lv_event_t * e)
 	showMessageLabel(_("SAVED"));
 	EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
 	EEPROM.commit();
+	*/
 }
 
 void btnEventRunUps(lv_event_t * e)
@@ -190,9 +271,10 @@ void btnEventRunUps(lv_event_t * e)
 	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
 	lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
 
-	WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-	uint32_t token = waitDataReceive();
-	ESP_LOGI("MODUBS", "Received token %d..",token );
+	int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	//uint32_t token = waitDataReceive(100);
+	if(token==0) showMessageLabel(_("Comm_Error"));
+	else ESP_LOGI("MODUBS", "Received token %d..",token );
 }
 
 void btnEventStopUps(lv_event_t * e)
@@ -201,9 +283,11 @@ void btnEventStopUps(lv_event_t * e)
 		upsModbusData.upsRun.upsRunCommandBit.UpsOFF ? 0 : 1;
 	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
 	lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-	WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-	uint32_t token = waitDataReceive();
-	ESP_LOGI("MODUBS", "Received token %d..",token );
+	int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	if(token==0) showMessageLabel(_("Comm_Error"));
+	else ESP_LOGI("MODUBS", "Received token %d..",token );
+	//uint32_t token = waitDataReceive(100);
+	//ESP_LOGI("MODUBS", "Received token %d..",token );
 }
 
 
@@ -254,25 +338,33 @@ int checkValidation()
 		case INVERTER_VOLT_GAIN:
 		case INVERTER_CURRENT_GAIN:
 		case OUTPUT_CURRENT_GAIN:
-			WriteHoldRegistor(inputTextId,inputData ,inputTextId);
-			token = waitDataReceive();
-			ESP_LOGI("MODUBS", "Received token %d..",token );
+			token = WriteHoldRegistor(inputTextId,inputData ,inputTextId);
+			if(token==0) showMessageLabel(_("Comm_Error"));
+			else ESP_LOGI("MODUBS", "Received token %d..",token );
+			//token = waitDataReceive(100);
+			//ESP_LOGI("MODUBS", "Received token %d..",token );
 			break;
 		case EVENTTXTOFFTIME_:
 			break;
 		case BRIGHTNESSCONSTRAIN_:
 			break;
 		case SYSTEMYEAR:
+			timeSave(S_YEAR,inputData);
 			break;
 		case SYSTEMMONTH:
+			timeSave(S_MONTH,inputData);
 			break;
 		case SYSTEMDAY:
+			timeSave(S_DAY,inputData);
 			break;
 		case SYSTEMHOUR:
+			timeSave(S_HOUR,inputData);
 			break;
 		case SYSTEMMINUTE:
+			timeSave(S_MIN,inputData);
 			break;
 		case SYSTEMSECOND:
+			timeSave(S_SEC,inputData);
 			break;
 		default:
 			break;
@@ -280,21 +372,30 @@ int checkValidation()
 	}
 	return 1;
 }
+/*https://docs.lvgl.io/master/widgets/textarea.html*/
+// void KeyBoardReadyEvent(lv_event_t * e){
+// 	//ESP_LOGI("KEYBOARD","KeyBoardReadyEvent");
+// 	//lv_textarea_set_cursor_pos(ui_txtInputArea,LV_TEXTAREA_CURSOR_LAST);
+// 	//lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED); 
+// }
 void keyBoardValueChangedEvent(lv_event_t * e)
 {
+	lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED); 
 	lv_obj_t *kb = lv_event_get_target(e);
 	uint32_t btn_id = lv_keyboard_get_selected_btn(kb);
 	const char *txt = lv_keyboard_get_btn_text(kb,btn_id);
-	if(btn_id  ==  3)  //확인 키가 눌리면...
+ 	int16_t    keyValue= String(lv_textarea_get_text(ui_txtInputArea)).toInt();
+  	ESP_LOGI("DEBUG","ui_txtInputArea %d",keyValue);
+	if(btn_id  ==  3)  //최소키가 눌리면..
 	{
-		//checkValidation();
 		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
 		// if(ui_txtTempory != nullptr){
 		// 	//ui_txtTempory 이것은 해당 Text이다.
 		// 	lv_textarea_set_text(ui_txtTempory ,lv_textarea_get_text( ui_txtInputArea)) ; 
 		// }
+		return;
 	}
-	if(btn_id  ==  7)  //확인 키가 눌리면...
+	if(btn_id  ==  11 || btn_id  ==  15)  //확인 키가 눌리면...
 	{
 		checkValidation();
 		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
@@ -317,9 +418,9 @@ void changeKeyboardText()
 //      };		
   static const char * kb_map[] = {
 	"1", "2", "3", LV_SYMBOL_CLOSE,"\n",
-	"4", "5", "6", LV_SYMBOL_OK ,"\n",
-	"7", "8", "9", LV_SYMBOL_BACKSPACE,"\n",
-	LV_SYMBOL_LEFT, "0", LV_SYMBOL_RIGHT," ",  NULL
+	"4", "5", "6", LV_SYMBOL_BACKSPACE,"\n",
+	"7", "8", "9", LV_SYMBOL_OK ,"\n",
+	LV_SYMBOL_LEFT, "0", LV_SYMBOL_RIGHT,LV_SYMBOL_OK ,  NULL
      };		
 	
   static const lv_btnmatrix_ctrl_t kb_ctrl[] = 
@@ -327,7 +428,7 @@ void changeKeyboardText()
 	4, 4, 4, 6, 
  	4, 4, 4, 6, 
    	4, 4, 4, 6, 
-    4, 4, 4, LV_BTNMATRIX_CTRL_HIDDEN | 6, 
+    4, 4, 4, /* LV_BTNMATRIX_CTRL_HIDDEN |*/ 6, 
   };
 	//ui_Keyboard1 = lv_keyboard_create(ui_pnlKeyBoard);
 
@@ -352,8 +453,25 @@ void changeKeyboardText()
 	//lv_obj_set_style_text_font(ui_Keyboard1, &ui_font_malgun26, LV_PART_ITEMS| LV_STATE_DEFAULT);
 	lv_obj_set_style_text_font(ui_Keyboard1, &lv_font_montserrat_26, LV_PART_ITEMS| LV_STATE_DEFAULT);
 }
+
+    // lv_event_code_t event_code = lv_event_get_code(e);
+    // lv_obj_t * target = lv_event_get_target(e);
+    // if(event_code == LV_EVENT_PRESSED) {
+    //     _ui_screen_change(&ui_SettingScreen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 0, 0, &ui_SettingScreen_screen_init);
+    // }
+void scrSettingScreenLoaded(lv_event_t * e){
+    _ui_screen_change(&ui_SettingScreen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 0, 0, &ui_SettingScreen_screen_init);
+	changeKeyboardText();
+	lv_tabview_set_act(ui_TabView1,0,LV_ANIM_OFF);
+	scrSettingScreen();
+
+	//lv_tabview_set_act(ui_TabView1,1,LV_ANIM_OFF);
+    //lv_obj_add_flag(ui_batSaveSetting, LV_OBJ_FLAG_HIDDEN );     /// Flags
+	//_ui_flag_modify( ui_batSaveSetting , LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+}
 void scrSettingScreen(){
   //설정화면 
+  char tempstr[10];
   lv_textarea_set_text(ui_txtBatCurrSet, String(upsModbusData.Bat_Current_Ref).c_str()); //2-20 default 2
   lv_textarea_set_text(ui_txtBatVolSet, String(upsModbusData.Bat_Voltage_Ref).c_str()); //
   lv_textarea_set_text(ui_txtInvVolSet, String(upsModbusData.Output_Voltage_Ref).c_str()); //
@@ -361,77 +479,132 @@ void scrSettingScreen(){
     lv_obj_add_state( ui_chkHFMode, LV_STATE_CHECKED );     /// States
   else 
     lv_obj_clear_state(ui_chkHFMode,LV_STATE_CHECKED );
+
+
+	sprintf(tempstr, "%d V", upsModbusData.input_volt_gain);
+	lv_label_set_text(ui_txtInputVoltGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInputVoltGain, 
       String(upsModbusData.input_volt_gain).c_str()); //
+
+	sprintf(tempstr, "%d A", upsModbusData.input_current_gain);
+	lv_label_set_text(ui_txtInputCurrGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInputCurrGain, 
       String(upsModbusData.input_current_gain).c_str()); //
+
+	sprintf(tempstr, "%d V", upsModbusData.vdc_link_volt_gain);
+	lv_label_set_text(ui_txtInputVdcLinkGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInputVdcLinkGain, 
       String(upsModbusData.vdc_link_volt_gain).c_str()); //
+
+	sprintf(tempstr, "%d V", upsModbusData.vbat_volt_gain);
+	lv_label_set_text(ui_txtVbatVoltGainLBL, tempstr);
   lv_textarea_set_text(ui_txtVbatVoltGain, 
       String(upsModbusData.vbat_volt_gain).c_str()); //
+
+	sprintf(tempstr, "%d A", upsModbusData.bat_current_gain);
+	lv_label_set_text(ui_txtBatCurrGainLBL, tempstr);
   lv_textarea_set_text(ui_txtBatCurrGain, 
       String(upsModbusData.bat_current_gain).c_str()); //
+
+	sprintf(tempstr, "%d V", upsModbusData.inverter_volt_gain);
+	lv_label_set_text(ui_txtInvVoltGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInvVoltGain, 
       String(upsModbusData.inverter_volt_gain).c_str()); //
+
+	sprintf(tempstr, "%d A", upsModbusData.inverter_current_gain);
+	lv_label_set_text(ui_txtInvCurrGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInvCurrGain, 
       String(upsModbusData.inverter_current_gain).c_str()); //
+
+	sprintf(tempstr, "%d V", upsModbusData.output_current_gain);
+	lv_label_set_text(ui_txtOutputCurrGainLBL, tempstr);
   lv_textarea_set_text(ui_txtOutputCurrGain, 
       String(upsModbusData.output_current_gain).c_str()); //
 }
-void scrSettingScreenLoaded(lv_event_t * e){
-	changeKeyboardText();
-	scrSettingScreen();
-    //lv_obj_add_flag(ui_batSaveSetting, LV_OBJ_FLAG_HIDDEN );     /// Flags
-	//_ui_flag_modify( ui_batSaveSetting , LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-}
-void scrMeasureLoad(){
+void scrMeasureLoad()
+{
+	char tempstr[10];
+	sprintf(tempstr, "%dV", upsModbusData.Input_volt_rms);
+	lv_label_set_text(ui_lblInputVoltRms, tempstr);
+	// String(upsModbusData.Input_volt_rms).c_str()); //
 
-  lv_label_set_text(ui_lblInputVoltRms, 
-      String(upsModbusData.Input_volt_rms).c_str()); //
-  lv_label_set_text(ui_lblInputCurrRms, 
-      String(upsModbusData.Input_current_rms).c_str()); //
-  lv_label_set_text(ui_lblVdcLinkVoltRms, 
-      String(upsModbusData.vdc_link_volt_rms).c_str()); //
-  lv_label_set_text(ui_lblBatVoltRms, 
-      String(upsModbusData.bat_volt_rms).c_str()); //
-  lv_label_set_text(ui_lblBatCurrentRms, 
-      String(upsModbusData.bat_current_rms).c_str()); //
-  lv_label_set_text(ui_lblInvVoltRms, 
-      String(upsModbusData.inverter_volt_rms).c_str()); //
-  lv_label_set_text(ui_lblInvCurrentRms, 
-      String(upsModbusData.inverter_current_rms).c_str()); //
-  lv_label_set_text(ui_lblOutputVoltRms, 
-      String(upsModbusData.output_volt_rms).c_str()); //
-	//TAB2
-  lv_label_set_text(ui_lblOutputCurrRms, 
-      String(upsModbusData.output_current_rms).c_str()); //
-  lv_label_set_text(ui_lblInputFreq, 
-      String(upsModbusData.bypass_Frequency).c_str()); //
-  lv_label_set_text(ui_lblInvFreq, 
-      String(upsModbusData.inv_Frequency).c_str()); //
-  lv_label_set_text(ui_lblBypassFreq, 
-      String(upsModbusData.bypass_Frequency).c_str()); //
-  lv_label_set_text(ui_lblBattCapacity, 
-      String(upsModbusData.battery_capacity).c_str()); //
-  lv_label_set_text(ui_lblUpsInnerTemp, 
-      String(upsModbusData.inv_internal_Temperature).c_str()); //
-  //GAIN
-  lv_label_set_text(ui_lblInputVoltGain, 
-      String(upsModbusData.input_volt_gain).c_str()); //
-  lv_label_set_text(ui_lblInputCurrGain, 
-      String(upsModbusData.input_current_gain).c_str()); //
-  lv_label_set_text(ui_lblVdcLinkVoltGain, 
-      String(upsModbusData.vdc_link_volt_gain).c_str()); //
-  lv_label_set_text(ui_lblVbatVoltGain, 
-      String(upsModbusData.vbat_volt_gain).c_str()); //
-  lv_label_set_text(ui_lblBatCurrentGain, 
-      String(upsModbusData.bat_current_gain).c_str()); //
-  lv_label_set_text(ui_lblInverterVoltGain, 
-      String(upsModbusData.inverter_volt_gain).c_str()); //
-  lv_label_set_text(ui_lblInvCurrGain, 
-      String(upsModbusData.inverter_current_gain).c_str()); //
-  lv_label_set_text(ui_lblOutputCurrGain, 
-      String(upsModbusData.output_current_gain).c_str()); //
+	sprintf(tempstr, "%dA", upsModbusData.Input_current_rms);
+	lv_label_set_text(ui_lblInputCurrRms, tempstr);
+	// String(upsModbusData.Input_current_rms).c_str()); //
+
+	sprintf(tempstr, "%dV", upsModbusData.vdc_link_volt_rms);
+	lv_label_set_text(ui_lblVdcLinkVoltRms, tempstr);
+	// String(upsModbusData.vdc_link_volt_rms).c_str()); //
+
+	sprintf(tempstr, "%dV", upsModbusData.bat_volt_rms);
+	lv_label_set_text(ui_lblBatVoltRms, tempstr);
+	// String(upsModbusData.bat_volt_rms).c_str()); //
+
+	sprintf(tempstr, "%dA", upsModbusData.bat_current_rms);
+	lv_label_set_text(ui_lblBatCurrentRms, tempstr);
+	// String(upsModbusData.bat_current_rms).c_str()); //
+
+	sprintf(tempstr, "%dV", upsModbusData.inverter_volt_rms);
+	lv_label_set_text(ui_lblInvVoltRms, tempstr);
+	// String(upsModbusData.inverter_volt_rms).c_str()); //
+
+	sprintf(tempstr, "%dA", upsModbusData.inverter_current_rms);
+	lv_label_set_text(ui_lblInvCurrentRms, tempstr);
+	// String(upsModbusData.inverter_current_rms).c_str()); //
+
+	sprintf(tempstr, "%dV", upsModbusData.output_volt_rms);
+	lv_label_set_text(ui_lblOutputVoltRms, tempstr);
+	// String(upsModbusData.output_volt_rms).c_str()); //
+	// TAB2
+	sprintf(tempstr, "%dA", upsModbusData.output_current_rms);
+	lv_label_set_text(ui_lblOutputCurrRms, tempstr);
+	// String(upsModbusData.output_current_rms).c_str()); //
+
+	sprintf(tempstr, "%2.1fHz", upsModbusData.bypass_Frequency/10.0);
+	lv_label_set_text(ui_lblInputFreq, tempstr);
+	// String(upsModbusData.bypass_Frequency).c_str()); //
+
+	sprintf(tempstr, "%2.1fHz", upsModbusData.inv_Frequency/10.0);
+	lv_label_set_text(ui_lblInvFreq, tempstr);
+	lv_label_set_text(ui_lblOutputFreq, tempstr);
+	// String(upsModbusData.inv_Frequency).c_str()); //
+
+	sprintf(tempstr, "%2.1fHz", upsModbusData.bypass_Frequency/10.0);
+	lv_label_set_text(ui_lblBypassFreq, tempstr);
+	// String(upsModbusData.bypass_Frequency).c_str()); //
+
+	sprintf(tempstr, "%d%", upsModbusData.battery_capacity);
+	lv_label_set_text(ui_lblBattCapacity, tempstr);
+	// String(upsModbusData.battery_capacity).c_str()); //
+
+	lv_label_set_text(ui_lblUpsInnerTemp,
+					  String(upsModbusData.inv_internal_Temperature).c_str()); //
+	// GAIN
+	lv_label_set_text(ui_lblInputVoltGain,
+					  String(upsModbusData.input_volt_gain).c_str()); //
+	lv_label_set_text(ui_lblInputCurrGain,
+					  String(upsModbusData.input_current_gain).c_str()); //
+	lv_label_set_text(ui_lblVdcLinkVoltGain,
+					  String(upsModbusData.vdc_link_volt_gain).c_str()); //
+	lv_label_set_text(ui_lblVbatVoltGain,
+					  String(upsModbusData.vbat_volt_gain).c_str()); //
+	lv_label_set_text(ui_lblBatCurrentGain,
+					  String(upsModbusData.bat_current_gain).c_str()); //
+	lv_label_set_text(ui_lblInverterVoltGain,
+					  String(upsModbusData.inverter_volt_gain).c_str()); //
+	lv_label_set_text(ui_lblInvCurrGain,
+					  String(upsModbusData.inverter_current_gain).c_str()); //
+	lv_label_set_text(ui_lblOutputCurrGain,
+					  String(upsModbusData.output_current_gain).c_str()); //
+// offset 설정.
+	lv_textarea_set_text(ui_txtInputVoltOffset,String(upsModbusData.input_volt_offset).c_str());
+	lv_textarea_set_text(ui_txtInputCurrentOffset,String(upsModbusData.input_current_offset).c_str());
+	lv_textarea_set_text(ui_txtVdcLinkVoltOffset,String(upsModbusData.vdc_link_volt_offset).c_str());
+	lv_textarea_set_text(ui_txtBatVoltOffset,String(upsModbusData.bat_volt_offset).c_str());
+	lv_textarea_set_text(ui_txtBatCurrentOffset,String(upsModbusData.bat_current_offset).c_str());
+	lv_textarea_set_text(ui_txtInvVoltOffset,String(upsModbusData.inverter_volt_offset).c_str());
+	lv_textarea_set_text(ui_txtInvCurrentOffset,String(upsModbusData.inverter_current_offset).c_str());
+	lv_textarea_set_text(ui_txtOutCurrentOffset,String(upsModbusData.output_current_offset).c_str());
 }
 void scrMeasureLoadEvent(lv_event_t * e){
 	scrMeasureLoad();
@@ -440,8 +613,10 @@ void scrMeasureLoadEvent(lv_event_t * e){
 
 void CommonEevntProc(lv_event_t * e){
 	 ui_txtTempory = lv_event_get_target(e);
-	lv_textarea_set_text(ui_txtInputArea,lv_textarea_get_text(ui_txtTempory));
     _ui_flag_modify( ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+	lv_textarea_set_text(ui_txtInputArea,lv_textarea_get_text(ui_txtTempory));
+	//lv_textarea_set_placeholder_text(ui_txtInputArea,lv_textarea_get_text(ui_txtTempory));
+	lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED); 
 }
 
 uint32_t BatCurrsetConstrain=0x00020014;
@@ -451,6 +626,7 @@ void EventTxtBatCurrset(lv_event_t * e)
 	int32_t id =  BATCURR_REF<<24;
 	BatCurrsetConstrain += id;
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&BatCurrsetConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 2);
 	CommonEevntProc(e);
 }
 
@@ -461,6 +637,7 @@ void EventTxtBatVolSet(lv_event_t * e)
 	BatVoltageConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&BatVoltageConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -471,6 +648,7 @@ void EventTxtInvVolSet(lv_event_t * e)
 	outVoltageConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&outVoltageConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -481,6 +659,7 @@ void EventTxtInputVoltGain(lv_event_t * e)
 	gainConstrain_1 += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_1);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -491,6 +670,7 @@ void EventTxtInputCurrGain(lv_event_t * e)
 	gainConstrain_2 += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_2);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -501,6 +681,7 @@ void EventTxtInputVdcLinkGain(lv_event_t * e)
 	gainConstrain_3 += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_3);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -511,6 +692,7 @@ void EventTxtVbatVoltGain(lv_event_t * e)
 	gainConstrain_4 += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_4);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -521,6 +703,7 @@ void EventTxtBatCurrGain(lv_event_t * e)
 	gainConstrain_5 += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_5);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -531,6 +714,7 @@ void EventTxtInvVoltGain(lv_event_t * e)
 	gainConstrain_6 += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_6);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -541,6 +725,7 @@ void EventTxtInvCurrGain(lv_event_t * e)
 	gainConstrain_7 += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_7);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -551,6 +736,7 @@ void EventTxtOutputCurrGain(lv_event_t * e)
 	gainConstrain_8 += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&gainConstrain_8);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -561,6 +747,7 @@ void EventTxtOfftime(lv_event_t * e)
 	offtimeConstrain += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&offtimeConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
@@ -571,16 +758,19 @@ void EventTxtBrigtness(lv_event_t * e)
 	brightnessConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&brightnessConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
-uint32_t yearConstrain=0x07E8081A;
+//uint32_t yearConstrain=0x07E8081A;
+uint32_t yearConstrain=0x00180063;
 void EventTxtYear(lv_event_t * e)
 {
 	int32_t id =  SYSTEMYEAR<<24;
 	yearConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&yearConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 2);
 	CommonEevntProc(e);
 }
 
@@ -591,6 +781,7 @@ void EventTxtMonth(lv_event_t * e)
 	monthConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&monthConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 2);
 	CommonEevntProc(e);
 }
 
@@ -601,6 +792,7 @@ void EventTxtDay(lv_event_t * e)
 	dayConstrain += id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&dayConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 2);
 	CommonEevntProc(e);
 }
 
@@ -611,6 +803,7 @@ void EventTxtHour(lv_event_t * e)
 	hourConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&hourConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 2);
 	CommonEevntProc(e);
 }
 
@@ -621,6 +814,7 @@ void EventTxtMinute(lv_event_t * e)
 	minuteConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&minuteConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 2);
 	CommonEevntProc(e);
 }
 
@@ -631,6 +825,7 @@ void EventTxtSecond(lv_event_t * e)
 	secondConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&secondConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 2);
 	CommonEevntProc(e);
 }
 
@@ -678,24 +873,24 @@ void evtLogScreenLoaded(lv_event_t * e){
 	std::string strMessage;
 	if (upslogEvent.logCount > 0)
 	{
-		strMessage.append(_("alarmStatus"));
+		strMessage.append(_("eventHistory"));
 		strMessage.append("(");
 		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogEvent.totalPage));
 		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
 	}
 	if (upslogAlarm.logCount > 0)
 	{
 		strMessage = "";
-		strMessage.append(_("alarmHistory"));
+		strMessage.append(_("alarmStatus"));
 		strMessage.append("(");
 		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogAlarm.totalPage));
 		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
 	}
 
 	//lv_obj_set_scroll_snap_y(ui_eventTextArea,LV_SCROLL_SNAP_START);
@@ -714,34 +909,34 @@ void EventLogNext(lv_event_t *e)
 	uint16_t selectedTab = 0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	if (selectedTab == 0){
-		ESP_LOGI("EVENT", "logEvent  Next Selected");
-		setLogTextArea(ui_eventTextArea, &upslogEvent,NEXTLOG);
-	}
-	else{
 		ESP_LOGI("EVENT", "Alarm Next Selected");
 		setLogTextArea(ui_alarmTextArea, &upslogAlarm,NEXTLOG);
+	}
+	else{
+		ESP_LOGI("EVENT", "logEvent  Next Selected");
+		setLogTextArea(ui_eventTextArea, &upslogEvent,NEXTLOG);
 	}
 	std::string strMessage;
 	if (upslogEvent.logCount > 0)
 	{
-		strMessage.append(_("alarmStatus"));
+		strMessage.append(_("eventHistory"));
 		strMessage.append("(");
 		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogEvent.totalPage));
 		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
 	}
 	if (upslogAlarm.logCount > 0)
 	{
 		strMessage = "";
-		strMessage.append(_("alarmHistory"));
+		strMessage.append(_("alarmStatus"));
 		strMessage.append("(");
 		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogAlarm.totalPage));
 		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
 	}
 
 }
@@ -752,44 +947,44 @@ void EventLogPrev(lv_event_t *e)
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	if (selectedTab == 0)
 	{
-		ESP_LOGI("EVENT", "logEvent  Prev Selected");
-		setLogTextArea(ui_eventTextArea, &upslogEvent, PREVLOG);
+		ESP_LOGI("EVENT", "Alarm Prev Selected");
+		setLogTextArea(ui_alarmTextArea, &upslogAlarm, PREVLOG);
 	}
 	else
 	{
-		ESP_LOGI("EVENT", "Alarm Prev Selected");
-		setLogTextArea(ui_alarmTextArea, &upslogAlarm, PREVLOG);
+		ESP_LOGI("EVENT", "logEvent  Prev Selected");
+		setLogTextArea(ui_eventTextArea, &upslogEvent, PREVLOG);
 	}
 
 	std::string strMessage;
 	if (upslogEvent.logCount > 0)
 	{
-		strMessage.append(_("alarmStatus"));
+		strMessage.append(_("eventHistory"));
 		strMessage.append("(");
 		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogEvent.totalPage));
 		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
 	}
 	if (upslogAlarm.logCount > 0)
 	{
 		strMessage = "";
-		strMessage.append(_("alarmHistory"));
+		strMessage.append(_("alarmStatus"));
 		strMessage.append("(");
 		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogAlarm.totalPage));
 		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
 	}
 }
 
 void btnAlarmRunStopAtLog(lv_event_t * e){
 	upslogAlarm.runBuzzStatus =upslogAlarm.runBuzzStatus  ? 0:1;
 	upsModbusData.upsRun.upsRunCommandBit.ALARM_RESET = upsModbusData.upsRun.upsRunCommandBit.ALARM_RESET ? 0: 1;
-	WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-	uint32_t token = waitDataReceive();
+	int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	//uint32_t token = waitDataReceive(100);
 	ESP_LOGI("MODUBS", "Received token %d..",token );
 }
 void btnAlarmRunStop(lv_event_t * e){
@@ -797,7 +992,15 @@ void btnAlarmRunStop(lv_event_t * e){
 	upslogAlarm.runBuzzStatus =upslogAlarm.runBuzzStatus  ? 0:1;
 	  //lv_anim_del_all();
 }
-
+void hfModeValueChangedEvent(lv_event_t * e){
+  lv_state_t state = lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED ;
+  const char * str = lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED ? "Checked" : "Unchecked";
+  ESP_LOGI("CHECKBOX","%s",str );
+  int token = millis();
+  token = WriteHoldRegistor(HFMODE, state, token );
+//   lv_obj_add_state( ui_chkHFMode, LV_STATE_CHECKED );     /// States
+//   lv_obj_clear_state(ui_chkHFMode,LV_STATE_CHECKED );
+}
 	// int32_t bret;
   	// for(int i =0;i<100;i++ ){
   	// 	lv_timer_handler(); /* let the GUI do its work */

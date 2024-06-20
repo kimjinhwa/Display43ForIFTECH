@@ -111,7 +111,7 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
             //값이 같지는 않으나 알람 이벤트가 0 값이면 
             //알람이 해소 된다
             vWarninglogs.clear();
-            alarmStatus = 0;
+            eventHistory = 0;
             runBuzzStatus =0;
         }
 
@@ -125,7 +125,7 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
         if(log.HWstatus || log.operationFault)  //둘중의 하나라도 값이 0이 아닐경우 로그를 기록한다.
         {
             // 이제 EVENT를 기록 한다.
-            alarmStatus = 1;
+            eventHistory = 1;
             runBuzzStatus =1;
             writeLog(&log);
         }
@@ -230,7 +230,7 @@ long upsLog::getFileSize()
     fp = fopen(filename, "rb");
     if (fp == NULL)
     {
-        ESP_LOGW("UI","\ngetFileSize File Open Error");
+        ESP_LOGW("UI","getFileSize File Open Error");
         return bRet;
     }
     fseek(fp, 0, SEEK_END);
@@ -256,7 +256,7 @@ long upsLog::getFileSize()
         //printf("\ngetFileSize %s ",log.message);
     }
     fclose(fp);
-    ESP_LOGW("CURRENTLOG","\ncurrentMemoryPage %d logCount %d",currentMemoryPage,logCount);
+    ESP_LOGW("CURRENTLOG","currentMemoryPage %d logCount %d",currentMemoryPage,logCount);
     return file_size;
 }
 int upsLog::shrinkFile()
@@ -269,7 +269,7 @@ int upsLog::shrinkFile()
     upslog_t logs; 
     if (fp_src == NULL || fp_desc == NULL )
     {
-        ESP_LOGW("UI","\nshrinkFile File Open Error");
+        ESP_LOGW("UI","shrinkFile File Open Error");
         return -1;
     }
     fseek(fp_src, start_pos * sizeof(upslog_t), SEEK_SET);
@@ -283,7 +283,7 @@ int upsLog::shrinkFile()
     fp_src = fopen("spiffs/temp.hex", "rb");
     if (fp_src == NULL || fp_desc == NULL )
     {
-        ESP_LOGW("UI","\nshrinkFile File Open Error");
+        ESP_LOGW("UI","shrinkFile File Open Error");
         return -1;
     }
     //temp.hex에 있는 데이타를 filename에 옮긴다
@@ -318,7 +318,7 @@ int upsLog::writeLog(upslog_t *log)
     fp = fopen(filename, "ab+");
     if (fp == NULL)
     {
-        ESP_LOGW("UI","\nwriteLog File Open Error");
+        ESP_LOGW("UI","writeLog File Open Error");
         return -1;
     }
     logCount++;
@@ -330,9 +330,9 @@ int upsLog::writeLog(upslog_t *log)
     retStr.append( getLogString(log));
     int i=0;
     fseek(fp, 0, logCount * sizeof(upslog_t));
-    ESP_LOGW("LOG","\nFile Write Log Data"); 
+    ESP_LOGW("LOG","File Write Log Data"); 
     for (const auto& entry : vlogs) {
-        ESP_LOGW("LOG","\nLog ID(%d): %d , Log Message: %s" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
+        ESP_LOGW("LOG","Log ID(%d): %d , Log Message: %s" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
         strncpy((char *)&log->message, std::get<1>(entry).c_str(),50);
         //printf("-->%s",log->message);
         wSize = fwrite((upslog_t *)log, 1, sizeof(upslog_t), fp);
@@ -395,11 +395,11 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
     logMemPos = (currentMemoryPage)*LOG_PER_PAGE ;
     logMemPos = logMemPos > logCount? logCount:logMemPos;
 
-    printf("\nlogcount %d ",logCount);
-    printf("\nremain %d ",remain);
-    printf("\nlogMemPos %d ",logMemPos);
-    printf("\ntotalPage %d ",totalPage);
-    printf("\ncurrentMemoryPage %d ",currentMemoryPage);
+    ESP_LOGI("VLOG","logcount %d ",logCount);
+    ESP_LOGI("VLOG","remain %d ",remain);
+    ESP_LOGI("VLOG","logMemPos %d ",logMemPos);
+    ESP_LOGI("VLOG","totalPage %d ",totalPage);
+    ESP_LOGI("VLOG","currentMemoryPage %d ",currentMemoryPage);
 
     //logMemPos는 읽을 곳을 가르키고 있다.
     std::vector <std::tuple<uint16_t , std::string> >vectorlogs;
@@ -423,7 +423,7 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
         // else break;
     }
     logMemPos = logMemPos<0 ? 0:logMemPos;
-    printf("\nvLogVector size %d ",vectorlogs.size());
+    ESP_LOGI("VLOG","\nvLogVector size %d ",vectorlogs.size());
     retStr.clear();
     for (const auto &entry : vectorlogs)
     {
@@ -434,7 +434,7 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
 }
 const char * upsLog::readCurrentLog(directionType_t direction)
 {
-    ESP_LOGW("UI","\nEvent Type is %d direction is %d",eventType,direction);
+    ESP_LOGW("UI","Event Type is %d direction is %d",eventType,direction);
     if(eventType == FAULT_TYPE) return readCurrentLogFromVector(direction);
     upslog_t upsLog;
     int16_t  filePos;
@@ -443,7 +443,7 @@ const char * upsLog::readCurrentLog(directionType_t direction)
     fp = fopen(filename, "rb");
     if (fp == NULL)
     {
-        ESP_LOGW("UI","\nFile Open Error");
+        ESP_LOGW("UI","File Open Error");
         return "";
     }
     fseek(fp, 0, SEEK_END);
@@ -456,7 +456,7 @@ const char * upsLog::readCurrentLog(directionType_t direction)
     totalPage = ceil((double)logCount / LOG_PER_PAGE);
 
     if(direction == CURRENTLOG){
-        ESP_LOGW("CURRENTLOG","\ncurrentMemoryPage %d logCount %d",currentMemoryPage,logCount);
+        ESP_LOGW("CURRENTLOG","currentMemoryPage %d logCount %d",currentMemoryPage,logCount);
         // currentMemoryPage--;
         // currentMemoryPage = currentMemoryPage<0?0:currentMemoryPage;
     }
@@ -484,11 +484,11 @@ const char * upsLog::readCurrentLog(directionType_t direction)
         filePos = (currentMemoryPage)*LOG_PER_PAGE;
     filePos = filePos > logCount? logCount:filePos;
 
-    printf("\nlogcount %d ",logCount);
-    printf("\nremain %d ",remain);
-    printf("\nfilePos %d ",filePos);
-    printf("\ntotalPage %d ",totalPage);
-    printf("\ncurrentMemoryPage %d ",currentMemoryPage);
+    // ESP_LOGI("LOG","\nlogcount %d ",logCount);
+    // ESP_LOGI("LOG","\nremain %d ",remain);
+    // ESP_LOGI("LOG","\nfilePos %d ",filePos);
+    // ESP_LOGI("LOG","\ntotalPage %d ",totalPage);
+    // ESP_LOGI("LOG","\ncurrentMemoryPage %d ",currentMemoryPage);
 
     //filePos는 읽을 곳을 가르키고 있다.
     std::vector <std::tuple<uint16_t , std::string> >vectorlogs;
@@ -510,7 +510,7 @@ const char * upsLog::readCurrentLog(directionType_t direction)
     }
     fclose(fp);
     filePos = filePos<0 ? 0:filePos;
-    printf("\nvLogVector size %d ",vectorlogs.size());
+    ESP_LOGI("LOG","\nvLogVector size %d ",vectorlogs.size());
     retStr.clear();
     for (const auto &entry : vectorlogs)
     {

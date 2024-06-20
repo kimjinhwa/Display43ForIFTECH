@@ -2,6 +2,7 @@
 #include <EEPROM.h>
 #include "modbusRtu.h"
 #include "mainGrobal.h"
+#include "lv_i18n.h"
 #ifdef MODBUSSERVER
 #include <ModbusServerRTU.h>
 #else
@@ -79,6 +80,8 @@ ups_modbus_data_t upsModbusData = {
 };
 uint8_t _CoilData[16*4]; // converter status 16개, inverter fault status 16개
 void setRtcNewTime(RtcDateTime rtc);
+void scrMeasureLoad();
+void scrSettingScreen();
 
 void syncUpsCoilStatusToUpsdata()
 {
@@ -599,9 +602,9 @@ void handleData(ModbusMessage response, uint32_t token)
   if (func == READ_INPUT_REGISTER)
   {
     offs = 3;
+    //ESP_LOGE("MODBUS","token %c", token);
     if (token == 'E')
     { // 이벤트를 요청한것이며 15,16,17번지이다
-      // ESP_LOGE("MODBUS","%c", token);
       for (uint8_t i = 0; i < 3; ++i)
       {
         offs = response.get(offs, values[15 + i]);
@@ -610,27 +613,41 @@ void handleData(ModbusMessage response, uint32_t token)
       //   ESP_LOGE("MODBUS","%2d", values[15+i]);
     }
     if (token == 'A')
-    { // 이벤트를 요청한것이며 15,16,17번지이다
-      // ESP_LOGE("MODBUS","%c", token);
-      for (uint8_t i = 0; i < 58; ++i)
+    { 
+      for (uint8_t i = 0; i < 59; ++i)
       {
         offs = response.get(offs, values[i]);
       }
-      // for (uint8_t i = 0; i < 58; ++i)
-      //   ESP_LOGE("MODBUS","%2d", values[i]);
+      scrMeasureLoad();
+      scrSettingScreen();
+      // ESP_LOGE("MODBUS","Rev data");
+      // for (uint8_t i = 0; i < 59; ++i)
+      //   printf("[%d]=%2d ",i, values[i]);
     }
     // Signal "data is complete"
     request_response = token;
     data_ready = true;
   }
-  else if (func == WRITE_HOLD_REGISTER)
+  else if (func == WRITE_MULT_REGISTERS)
   {
-
     int address ; 
     const uint8_t *rev =  response.data();
     int len = response.size();
     address = rev[2]<<8 | rev[3];
-    //values[address ] =  rev[4]<<8 | rev[5];
+    for(int i=0;i<len;i++)
+      ESP_LOGE("MODBUS"," %02x",rev[i]);
+    offs = 4;
+    offs = response.get(offs, len);
+    ESP_LOGE("MODBUS","multi func %d token %d address %d count %d",func, token,address, values[token]);
+    data_ready = true;
+    request_response = token;
+  }
+  else if (func == WRITE_HOLD_REGISTER )
+  {
+    int address ; 
+    const uint8_t *rev =  response.data();
+    int len = response.size();
+    address = rev[2]<<8 | rev[3];
     for(int i=0;i<len;i++)
       ESP_LOGE("MODBUS"," %02x",rev[i]);
     offs = 4;
@@ -663,35 +680,72 @@ void handleError(Error error, uint32_t token)
   ModbusError me(error);
   ESP_LOGE("MODBUS","Error response: %02X - %s\n", (int)me, (const char *)me);
 }
-uint32_t waitDataReceive()
+uint32_t waitDataReceive(int wCount)
 {
 
 	uint16_t waitingCount = 0;
 	while (!data_ready)  // 1초간 Waiting한다.
 	{
 		vTaskDelay(10);
+    waitingCount++;
 		//ESP_LOGI("MODUBS", "Wating...%d", waitingCount++);
-    if(waitingCount>100) break;
+    if(waitingCount>wCount) break;
 	}
 	ESP_LOGI("MODUBS", "WatingCount %d Received %d..",waitingCount, request_response );
-  tokenLoopCount = 0;
+  tokenLoopCount = 3;
   return request_response ;
 }
 /* 데이타를 보낼때 Time out을 결정한다. 
 *  @timeout milisecond
 */
 int WriteHoldRegistor(int index,int value,uint32_t Token){
-  tokenLoopCount = -1;
-  vTaskDelay(300);
+
+  tokenLoopCount = -1;  // 더이상 Looping을 하지 않게 한다
+  ESP_LOGE("MODBUS","ready WriteHoldRegistor %ld ",millis());
+  //waitDataReceive(30);
+  ESP_LOGE("MODBUS","send WriteHoldRegistor index %ld ,value %d ", index,value);
+  //if(data_ready == false) vTaskDelay(300);
   data_ready = false;
-  Error err = MB.addRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
-  if (err!=SUCCESS) {
-    ModbusError e(err);
-    ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
+
+  //Error err = MB.addRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
+  // if (err!=SUCCESS) {
+  //   ModbusError e(err);
+  //   ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
+  // }
+  //ModbusMessage rc = MB.syncRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
+  uint16_t address=1;
+  uint8_t byteCount=2;
+  uint16_t arrayWord[1];
+  arrayWord[0]= value;
+  //                               (uint8_t serverID, uint8_t functionCode, uint16_t p1, uint16_t p2, uint8_t count, uint16_t *arrayOfWords);
+  uint16_t *values;
+  values = (uint16_t *)&upsModbusData;
+  values[index] = value;
+  ModbusMessage rc = MB.syncRequest(Token,(uint8_t) 1, (uint8_t)WRITE_MULT_REGISTERS,(uint16_t) index,(uint16_t)address,(uint8_t) byteCount,(uint16_t *) &arrayWord);
+  if(rc.getError() == 0){
+    handleData(rc,Token);
   }
-  //waitDataReceive();
-  return 0;
+  else{
+    ESP_LOGW("MODUBS","MODBUS ERROR %d",rc.getError());
+    Token=0;
+  }
+  tokenLoopCount = 0;  // 다시 데이타를 받기 시작한다 
+  return Token;
 }
+// int WriteHoldRegistor(int index,int value,uint32_t Token){
+//   uint16_t sendCount=1;
+//   tokenLoopCount = -1;
+//   vTaskDelay(300);
+//   data_ready = false;
+//   Error err = MB.addRequest(Token, 1, WRITE_MULT_REGISTERS, sendCount, index, value);
+//   if (err!=SUCCESS) {
+//     ModbusError e(err);
+//     ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
+//   }
+//   //waitDataReceive();
+//   return 0;
+// }
+
 int modbusEventSendLoop(int timeout)
 {
   if (tokenLoopCount == -1)
@@ -716,29 +770,40 @@ int modbusEventSendLoop(int timeout)
   case 'A':
     func = READ_INPUT_REGISTER;
     startAddress = 0;
-    dataCount =58;
+    dataCount =59;
     break;
   
   default:
     break;
   }
-  Error err = MB.addRequest(requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
-  //Error err = MB.addRequest(requestToken[tokenLoopCount], 1, READ_INPUT_REGISTER, 0, 58 * 2);
-  if (err != SUCCESS)
-  {
-    ModbusError e(err);
-    ESP_LOGE("MODBUS", "Error creating request: %02X - %s\n", (int)e, (const char *)e);
+  // Error err = MB.addRequest(requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
+  // if (err != SUCCESS)
+  // {
+  //   ModbusError e(err);
+  //   ESP_LOGE("MODBUS", "Error creating request: %02X - %s\n", (int)e, (const char *)e);
+  //   return 0;
+  // }
+  //int32_t Token= millis();
+  ModbusMessage rc = MB.syncRequest (requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
+  if(rc.getError() == 0){
+    handleData(rc,requestToken[tokenLoopCount]);
+    tokenLoopCount++;  // 전송이 제대로 됬다면 다음 루틴으로 간다
+    return requestToken[tokenLoopCount];
+  }
+  else{
+    modbusErrorCounter++;
+    ESP_LOGE("MODBUS", "Comm Error");
     return 0;
   }
-  if(timeout>0)
-  for(int i=0;i<timeout;i++){
-    vTaskDelay(1);
-    if(data_ready) 
-      break;
-  }
 
-  tokenLoopCount++;  // 전송이 제대로 됬다면 다음 루틴으로 간다
-  return data_ready;
+  // if(timeout>0)
+  // for(int i=0;i<timeout;i++){
+  //   vTaskDelay(1);
+  //   if(data_ready) 
+  //     break;
+  // }
+
+  //return data_ready;
 }
 void modbusStop(){
   tokenLoopCount=-1;
@@ -776,7 +841,7 @@ void modbusTask(void *parameter)
       modbusEventSendLoop(100);
       previous300mills = now;
     }
-    modbusEventGetLoop();
+    //modbusEventGetLoop();
     vTaskDelay(100);
   };
 }
