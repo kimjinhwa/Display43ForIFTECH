@@ -157,7 +157,7 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
     if (ts.touched())
     {
       ESP_LOGI("TOUCH", "Touch wait ");
-      vTaskDelay(10); //23 33  노이즈를 방지하기 위하여 한번 더 읽는다.
+      vTaskDelay(15); //10    23 33  노이즈를 방지하기 위하여 한번 더 읽는다.
       if (ts.touched())
       {
         data->state = LV_INDEV_STATE_PR;

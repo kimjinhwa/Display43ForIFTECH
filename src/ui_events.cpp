@@ -516,7 +516,7 @@ void scrSettingScreen(){
   lv_textarea_set_text(ui_txtInvCurrGain, 
       String(upsModbusData.inverter_current_gain).c_str()); //
 
-	sprintf(tempstr, "%d V", upsModbusData.output_current_gain);
+	sprintf(tempstr, "%d A", upsModbusData.output_current_gain);
 	lv_label_set_text(ui_txtOutputCurrGainLBL, tempstr);
   lv_textarea_set_text(ui_txtOutputCurrGain, 
       String(upsModbusData.output_current_gain).c_str()); //
