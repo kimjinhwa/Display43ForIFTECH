@@ -643,7 +643,7 @@ void ui_event_txtInvVoltGain(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        EventTxtInputVdcLinkGain(e);
+        EventTxtInvVoltGain(e);
     }
 }
 void ui_event_txtInvCurrGain(lv_event_t * e)
@@ -651,7 +651,7 @@ void ui_event_txtInvCurrGain(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        EventTxtInputCurrGain(e);
+        EventTxtInvCurrGain(e);
     }
 }
 void ui_event_Button10(lv_event_t * e)
@@ -707,7 +707,7 @@ void ui_event_txtBatCurrGain(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        EventTxtVbatVoltGain(e);
+        EventTxtBatCurrGain(e);
     }
 }
 void ui_event_txtOutputCurrGain(lv_event_t * e)
@@ -715,7 +715,7 @@ void ui_event_txtOutputCurrGain(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        EventTxtVbatVoltGain(e);
+        EventTxtOutputCurrGain(e);
     }
 }
 void ui_event_txtInputVdcLinkGain(lv_event_t * e)
