@@ -21,13 +21,15 @@
 #define MAX_LOG_COUNT   1000
 
 
+#define MAX_LOGMESSAGE_LENGTH 60 
 typedef struct upslog_t{
     uint16_t logId;
     uint32_t logTime;
     uint16_t modulestatus ;
     uint16_t HWstatus ;
     uint16_t operationFault;
-    uint8_t  message[50];
+    uint8_t  message[MAX_LOGMESSAGE_LENGTH ];
+    uint8_t  checkBit; 
 } upslog_t;
 
 enum directionType_t 

@@ -437,10 +437,10 @@ void ui_scrControll_screen_init(void)
     lv_obj_set_style_pad_column(ui_Label37, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Button14 = lv_btn_create(ui_Panel7);
-    lv_obj_set_height(ui_Button14, 40);
+    lv_obj_set_height(ui_Button14, 60);
     lv_obj_set_width(ui_Button14, lv_pct(30));
-    lv_obj_set_x(ui_Button14, 13);
-    lv_obj_set_y(ui_Button14, 98);
+    lv_obj_set_x(ui_Button14, 11);
+    lv_obj_set_y(ui_Button14, 75);
     lv_obj_set_align(ui_Button14, LV_ALIGN_TOP_RIGHT);
     lv_obj_set_flex_flow(ui_Button14, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(ui_Button14, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);

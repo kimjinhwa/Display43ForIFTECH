@@ -15,7 +15,7 @@ void scrSettingScreenLoaded(lv_event_t * e);
 void evtTabUpsSetup(lv_event_t * e);
 void EventTxtBatVolSet(lv_event_t * e);
 void EventTxtBatCurrset(lv_event_t * e);
-void EventTxtInvVolSet(lv_event_t * e);
+void EventTxtOutputVolSet(lv_event_t * e);
 void hfModeValueChangedEvent(lv_event_t * e);
 void TabEventSetupVolClick(lv_event_t * e);
 void TabEventSetupTimeClick(lv_event_t * e);

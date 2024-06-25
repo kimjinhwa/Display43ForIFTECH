@@ -96,8 +96,8 @@ void ui_event_txtBatCurrSet(lv_event_t * e);
 lv_obj_t * ui_txtBatCurrSet;
 lv_obj_t * ui_Panel35;
 lv_obj_t * ui_Label38;
-void ui_event_txtInvVolSet(lv_event_t * e);
-lv_obj_t * ui_txtInvVolSet;
+void ui_event_txtOutputVolSet(lv_event_t * e);
+lv_obj_t * ui_txtOutputVolSet;
 lv_obj_t * ui_Panel21;
 lv_obj_t * ui_Label21;
 void ui_event_chkHFMode(lv_event_t * e);
@@ -236,7 +236,6 @@ lv_obj_t * ui_Panel55;
 void ui_event_Button24(lv_event_t * e);
 lv_obj_t * ui_Button24;
 lv_obj_t * ui_Label56;
-lv_obj_t * ui_Container17;
 void ui_event_TabSystem(lv_event_t * e);
 lv_obj_t * ui_TabSystem;
 lv_obj_t * ui_Container7;
@@ -408,7 +407,6 @@ lv_obj_t * ui_TabView2;
 lv_obj_t * ui_TabAlarmPage;
 lv_obj_t * ui_alarmTextArea;
 lv_obj_t * ui_TabEventHistoryPage1;
-lv_obj_t * ui_Container10;
 lv_obj_t * ui_eventTextArea;
 lv_obj_t * ui_Panel61;
 void ui_event_Button13(lv_event_t * e);
@@ -574,12 +572,12 @@ void ui_event_txtBatCurrSet(lv_event_t * e)
         EventTxtBatCurrset(e);
     }
 }
-void ui_event_txtInvVolSet(lv_event_t * e)
+void ui_event_txtOutputVolSet(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        EventTxtInvVolSet(e);
+        EventTxtOutputVolSet(e);
     }
 }
 void ui_event_chkHFMode(lv_event_t * e)

@@ -157,7 +157,7 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
     if (ts.touched())
     {
       ESP_LOGI("TOUCH", "Touch wait ");
-      vTaskDelay(15); //10    23 33  노이즈를 방지하기 위하여 한번 더 읽는다.
+      vTaskDelay(11); //10   15 23 33  노이즈를 방지하기 위하여 한번 더 읽는다.
       if (ts.touched())
       {
         data->state = LV_INDEV_STATE_PR;
@@ -568,6 +568,7 @@ void setup()
   EEPROM.begin(sizeof(nvsSystemSet_t) + 1);
 
   pinMode(BUZZER, OUTPUT);
+  pinMode(0, INPUT);
   digitalWrite(BUZZER, LOW);
 
   lsFile.littleFsInitFast(0);
@@ -651,10 +652,10 @@ void setup()
   gfx->println("\nCheck modbus Serial comm...");
 
 #ifndef DONOTUSECOMM
-  while (!modbusEventSendLoop(1000))
-  {
-    gfx->print(".");
-  }
+  // while (!modbusEventSendLoop(1000))
+  // {
+  //   gfx->print(".");
+  // }
 #endif
   gfx->println("\nCheck modbus Serial OK");
   // vTaskDelay(1000);
@@ -725,6 +726,10 @@ void setup()
     //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
     ui_init();
+    lv_obj_scroll_to_view_recursive(ui_alarmTextArea,LV_ANIM_OFF);
+    lv_obj_scroll_to_view_recursive(ui_eventTextArea,LV_ANIM_OFF);
+    lv_tabview_set_act(ui_TabView2,1,LV_ANIM_OFF); 
+    lv_tabview_set_act(ui_TabView2,0,LV_ANIM_OFF); 
     // lv_obj_add_flag(ui_TabView2,LV_OBJ_FLAG_GESTURE_BUBBLE);
     myui_MainScreen_screen_init();
     // setTime();
@@ -780,12 +785,12 @@ static int every300ms = 300;
 static unsigned long previous500mills = 0;
 static int every500ms = 500;
 static unsigned long now;
-unsigned long incTime = 1;
+uint16_t incTime = 0;
 // int modbusEventSendLoop(int timeout);
 // int modbusEventGetLoop();
 void showMessageLabel(const char *message);
 //extern lv_obj_t * ui_MainScreen;
-
+uint16_t pressedResetButton=0;
 void loop()
 {
   void *parameters;
@@ -816,6 +821,17 @@ void loop()
     previous1000mills = now;
     incTime++;
     lcdOntime++;
+    if(digitalRead(0)==0){
+      ESP_LOGI("IO","Press Init button %d",digitalRead(0));
+      pressedResetButton++;
+      if(pressedResetButton>3){
+        ESP_LOGI("IO","Now On file format...Do not Turn Off system");
+        lsFile.format();
+      }
+    }
+    else{
+      pressedResetButton =0;
+    }
     showSystemUpdate();
     mainScrUpdata();
     if (lcdOntime >= nvsSystemEEPRom.systemLedOffTime) // lv_led_off(led);

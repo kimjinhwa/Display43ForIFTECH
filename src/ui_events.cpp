@@ -266,28 +266,81 @@ void TabEventSetupTimeClick(lv_event_t * e)
 
 void btnEventRunUps(lv_event_t * e)
 {
-	upsModbusData.upsRun.upsRunCommandBit.UpsON =
-		upsModbusData.upsRun.upsRunCommandBit.UpsON ? 0 : 1;
-	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-	lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// upsModbusData.upsRun.upsRunCommandBit.UpsON =
+	// 	upsModbusData.upsRun.upsRunCommandBit.UpsON ? 0 : 1;
+	int token ;
+	if (upsModbusData.HWState.Bit.CONVERTER_RUN_STOP_STATE ||
+		upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE ||
+		upsModbusData.HWState.Bit.INVERTER_RUN_STOP_STATE)
+	{
+		// lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+		// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	}
+	else  //off 상태 이므로 RUN Command를 보낸다.
+	{
+		upsModbusData.upsRun.upsRunCommandBit.UpsON=1;
+		token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+		if (token == 0)
+			showMessageLabel(_("Comm_Error"));
+		else
+			ESP_LOGI("MODUBS", "Received token %d..", token);
+		// lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+		// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+	}
 
-	int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-	//uint32_t token = waitDataReceive(100);
-	if(token==0) showMessageLabel(_("Comm_Error"));
-	else ESP_LOGI("MODUBS", "Received token %d..",token );
+	// if (upsModbusData.upsRun.upsRunCommandBit.UpsON)
+	// {
+	// 	// ON 활성화
+	// 	// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// 	//lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// }
+	// else
+	// { // OFF활성화
+	// 	// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// 	//lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// }
+
+	// uint32_t token = waitDataReceive(100);
 }
 
 void btnEventStopUps(lv_event_t * e)
 {
-	upsModbusData.upsRun.upsRunCommandBit.UpsOFF =
-		upsModbusData.upsRun.upsRunCommandBit.UpsOFF ? 0 : 1;
-	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
-	lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-	int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-	if(token==0) showMessageLabel(_("Comm_Error"));
-	else ESP_LOGI("MODUBS", "Received token %d..",token );
-	//uint32_t token = waitDataReceive(100);
-	//ESP_LOGI("MODUBS", "Received token %d..",token );
+	int token ;
+	if (upsModbusData.HWState.Bit.CONVERTER_RUN_STOP_STATE ||
+		upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE ||
+		upsModbusData.HWState.Bit.INVERTER_RUN_STOP_STATE)
+	{  // RUN 상태이므로 STOP를 보낸다
+		upsModbusData.upsRun.upsRunCommandBit.UpsOFF = 1;
+		token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+		if (token == 0)
+			showMessageLabel(_("Comm_Error"));
+		else
+			ESP_LOGI("MODUBS", "Received token %d..", token);
+		// lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+		// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	}
+	else  //off 상태 이므로 RUN Command를 보낸다.
+	{
+		// lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+		// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+	}
+
+	// upsModbusData.upsRun.upsRunCommandBit.UpsOFF =
+	// 	upsModbusData.upsRun.upsRunCommandBit.UpsOFF ? 0 : 1;
+	// if(upsModbusData.upsRun.upsRunCommandBit.UpsOFF)
+	// {
+	// 	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// }
+	// else 
+	// {
+	// 	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// }
+	// //lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	// int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	// if(token==0) showMessageLabel(_("Comm_Error"));
+	// else ESP_LOGI("MODUBS", "Received token %d..",token );
+	// //uint32_t token = waitDataReceive(100);
+	// //ESP_LOGI("MODUBS", "Received token %d..",token );
 }
 
 
@@ -474,52 +527,68 @@ void scrSettingScreen(){
   char tempstr[10];
   lv_textarea_set_text(ui_txtBatCurrSet, String(upsModbusData.Bat_Current_Ref).c_str()); //2-20 default 2
   lv_textarea_set_text(ui_txtBatVolSet, String(upsModbusData.Bat_Voltage_Ref).c_str()); //
-  lv_textarea_set_text(ui_txtInvVolSet, String(upsModbusData.Output_Voltage_Ref).c_str()); //
+  lv_textarea_set_text(ui_txtOutputVolSet, String(upsModbusData.Output_Voltage_Ref).c_str()); //
+
   if(upsModbusData.HF_MODE==1)
     lv_obj_add_state( ui_chkHFMode, LV_STATE_CHECKED );     /// States
   else 
     lv_obj_clear_state(ui_chkHFMode,LV_STATE_CHECKED );
 
 
-	sprintf(tempstr, "%d V", upsModbusData.input_volt_gain);
+	sprintf(tempstr, "%d V", upsModbusData.Input_volt_rms);
 	lv_label_set_text(ui_txtInputVoltGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInputVoltGain, 
       String(upsModbusData.input_volt_gain).c_str()); //
 
-	sprintf(tempstr, "%d A", upsModbusData.input_current_gain);
+	sprintf(tempstr, "%d A", upsModbusData.Input_current_rms);
 	lv_label_set_text(ui_txtInputCurrGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInputCurrGain, 
       String(upsModbusData.input_current_gain).c_str()); //
 
-	sprintf(tempstr, "%d V", upsModbusData.vdc_link_volt_gain);
-	lv_label_set_text(ui_txtInputVdcLinkGainLBL, tempstr);
-  lv_textarea_set_text(ui_txtInputVdcLinkGain, 
-      String(upsModbusData.vdc_link_volt_gain).c_str()); //
-
-	sprintf(tempstr, "%d V", upsModbusData.vbat_volt_gain);
-	lv_label_set_text(ui_txtVbatVoltGainLBL, tempstr);
-  lv_textarea_set_text(ui_txtVbatVoltGain, 
-      String(upsModbusData.vbat_volt_gain).c_str()); //
-
-	sprintf(tempstr, "%d A", upsModbusData.bat_current_gain);
-	lv_label_set_text(ui_txtBatCurrGainLBL, tempstr);
-  lv_textarea_set_text(ui_txtBatCurrGain, 
-      String(upsModbusData.bat_current_gain).c_str()); //
-
-	sprintf(tempstr, "%d V", upsModbusData.inverter_volt_gain);
+	sprintf(tempstr, "%d V", upsModbusData.inverter_volt_rms);
 	lv_label_set_text(ui_txtInvVoltGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInvVoltGain, 
       String(upsModbusData.inverter_volt_gain).c_str()); //
 
-	sprintf(tempstr, "%d A", upsModbusData.inverter_current_gain);
+	sprintf(tempstr, "%d A", upsModbusData.inverter_current_rms);
 	lv_label_set_text(ui_txtInvCurrGainLBL, tempstr);
   lv_textarea_set_text(ui_txtInvCurrGain, 
       String(upsModbusData.inverter_current_gain).c_str()); //
 
-	sprintf(tempstr, "%d A", upsModbusData.output_current_gain);
+ 
+	sprintf(tempstr, "%d V", upsModbusData.Bat_Voltage_Ref);
+	lv_label_set_text(ui_txtVbatVoltGainLBL, tempstr);
+  lv_textarea_set_text(ui_txtVbatVoltGain, 
+      String(upsModbusData.vbat_volt_gain).c_str()); //
+
+	sprintf(tempstr, "%d A", upsModbusData.bat_current_rms);
+	lv_label_set_text(ui_txtBatCurrGainLBL, tempstr);
+  lv_textarea_set_text(ui_txtBatCurrGain, 
+      String(upsModbusData.bat_current_gain).c_str()); //
+
+	sprintf(tempstr, "%d A", upsModbusData.output_current_rms);
 	lv_label_set_text(ui_txtOutputCurrGainLBL, tempstr);
   lv_textarea_set_text(ui_txtOutputCurrGain, 
       String(upsModbusData.output_current_gain).c_str()); //
+
+	sprintf(tempstr, "%d V", upsModbusData.vdc_link_volt_rms);
+	lv_label_set_text(ui_txtInputVdcLinkGainLBL, tempstr);
+  lv_textarea_set_text(ui_txtInputVdcLinkGain, 
+      String(upsModbusData.vdc_link_volt_gain).c_str()); //
+
+
+// UPS RUN OFF 
+	if (upsModbusData.HWState.Bit.CONVERTER_RUN_STOP_STATE ||
+		upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE ||
+		upsModbusData.HWState.Bit.INVERTER_RUN_STOP_STATE)
+	{
+		lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+		lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+	}
+	else{
+		lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+		lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
+	}
 }
 void scrMeasureLoad()
 {
@@ -642,7 +711,7 @@ void EventTxtBatVolSet(lv_event_t * e)
 }
 
 uint32_t outVoltageConstrain=0x006400F0;
-void EventTxtInvVolSet(lv_event_t * e)
+void EventTxtOutputVolSet(lv_event_t * e)
 {
 	int32_t id =  OUTPUTVOL_REF<<24;
 	outVoltageConstrain+= id;
@@ -836,8 +905,8 @@ void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction)
 	retStr = "";
 	retStr = upslog->readCurrentLog(direction);
 
-	lv_textarea_set_text(obj, retStr.c_str());
 	//ESP_LOGW("UI EventLog","log \n%s",retStr.c_str() );
+	lv_textarea_set_text(obj, retStr.c_str());
 	while( lv_textarea_get_cursor_pos(obj)){
 		//ESP_LOGW("UI EventAlarm","lv_textarea_cursor_up%d",lv_textarea_get_cursor_pos(ui_eventTextArea) );
 		lv_textarea_cursor_up(obj);

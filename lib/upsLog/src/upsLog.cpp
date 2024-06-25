@@ -156,6 +156,9 @@ void upsLog::parseMessage(std::string *string_t,uint16_t logId,uint16_t value, u
     {
         if (value & (index << i))
         {
+            
+            if(eventType == EVENT_TYPE)
+            {
             #ifdef WINDOWS
             string_t->append( std::to_string(nowTime.Year()+2000).c_str() );
             #else
@@ -177,6 +180,7 @@ void upsLog::parseMessage(std::string *string_t,uint16_t logId,uint16_t value, u
             sprintf(temp,"%02d",nowTime.Second());
             string_t->append( std::string(temp).c_str() );
             string_t->append( " " );
+            }
 
             #ifdef WINDOWS
             string_t->append(status[i]);
@@ -331,9 +335,10 @@ int upsLog::writeLog(upslog_t *log)
     int i=0;
     fseek(fp, 0, logCount * sizeof(upslog_t));
     ESP_LOGW("LOG","File Write Log Data"); 
+    log->checkBit = 0x55;
     for (const auto& entry : vlogs) {
         ESP_LOGW("LOG","Log ID(%d): %d , Log Message: %s" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
-        strncpy((char *)&log->message, std::get<1>(entry).c_str(),50);
+        strncpy((char *)&log->message, std::get<1>(entry).c_str(),MAX_LOGMESSAGE_LENGTH );
         //printf("-->%s",log->message);
         wSize = fwrite((upslog_t *)log, 1, sizeof(upslog_t), fp);
     }
@@ -363,7 +368,7 @@ int upsLog::writeLogToVmem(upslog_t *log)
     int i=0;
     for (const auto& entry : vWarninglogs) {
         printf("\nvvWarninglogs(%d): %d , Log Message: %s\n" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
-        strncpy((char *)&log->message, std::get<1>(entry).c_str(),50);
+        strncpy((char *)&log->message, std::get<1>(entry).c_str(),MAX_LOGMESSAGE_LENGTH );
     }
     //printf("log.message=\n%s",retStr.c_str());
     return vWarninglogs.size();
@@ -415,7 +420,6 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
             retStr += std::get<1>(logEntry);
             retStr.append("\n");
             vectorlogs.push_back(std::make_tuple(upsLog.logId, retStr));
-                // printf("\n%d:fread %d logMemPos %d data %s",i, bRet, logMemPos, upsLog.message);
         }
         catch(const std::out_of_range& e){
             break;
@@ -500,17 +504,20 @@ const char * upsLog::readCurrentLog(directionType_t direction)
         if (fseek(fp, (filePos-1) * sizeof(upslog_t), SEEK_SET) == 0)
         {
             bRet = fread((upslog_t *)&upsLog, 1, sizeof(upslog_t), fp);
+            if(upsLog.checkBit != 0x55){
+                ESP_LOGE("ERROR","File CheckBit Error!..It need to format!");
+                break;
+            }
             retStr.clear();
             retStr.append((char*)upsLog.message);
             retStr.append("\n");
             vectorlogs.push_back(std::make_tuple(upsLog.logId, retStr));
-            //printf("\n%d:fread %d filePos %d data %s",i, bRet, filePos, upsLog.message);
         }
         else break;
     }
     fclose(fp);
     filePos = filePos<0 ? 0:filePos;
-    ESP_LOGI("LOG","\nvLogVector size %d ",vectorlogs.size());
+    ESP_LOGI("LOG","vLogVector size %d ",vectorlogs.size());
     retStr.clear();
     for (const auto &entry : vectorlogs)
     {
