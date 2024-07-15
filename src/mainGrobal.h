@@ -4,6 +4,12 @@
 //#define DONOTUSECOMM
 #define LOG_PER_PAGE	5
 
+typedef enum {
+  NO_JOB = 0,
+  SYSTEM_REBOOT = 1,
+  FILE_FORMAT = 2,
+  JOB_DONE = 99
+}jobCommant_t;
 typedef struct{
   uint16_t UpsON  : 1;
   uint16_t UpsOFF : 1;
@@ -196,7 +202,7 @@ typedef struct
   uint16_t systemMinute;                 // 64
   uint16_t systemSecond;                 // 65
   uint16_t systemModusId;                // 66
-  uint16_t systemLanguage;               // 67
+  int16_t systemLanguage;               // 67
   uint16_t systemBaudRate;               // 68
   operatingMode_t systemOperatingMode;   // 69  0 : Agent, 1: Server
   uint16_t systemModbusQInterval;        // 70  0 : Agent, 1: Server
@@ -220,7 +226,7 @@ extern ups_modbus_data_t upsModbusData;
 
 typedef struct
 {
-    uint16_t systemLanguage;
+    int16_t systemLanguage;
     uint16_t lcdBright;
     uint16_t systemLedOffTime;
     uint16_t systemModusId;

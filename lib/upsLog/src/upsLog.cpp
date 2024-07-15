@@ -31,6 +31,12 @@ upsLog::upsLog(eventType_t eventType)
     oldHWState.status =0x00;
     currentMemoryPage =0;
 }
+void upsLog::init(){
+    logCount = 0;
+    logid = 0;
+    totalPage = 0;
+    oldHWState.status =0x00;
+}
 /* filename은 어떤 것을 줘도 관계없다.  */
 /* eventType: event는 0, alarm은 1을 준다.*/
 upsLog::upsLog(const char* filename,eventType_t eventType)
@@ -460,22 +466,28 @@ const char * upsLog::readCurrentLog(directionType_t direction)
     totalPage = ceil((double)logCount / LOG_PER_PAGE);
 
     if(direction == CURRENTLOG){
-        ESP_LOGW("CURRENTLOG","currentMemoryPage %d logCount %d",currentMemoryPage,logCount);
         // currentMemoryPage--;
         // currentMemoryPage = currentMemoryPage<0?0:currentMemoryPage;
     }
     else if(direction == PREVLOG){
         currentMemoryPage++;
         if(remain==0)
-            currentMemoryPage = currentMemoryPage>totalPage ? totalPage:currentMemoryPage;
+        {
+            currentMemoryPage = currentMemoryPage>=totalPage ? totalPage:currentMemoryPage;
+            //currentMemoryPage  과 totalPage 가 같으면 화면 Display를 맞추기 위해 
+            // currentMemoryPage  를 하나 줄려준다.
+        }
         else 
+        {
             currentMemoryPage = currentMemoryPage>totalPage-1 ? totalPage-1:currentMemoryPage;
+        }
         //currentMemoryPage=logCount / LOG_PER_PAGE;
     }
     else if(direction == NEXTLOG){
         currentMemoryPage--;
         currentMemoryPage = currentMemoryPage<0?0:currentMemoryPage;
     }
+    ESP_LOGW("LOG","currentMemoryPage %d totalPage %d logCount %d",currentMemoryPage,totalPage, logCount);
 
     if(remain>0)
     {
@@ -485,7 +497,9 @@ const char * upsLog::readCurrentLog(directionType_t direction)
             filePos = remain ;
     }
     else
+    {
         filePos = (currentMemoryPage)*LOG_PER_PAGE;
+    }
     filePos = filePos > logCount? logCount:filePos;
 
     // ESP_LOGI("LOG","\nlogcount %d ",logCount);

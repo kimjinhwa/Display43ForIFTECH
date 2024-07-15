@@ -13,21 +13,21 @@ en-GB:
   CONVERTER_OFF: 'CONVERTER OFF'
   DC_DC_OFF: 'DC/DC OFF'
   Converter_GDU: 'Converter GDU'
-  Inverter_GDU: 'Inverter_GDU'
+  Inverter_GDU: 'Inverter GDU'
   DC_DC_GDU: 'DC/DC GDU'
   Common_GDU: 'Common GDU'
   Earth_fault: 'Earth fault'
   Fuse_Open: 'Fuse Open'
   EEPROM_Error: 'EEPROM Error'
   Bypass_mode: 'Bypass mode'
-  screen_set: 'SET'
+  screen_set: 'SYS. SET'
   controll: 'CONTROLL'
   MEASURE: 'MEASURE'
-  info: 'LOG Data'
+  info: 'ALARM'
   Language: '언어'
   English: '한국어'
   Brigtness: 'Brigtness'
-  OFFTIME: 'OFF TIME'
+  OFFTIME: 'OFF TIME(min)'
   Year: 'Year'
   Month: 'Month'
   Day: 'Month'
@@ -53,34 +53,34 @@ en-GB:
   Prev: 'Prev'
   Next: 'Next'
   eventHistory: 'Event History'
-  alarmStatus: 'Alarm Status'
+  alarmStatus: 'ALARM'
   Capacity: Capacity
   Input_Voltage: Input Voltage
   Output_Voltage: Output Voltage
   Battery_Voltagte: Battery Voltagte
   UPS_ON: UPS_ON
   UPS_OFF: UPS_OFF
-  ALARM_RST: ALARM RST
+  ALARM_RST: BEEP STOP 
   Bat_Curr_Set: Bat Curr Set
   Bat_Volt_Set: Bat Volt Set
   Inv_Volt_Set: Inv Volt Set
   HF_Mode: HF Mode
-  R_C_Start_Run_Event: R/C Start Run Event
-  R_C_Re_Start_Event: R/C Re-Start Event
-  R_C_Stop_by_Command_Event: R/C Stop by Command Event
-  R_C_Stop_by_Fault_Event: R/C Stop by Fault Event
-  DC_DC_Start_Run_Event: DC/DC Start Run Event
-  DC_DC_Re_Start_Event: DC/DC Re-Start Event
-  DC_DC_Stop_by_Command_Event: DC/DC Stop by Command Event
-  DC_DC_Stop_by_Fault_Event: DC/DC Stop by Fault Event
-  Inverter_Start_Run_Event: Inverter Start Run Event
-  Inverter_Re_Start_Run_Event: Inverter Re-Start Run Event
-  Inverter_Stop_by_Command_Event: Inverter Stop by Command Event
-  Inverter_Stop_by_Fault_Event: Inverter Stop by Fault Event
-  Transfer_to_Inverter_Event: Transfer to Inverter Event
-  Transfer_to_Bypass_by_Com_Event: Transfer to Bypass by Com Event
-  Transfer_to_Bypass_by_fault_Event: Transfer to Bypass by fault Event
-  Inverter_Over_Current_fault: Inverter Over Current fault
+  R_C_Start_Run_Event: R/C Start Run 
+  R_C_Re_Start_Event: R/C Re-Start 
+  R_C_Stop_by_Command_Event: R/C Stop by Command
+  R_C_Stop_by_Fault_Event: R/C Stop by Fault
+  DC_DC_Start_Run_Event: DC/DC Start Run
+  DC_DC_Re_Start_Event: DC/DC Re-Start
+  DC_DC_Stop_by_Command_Event: DC/DC Stop by Command
+  DC_DC_Stop_by_Fault_Event: DC/DC Stop by Fault
+  Inverter_Start_Run_Event: Inverter Start Run
+  Inverter_Re_Start_Run_Event: Inverter Re-Start Run
+  Inverter_Stop_by_Command_Event: Inverter Stop by Command
+  Inverter_Stop_by_Fault_Event: Inverter Stop by Fault
+  Transfer_to_Inverter_Event: Transfer to Inverter
+  Transfer_to_Bypass_by_Com_Event: Transfer to Bypass by Com
+  Transfer_to_Bypass_by_fault_Event: Transfer to Bypass by fault
+  Inverter_Over_Current_fault: Inverter OC fault
   DC_Link_OV_fault: DC Link OV fault
   Converter_GDU_fault: Converter GDU fault
   Inverter_GDU_fault: Inverter GDU fault
@@ -94,7 +94,7 @@ en-GB:
   Vdc_link_OV_limit_fault: Vdc_link OV limit fault
   Vdc_link_UV_limit_fault: Vdc_link UV limit fault
   input_under_voltage_fault: input under voltage fault
-  input_over_voltage_fault: input over voltage fault
+  input_over_voltage_fault: input OV fault
   Input_Frequency_fault: Input Frequency fault
   Inverter_Frequency_fault: Inverter Frequency fault
   utility_line_failure: utility line failure
@@ -137,3 +137,5 @@ en-GB:
   INVERTER: INVERTER
   OUTPUT: OUTPUT
   BATTERY: BATTERY
+  Log_Init : Log File Init 
+  ENV_SET : ENV SET 

@@ -12,10 +12,10 @@ ko-KR:
   Vdc_link_OV: '직류링크 과전압'
   CONVERTER_OFF: '컨버터 정지'
   DC_DC_OFF: 'DC/DC 정지'
-  Converter_GDU: '컨버터 게이트 이상'
-  Inverter_GDU: '인버터 게이트 이상'
-  DC_DC_GDU: 'DC-DC 게이트 이상'
-  Common_GDU: 'N상 게이트 이상'
+  Converter_GDU: '컨버터 GDU 이상'
+  Inverter_GDU: '인버터 GDU 이상'
+  DC_DC_GDU: 'DC-DC GDU 이상'
+  Common_GDU: 'N상 GDU 이상'
   Earth_fault: '지락 고장'
   Fuse_Open: '배터리 퓨즈 이상'
   EEPROM_Error: '메모리에러'
@@ -23,11 +23,11 @@ ko-KR:
   screen_set: '설  정'
   controll: '제 어'
   MEASURE: '계 측'
-  info: '로  그'
+  info: '경 보'
   Language: 'Language'
   English: 'English'
   Brigtness: '밝기'
-  OFFTIME: '꺼짐시간'
+  OFFTIME: '꺼짐시간(분)'
   Year: '년'
   Month: '월'
   Day: '일'
@@ -43,24 +43,24 @@ ko-KR:
   RUN: '운 전'
   STOP: '정 지'
   UPS_SYSTEM: '무정전전원공급장치'
-  dcLink: '직류링크'
-  Battery: '축 전 지'
-  Inverter: '인  버  터'
-  output: '출        력'
-  input: '입        력'
+  dcLink:   '직류링크'
+  Battery:  '축 전 지'
+  Inverter: '인 버 터'
+  output:   '출    력'
+  input:    '입    력'
   Mesurement: '계 측 값'
   LogData: '경보이력'
   Prev: '이 전'
   Next: '다 음'
-  eventHistory: '알람이력'
-  alarmStatus: '경보상태'
+  eventHistory: '경보이력'
+  alarmStatus: '경  보'
   Capacity: 정격용량
   Input_Voltage: 입력전압
   Output_Voltage: 출력전압
   Battery_Voltagte: 배터리전압
   UPS_ON: UPS 운전
   UPS_OFF: UPS 정지
-  ALARM_RST: 알람정지 
+  ALARM_RST: 부저정지 
   Bat_Curr_Set: 충전전류 설정 
   Bat_Volt_Set: 배터리전압 설정 
   Inv_Volt_Set: 출력전압 설정
@@ -137,3 +137,5 @@ ko-KR:
   INVERTER: 인버터 
   OUTPUT: 출력
   BATTERY: 배터리
+  Log_Init : 로그초기화
+  ENV_SET : 환경설정

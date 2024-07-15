@@ -9,21 +9,21 @@ Bat_Curr_Set : Bat Curr Set
 Bat_Volt_Set : Bat Volt Set
 Inv_Volt_Set : Inv Volt Set
 HF_Mode : HF Mode
-R_C_Start_Run_Event : R/C Start Run Event
-R_C_Re-Start_Event : R/C Re-Start Event
-R_C_Stop_by_Command_Event : R/C Stop by Command Event
-R_C_Stop_by_Fault_Event : R/C Stop by Fault Event
-DC_DC_Start_Run_Event : DC/DC Start Run Event
-DC_DC_Re-Start_Event : DC/DC Re-Start Event
-DC_DC_Stop_by_Command_Event : DC/DC Stop by Command Event
-DC_DC_Stop_by_Fault_Event : DC/DC Stop by Fault Event
-Inverter_Start_Run_Event : Inverter Start Run Event
-Inverter_Re-Start_Run_Event : Inverter Re-Start Run Event
-Inverter_Stop_by_Command_Event : Inverter Stop by Command Event
-Inverter_Stop_by_Fault_Event : Inverter Stop by Fault Event
-Transfer_to_Inverter_Event : Transfer to Inverter Event
-Transfer_to_Bypass_by_Com_Event : Transfer to Bypass by Com Event
-Transfer_to_Bypass_by_fault_Event : Transfer to Bypass by fault Event
+R_C_Start_Run_Event : R/C Start Run
+R_C_Re-Start_Event : R/C Re-Start
+R_C_Stop_by_Command_Event : R/C Stop by Command
+R_C_Stop_by_Fault_Event : R/C Stop by Fault
+DC_DC_Start_Run_Event : DC/DC Start Run 
+DC_DC_Re-Start_Event : DC/DC Re-Start 
+DC_DC_Stop_by_Command_Event : DC/DC Stop by Command 
+DC_DC_Stop_by_Fault_Event : DC/DC Stop by Fault 
+Inverter_Start_Run_Event : Inverter Start Run
+Inverter_Re-Start_Run_Event : Inverter Re-Start Run
+Inverter_Stop_by_Command_Event : Inverter Stop by Command 
+Inverter_Stop_by_Fault_Event : Inverter Stop by Fault
+Transfer_to_Inverter_Event : Transfer to Inverter
+Transfer_to_Bypass_by_Com_Event : Transfer to Bypass by Com 
+Transfer_to_Bypass_by_fault_Event : Transfer to Bypass by fault 
 Input_OC : Input OC
 Inverter_Over_Current_fault : Inverter Over Current fault
 DC_Link_OV_fault : DC Link OV fault

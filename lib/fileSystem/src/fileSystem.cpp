@@ -413,7 +413,7 @@ void LittleFileSystem::littleFsInit(int bformat)
   }
 }
 
-extern TaskHandle_t *h_pxModbusTask;
+extern TaskHandle_t *h_pxsystemControllTask;
 void LittleFileSystem::df()
 {
   mySerialBT.printf("\r\nESP32 Partition table:\r\n");
@@ -430,12 +430,13 @@ void LittleFileSystem::df()
                         p->type, p->subtype, p->address, p->size, p->label);
     } while (pi = (esp_partition_next(pi)));
   }
-  mySerialBT.printf("\r\n|HEAP     |       |          |   %d | ESP.getHeapSize |\r\n", ESP.getHeapSize());
-  mySerialBT.printf("|Free heap|       |          |   %d | ESP.getFreeHeap |\r\n", ESP.getFreeHeap());
-  mySerialBT.printf("|Psram    |       |          |   %d | ESP.PsramSize   |\r\n", ESP.getPsramSize());
-  mySerialBT.printf("|Free Psrm|       |          |   %d | ESP.FreePsram   |\r\n", ESP.getFreePsram());
-  mySerialBT.printf("|UsedPsram|       |          |   %d | Psram - FreeRam |\r\n", ESP.getPsramSize() - ESP.getFreePsram());
-  mySerialBT.printf( "|ModB Size|       |          |   %d |\r\n", uxTaskGetStackHighWaterMark(h_pxModbusTask));
+  mySerialBT.println();
+  mySerialBT.printf("|HEAP-----|       |          |   %8d | ESP.GETHEAPSIZE |\r\n", ESP.getHeapSize());
+  mySerialBT.printf("|FREE_HEAP|       |          |   %8d | ESP.GETFREEHEAP |\r\n", ESP.getFreeHeap());
+  mySerialBT.printf("|PSRAM----|       |          |   %8d | ESP.PSRAMSIZE   |\r\n", ESP.getPsramSize());
+  mySerialBT.printf("|FREE_PSRM|       |          |   %8d | ESP.FREEPSRAM   |\r\n", ESP.getFreePsram());
+  mySerialBT.printf("|USEDPSRAM|       |          |   %8d | PSRAM - FREERAM |\r\n", ESP.getPsramSize() - ESP.getFreePsram());
+  mySerialBT.printf("|MODB_SIZE|       |          |   %8d |\r\n", uxTaskGetStackHighWaterMark(h_pxsystemControllTask));
 }
 int LittleFileSystem::format()
 {

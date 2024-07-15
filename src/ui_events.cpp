@@ -11,6 +11,7 @@
 #include "lv_i18n.h"
 #include "upsLog.h"
 #include <sstream>
+#include <Arduino_GFX_Library.h>
 //#include "string.h"
 //#include <cstring>
 extern upsLog  upslogEvent;
@@ -52,6 +53,7 @@ int WriteHoldRegistor(int index,int value,uint32_t Token);
 void showMessageLabel(const char *message);
 void timeSave(TIMESAVE tType,int16_t value);
 void scrSettingScreen();
+void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction);
 
 uint32_t waitDataReceive(int wCount);
 uint32_t getReceiveToken();
@@ -84,22 +86,32 @@ void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::str
 	lv_textarea_set_text(obj, retStr.c_str());
 }
 void mainScrUpdata();
+extern Arduino_RPi_DPI_RGBPanel *gfx ;
+void RebootSystem(uint16_t afterTime);
 void ChangeLanguage(lv_event_t * e)
 {
-	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 ){
+	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 1 ){
     	lv_i18n_set_locale("en-GB");
-		nvsSystemEEPRom.systemLanguage = 1;
+		nvsSystemEEPRom.systemLanguage = 2;
 	}
     else 	
 	{
 		lv_i18n_set_locale("ko-KR");
-		nvsSystemEEPRom.systemLanguage = 0;
+		nvsSystemEEPRom.systemLanguage = 1;
 	}
     EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
     EEPROM.commit();
 	showMessageLabel(_("REBOOT"));
   	lv_timer_handler(); 
-	esp_restart();
+
+  	lv_init();
+	ui_init();
+  	// gfx->fillScreen(GREEN);
+  	// gfx->setTextColor(WHITE);
+  	// gfx->printf("\nSystem Rebooting for change Language.." );
+	//vTaskDelay(2000);
+    //RebootSystem(2);
+	//esp_restart();
  	//   ui_init();
  	//mainScrUpdata();
 	//lv_disp_load_scr( ui_SettingScreen);
@@ -124,12 +136,27 @@ void evtTabGainSetup2(lv_event_t * e)
     //lv_obj_add_flag(ui_batSaveSetting, LV_OBJ_FLAG_HIDDEN );     /// Flags
 }
 
+void EventTabCliekEvent(lv_event_t *e){
+	ESP_LOGI("EVT","EventTabCliekEvent");
+	setLogTextArea(ui_eventTextArea,&upslogEvent,CURRENTLOG);
+	setLogTextArea(ui_alarmTextArea,&upslogAlarm,CURRENTLOG);
+}
+void AlarmTabCliekEvent(lv_event_t *e){
+	ESP_LOGI("EVT","AlarmTabCliekEvent");
+	setLogTextArea(ui_eventTextArea,&upslogEvent,CURRENTLOG);
+	setLogTextArea(ui_alarmTextArea,&upslogAlarm,CURRENTLOG);
+}
+
 void evtSystemTabClicked(lv_event_t *e)
 {
 	timeval tmv;
 	gettimeofday(&tmv, NULL);
 	RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
-	
+	// ESP_LOGI("SET","systemLedOffTime %d lcdBright %d",
+	// 	nvsSystemEEPRom.systemLedOffTime,nvsSystemEEPRom.lcdBright);
+    // lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
+    // lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
+
 	lv_textarea_set_text(ui_txtYear, String(nowTime.Year()-2000).c_str());
 	lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
 	lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
@@ -225,6 +252,23 @@ void TabEventSetupVolClick(lv_event_t * e)
 {
 	lv_tabview_set_act(ui_TabView1,1,LV_ANIM_OFF);
 }
+
+void TabEvtSystemGoBackClick(lv_event_t * e){
+	uint16_t selectedTab=0;
+	lv_tabview_set_act(ui_TabView1,4,LV_ANIM_OFF);
+	selectedTab = lv_tabview_get_tab_act(ui_TabView1);
+	ESP_LOGW("UI","Tab selected %d",selectedTab);
+}
+void TabEvtSystemSetClick(lv_event_t * e){
+	uint16_t selectedTab=0;
+	lv_tabview_set_act(ui_TabView1,5,LV_ANIM_OFF);
+	selectedTab = lv_tabview_get_tab_act(ui_TabView1);
+	ESP_LOGW("UI","Tab selected %d",selectedTab);
+	ESP_LOGI("SET","systemLedOffTime %d lcdBright %d",
+		nvsSystemEEPRom.systemLedOffTime,nvsSystemEEPRom.lcdBright);
+    lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
+    lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
+}
 void TabEventSetupTimeClick(lv_event_t * e)
 {
 	uint16_t selectedTab=0;
@@ -278,7 +322,7 @@ void btnEventRunUps(lv_event_t * e)
 	}
 	else  //off 상태 이므로 RUN Command를 보낸다.
 	{
-		upsModbusData.upsRun.upsRunCommandBit.UpsON=1;
+		upsModbusData.upsRun.upsRunCommandBit.UpsON ^= 1;
 		token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
 		if (token == 0)
 			showMessageLabel(_("Comm_Error"));
@@ -310,7 +354,7 @@ void btnEventStopUps(lv_event_t * e)
 		upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE ||
 		upsModbusData.HWState.Bit.INVERTER_RUN_STOP_STATE)
 	{  // RUN 상태이므로 STOP를 보낸다
-		upsModbusData.upsRun.upsRunCommandBit.UpsOFF = 1;
+		upsModbusData.upsRun.upsRunCommandBit.UpsOFF ^= 1;
 		token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
 		if (token == 0)
 			showMessageLabel(_("Comm_Error"));
@@ -398,8 +442,16 @@ int checkValidation()
 			//ESP_LOGI("MODUBS", "Received token %d..",token );
 			break;
 		case EVENTTXTOFFTIME_:
+			ESP_LOGI("SET", "Set Off Time %d minute ",inputData );
+			nvsSystemEEPRom.systemLedOffTime = inputData ; 
+			EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+			EEPROM.commit();
+  			//EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemEEPRom));
 			break;
 		case BRIGHTNESSCONSTRAIN_:
+			nvsSystemEEPRom.lcdBright = inputData ; 
+			EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+			EEPROM.commit();
 			break;
 		case SYSTEMYEAR:
 			timeSave(S_YEAR,inputData);
@@ -809,7 +861,7 @@ void EventTxtOutputCurrGain(lv_event_t * e)
 	CommonEevntProc(e);
 }
 
-uint32_t offtimeConstrain=0x000AFFFF;
+uint32_t offtimeConstrain=0x0000FFFF;
 void EventTxtOfftime(lv_event_t * e)
 {
 	int32_t id =  EVENTTXTOFFTIME_ <<24;
@@ -912,7 +964,30 @@ void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction)
 		lv_textarea_cursor_up(obj);
 	}
 }
-
+std::string showEventTabTitle()
+{
+	std::string strMessage;
+	strMessage="";
+	if (upslogEvent.logCount > 0)
+	{
+		strMessage.append(_("eventHistory"));
+		strMessage.append("(");
+		int curPage=0;
+		curPage =  upslogEvent.totalPage - upslogEvent.currentMemoryPage;
+		curPage = curPage == 0 ? 1:curPage;
+		strMessage.append(std::to_string(curPage));
+		strMessage.append("/");
+		strMessage.append(std::to_string(upslogEvent.totalPage));
+		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	}
+	else{
+		strMessage="";
+		strMessage.append(_("eventHistory"));
+		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	}
+	return strMessage;
+};
 void evtLogScreenLoaded(lv_event_t * e){
 	uint16_t selectedTab=0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
@@ -939,17 +1014,8 @@ void evtLogScreenLoaded(lv_event_t * e){
 		//ESP_LOGW("UI EventAlarm","lv_textarea_cursor_up%d",lv_textarea_get_cursor_pos(ui_alarmTextArea) );
 		lv_textarea_cursor_up(ui_alarmTextArea);
 	}
+	showEventTabTitle();
 	std::string strMessage;
-	if (upslogEvent.logCount > 0)
-	{
-		strMessage.append(_("eventHistory"));
-		strMessage.append("(");
-		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
-		strMessage.append("/");
-		strMessage.append(std::to_string(upslogEvent.totalPage));
-		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
-	}
 	if (upslogAlarm.logCount > 0)
 	{
 		strMessage = "";
@@ -959,6 +1025,12 @@ void evtLogScreenLoaded(lv_event_t * e){
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogAlarm.totalPage));
 		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+	}
+	else
+	{
+		strMessage = "";
+		strMessage.append(_("alarmStatus"));
 		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
 	}
 
@@ -972,9 +1044,12 @@ void evtLogScreenLoaded(lv_event_t * e){
 	//lv_event_send(ui_alarmTextArea,LV_SCROLL_SNAP_START);
 	//ESP_LOGW("UI EventAlarm","cursor %d",lv_textarea_get_cursor_pos(ui_alarmTextArea) );
 }
-void EventLogNext(lv_event_t *e)
+void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 {
-
+	if( upslogEvent.logCount % LOG_PER_PAGE == 0 && upslogEvent.currentMemoryPage == upslogEvent.totalPage)
+	{
+		return;
+	};
 	uint16_t selectedTab = 0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	if (selectedTab == 0){
@@ -986,16 +1061,23 @@ void EventLogNext(lv_event_t *e)
 		setLogTextArea(ui_eventTextArea, &upslogEvent,NEXTLOG);
 	}
 	std::string strMessage;
-	if (upslogEvent.logCount > 0)
-	{
-		strMessage.append(_("eventHistory"));
-		strMessage.append("(");
-		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
-		strMessage.append("/");
-		strMessage.append(std::to_string(upslogEvent.totalPage));
-		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
-	}
+	showEventTabTitle();
+	// if (upslogEvent.logCount > 0)
+	// {
+	// 	strMessage = "";
+	// 	strMessage.append(_("eventHistory"));
+	// 	strMessage.append("(");
+	// 	strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage ));
+	// 	strMessage.append("/");
+	// 	strMessage.append(std::to_string(upslogEvent.totalPage));
+	// 	strMessage.append(")");
+	// 	lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	// }
+	// else{
+	// 	strMessage = "";
+	// 	strMessage.append(_("eventHistory"));
+	// 	lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	// }
 	if (upslogAlarm.logCount > 0)
 	{
 		strMessage = "";
@@ -1007,9 +1089,13 @@ void EventLogNext(lv_event_t *e)
 		strMessage.append(")");
 		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
 	}
-
+	else{
+		strMessage = "";
+		strMessage.append(_("alarmStatus"));
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+	}
 }
-void EventLogPrev(lv_event_t *e)
+void EventLogPrev(lv_event_t *e) /* 다음 버튼*/
 {
 
 	uint16_t selectedTab = 0;
@@ -1026,16 +1112,22 @@ void EventLogPrev(lv_event_t *e)
 	}
 
 	std::string strMessage;
-	if (upslogEvent.logCount > 0)
-	{
-		strMessage.append(_("eventHistory"));
-		strMessage.append("(");
-		strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage));
-		strMessage.append("/");
-		strMessage.append(std::to_string(upslogEvent.totalPage));
-		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
-	}
+	showEventTabTitle();
+	// if (upslogEvent.logCount > 0)
+	// {
+	// 	strMessage.append(_("eventHistory"));
+	// 	strMessage.append("(");
+	// 	strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage ));
+	// 	strMessage.append("/");
+	// 	strMessage.append(std::to_string(upslogEvent.totalPage));
+	// 	strMessage.append(")");
+	// 	lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	// }
+	// else{
+	// 	strMessage="";
+	// 	strMessage.append(_("eventHistory"));
+	// 	lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
+	// }
 	if (upslogAlarm.logCount > 0)
 	{
 		strMessage = "";
@@ -1045,6 +1137,11 @@ void EventLogPrev(lv_event_t *e)
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogAlarm.totalPage));
 		strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+	}
+	else{
+		strMessage = "";
+		strMessage.append(_("alarmStatus"));
 		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
 	}
 }
@@ -1089,7 +1186,6 @@ void hfModeValueChangedEvent(lv_event_t * e){
 	// lv_obj_set_style_text_color(ui_lblMessage, lv_color_hex(0x0921E1), LV_PART_MAIN | LV_STATE_DEFAULT);
 	// lv_obj_set_style_text_opa(ui_lblMessage, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 	// lv_obj_set_style_text_align(ui_lblMessage, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-	// lv_obj_set_style_text_font(ui_lblMessage, &ui_font_digitalWatch26, LV_PART_MAIN | LV_STATE_DEFAULT);
 	// lv_obj_set_style_radius(ui_lblMessage, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 	// lv_obj_set_style_bg_color(ui_lblMessage, lv_color_hex(0xB4A8A8), LV_PART_MAIN | LV_STATE_DEFAULT);
 	// lv_obj_set_style_bg_opa(ui_lblMessage, 255, LV_PART_MAIN | LV_STATE_DEFAULT);

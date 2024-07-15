@@ -2,6 +2,7 @@
 #include <EEPROM.h>
 #include "modbusRtu.h"
 #include "mainGrobal.h"
+#include "fileSystem.h"
 #include "lv_i18n.h"
 #ifdef MODBUSSERVER
 #include <ModbusServerRTU.h>
@@ -18,7 +19,7 @@ ups_modbus_data_t upsModbusData = {
   .Nominal_Capacity=30,             // 0  10의 배수
   .Nominal_InputVoltage=220,         // 1 [###V]
   .Nominal_OutputVoltage=220,        // 2 [###V]
-  .Nominal_BatVoltage=240,           // 3 [###V]
+  .Nominal_BatVoltage=12,           // 3 [###V]
   .upsRun=0,                       // 6
   .Bat_Current_Ref=2,              // 8  [2-20]
   .Bat_Voltage_Ref=120,              // 9 [80-280]
@@ -218,7 +219,7 @@ void modbusSetup(){
   upsModbus232.begin(Serial1,nvsSystemEEPRom.BAUDRATE,address_485);
 }
 
-// void modbusTask(void *parameter){
+// void systemControllTask(void *parameter){
 //   modbusSetup();
 //   for(;;){
 //     vTaskDelay(100);
@@ -827,19 +828,64 @@ void modbusSetup()
   MB.begin(Serial1,nvsSystemEEPRom.BAUDRATE,1);
 }
 
-static int every300ms = 300;
-static unsigned long previous300mills = 0;
+static int every1000ms = 1000;
+static unsigned long previous1000mills = 0;
 static unsigned long now;
-void modbusTask(void *parameter)
+
+
+unsigned long elaspTime=0;
+uint16_t targetTime=0;
+jobCommant_t systemControllJob=NO_JOB;
+void RebootSystem(uint16_t afterTime)
+{
+  targetTime = elaspTime + afterTime;
+  systemControllJob = SYSTEM_REBOOT;
+}
+#include <Arduino_GFX_Library.h>
+extern Arduino_RPi_DPI_RGBPanel *gfx;
+jobCommant_t getSystemControlJob(){
+  return systemControllJob;
+}
+void setNoJob(){
+  systemControllJob = NO_JOB;
+}
+void FormatFileSystem(uint16_t afterTime)
+{
+  targetTime = elaspTime + afterTime;
+  systemControllJob = FILE_FORMAT;
+}
+extern LittleFileSystem lsFile;
+void systemControllTask(void *parameter)
 {
   //modbusSetup();
   for (;;)
   {
     now = millis();
-    if ((now - previous300mills > every300ms))
+    if ((now - previous1000mills > every1000ms))
     {
-      modbusEventSendLoop(100);
-      previous300mills = now;
+      //modbusEventSendLoop(100);
+      switch (systemControllJob)
+      {
+      case SYSTEM_REBOOT:
+        if(elaspTime > targetTime){
+	        esp_restart();
+          systemControllJob = JOB_DONE;
+        }
+        break;
+      case FILE_FORMAT:
+        if(elaspTime > targetTime){
+          lsFile.format();
+	        esp_restart();
+          systemControllJob = JOB_DONE;
+        }
+        /* code */
+        break;
+      
+      default:
+        break;
+      }
+      elaspTime++;
+      previous1000mills = now;
     }
     //modbusEventGetLoop();
     vTaskDelay(100);

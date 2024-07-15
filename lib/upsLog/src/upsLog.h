@@ -78,6 +78,7 @@ public:
     uint16_t eventHistory=0;
     upsLog();
     upsLog(eventType_t eventType);
+    void init();
     upsLog(const char* filename,eventType_t eventType);
     int writeLog(upslog_t *log);
     int writeLogToVmem(upslog_t *log);
