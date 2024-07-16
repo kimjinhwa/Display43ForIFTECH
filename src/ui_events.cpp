@@ -483,6 +483,19 @@ int checkValidation()
 // 	//lv_textarea_set_cursor_pos(ui_txtInputArea,LV_TEXTAREA_CURSOR_LAST);
 // 	//lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED); 
 // }
+
+void bntEnterEvent(lv_event_t *e)
+{
+	// lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
+	checkValidation();
+	lv_obj_add_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
+	if (ui_txtTempory != nullptr)
+	{
+		// ui_txtTempory 이것은 해당 Text이다.
+		lv_textarea_set_text(ui_txtTempory, lv_textarea_get_text(ui_txtInputArea));
+		// ui_txtTempory.get
+	}
+}
 void keyBoardValueChangedEvent(lv_event_t * e)
 {
 	lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED); 
@@ -608,7 +621,7 @@ void scrSettingScreen(){
       String(upsModbusData.inverter_current_gain).c_str()); //
 
  
-	sprintf(tempstr, "%d V", upsModbusData.Bat_Voltage_Ref);
+	sprintf(tempstr, "%d V", upsModbusData.bat_volt_rms);
 	lv_label_set_text(ui_txtVbatVoltGainLBL, tempstr);
   lv_textarea_set_text(ui_txtVbatVoltGain, 
       String(upsModbusData.vbat_volt_gain).c_str()); //
@@ -1158,14 +1171,27 @@ void btnAlarmRunStop(lv_event_t * e){
 	upslogAlarm.runBuzzStatus =upslogAlarm.runBuzzStatus  ? 0:1;
 	  //lv_anim_del_all();
 }
-void hfModeValueChangedEvent(lv_event_t * e){
-  lv_state_t state = lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED ;
+
+void pnlNothingEvent(lv_event_t * e){
+  ESP_LOGI("EVT","Event Received for chkbox");
   const char * str = lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED ? "Checked" : "Unchecked";
   ESP_LOGI("CHECKBOX","%s",str );
   int token = millis();
+  lv_state_t state = lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED ;
   token = WriteHoldRegistor(HFMODE, state, token );
-//   lv_obj_add_state( ui_chkHFMode, LV_STATE_CHECKED );     /// States
-//   lv_obj_clear_state(ui_chkHFMode,LV_STATE_CHECKED );
+}
+
+void pnlhfModeClickEvent(lv_event_t *e)
+{
+	if (lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED)
+		lv_obj_clear_state(ui_chkHFMode, LV_STATE_CHECKED);
+	else
+		lv_obj_add_state(ui_chkHFMode, LV_STATE_CHECKED); /// States
+	lv_event_send(ui_chkHFMode, LV_EVENT_CLICKED, 0);
+}
+void hfModeValueChangedEvent(lv_event_t * e){
+  lv_event_send(ui_pnlNothing, LV_EVENT_CLICKED, 0);
+  //lv_event_send(ui_pnlNothing,LV_EVENT_CLICKED,0);
 }
 	// int32_t bret;
   	// for(int i =0;i<100;i++ ){

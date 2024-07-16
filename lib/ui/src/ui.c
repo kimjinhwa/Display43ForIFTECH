@@ -88,6 +88,8 @@ lv_obj_t * ui_TabView1;
 void ui_event_TapPage1(lv_event_t * e);
 lv_obj_t * ui_TapPage1;
 lv_obj_t * ui_Container9;
+void ui_event_pnlNothing(lv_event_t * e);
+lv_obj_t * ui_pnlNothing;
 lv_obj_t * ui_Panel19;
 lv_obj_t * ui_Label6;
 void ui_event_txtBatVolSet(lv_event_t * e);
@@ -102,6 +104,8 @@ void ui_event_txtOutputVolSet(lv_event_t * e);
 lv_obj_t * ui_txtOutputVolSet;
 lv_obj_t * ui_Panel21;
 lv_obj_t * ui_Label21;
+void ui_event_Panel59(lv_event_t * e);
+lv_obj_t * ui_Panel59;
 void ui_event_chkHFMode(lv_event_t * e);
 lv_obj_t * ui_chkHFMode;
 lv_obj_t * ui_Panel17;
@@ -295,6 +299,9 @@ lv_obj_t * ui_pnlKeyBoard;
 lv_obj_t * ui_txtInputArea;
 void ui_event_Keyboard1(lv_event_t * e);
 lv_obj_t * ui_Keyboard1;
+void ui_event_Button28(lv_event_t * e);
+lv_obj_t * ui_Button28;
+lv_obj_t * ui_Label64;
 void ui_event_lblMessage(lv_event_t * e);
 lv_obj_t * ui_lblMessage;
 
@@ -571,6 +578,14 @@ void ui_event_TapPage1(lv_event_t * e)
         evtTabUpsSetup(e);
     }
 }
+void ui_event_pnlNothing(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        pnlNothingEvent(e);
+    }
+}
 void ui_event_txtBatVolSet(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -595,11 +610,19 @@ void ui_event_txtOutputVolSet(lv_event_t * e)
         EventTxtOutputVolSet(e);
     }
 }
+void ui_event_Panel59(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        pnlhfModeClickEvent(e);
+    }
+}
 void ui_event_chkHFMode(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
+    if(event_code == LV_EVENT_CLICKED) {
         hfModeValueChangedEvent(e);
     }
 }
@@ -985,6 +1008,14 @@ void ui_event_Keyboard1(lv_event_t * e)
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_VALUE_CHANGED) {
         keyBoardValueChangedEvent(e);
+    }
+}
+void ui_event_Button28(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        bntEnterEvent(e);
     }
 }
 void ui_event_lblMessage(lv_event_t * e)

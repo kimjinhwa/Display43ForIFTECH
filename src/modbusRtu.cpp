@@ -699,6 +699,34 @@ uint32_t waitDataReceive(int wCount)
 /* 데이타를 보낼때 Time out을 결정한다. 
 *  @timeout milisecond
 */
+
+int WriteHoldRegistorNoSync(int index,int value,uint32_t Token){
+  tokenLoopCount = -1;  // 더이상 Looping을 하지 않게 한다
+  ESP_LOGE("MODBUS","ready WriteHoldRegistor %ld ",millis());
+  ESP_LOGE("MODBUS","send WriteHoldRegistor index %ld ,value %d ", index,value);
+  data_ready = false;
+
+  //Error err = MB.addRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
+  // if (err!=SUCCESS) {
+  //   ModbusError e(err);
+  //   ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
+  // }
+  //ModbusMessage rc = MB.syncRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
+  uint16_t address=1;
+  uint8_t byteCount=2;
+  uint16_t arrayWord[1];
+  arrayWord[0]= value;
+  uint16_t *values;
+  values = (uint16_t *)&upsModbusData;
+  values[index] = value;
+  Error err = MB.addRequest(Token,(uint8_t) 1, (uint8_t)WRITE_MULT_REGISTERS,(uint16_t) index,(uint16_t)address,(uint8_t) byteCount,(uint16_t *) &arrayWord);
+  if (err!=SUCCESS) {
+    ModbusError e(err);
+    ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
+  }
+  tokenLoopCount = 0;  // 다시 데이타를 받기 시작한다 
+  return Token;
+}
 int WriteHoldRegistor(int index,int value,uint32_t Token){
 
   tokenLoopCount = -1;  // 더이상 Looping을 하지 않게 한다

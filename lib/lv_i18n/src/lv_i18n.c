@@ -160,6 +160,7 @@ static lv_i18n_phrase_t en_gb_singulars[] = {
     {"BATTERY", "BATTERY"},
     {"Log_Init", "Log File Init"},
     {"ENV_SET", "ENV SET"},
+    {"ENTER", "확인"},
     {NULL, NULL} // End mark
 };
 

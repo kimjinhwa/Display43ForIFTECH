@@ -159,7 +159,7 @@ typedef struct
   uint16_t Input_current_rms;            // 21
   uint16_t vdc_link_volt_rms;            // 22
   uint16_t bat_volt_rms;                 // 23
-  uint16_t bat_current_rms;              // 24
+  int16_t bat_current_rms;              // 24
   uint16_t inverter_volt_rms;            // 25
   uint16_t inverter_current_rms;         // 26
   uint16_t output_volt_rms;              // 27

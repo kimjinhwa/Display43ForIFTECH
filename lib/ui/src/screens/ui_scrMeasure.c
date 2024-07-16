@@ -83,7 +83,7 @@ void ui_scrMeasure_screen_init(void)
 
     ui_Panel26 = lv_obj_create(ui_Container6);
     lv_obj_set_width(ui_Panel26, lv_pct(100));
-    lv_obj_set_height(ui_Panel26, LV_SIZE_CONTENT);    /// 10
+    lv_obj_set_flex_grow(ui_Panel26, 8);
     lv_obj_set_x(ui_Panel26, -320);
     lv_obj_set_y(ui_Panel26, -152);
     lv_obj_set_align(ui_Panel26, LV_ALIGN_CENTER);
@@ -102,7 +102,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_Panel26, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Label42 = lv_label_create(ui_Panel26);
-    lv_obj_set_height(ui_Label42, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_height(ui_Label42, LV_SIZE_CONTENT);    /// 20
     lv_obj_set_flex_grow(ui_Label42, 1);
     lv_obj_set_x(ui_Label42, 35);
     lv_obj_set_y(ui_Label42, 42);
@@ -111,12 +111,12 @@ void ui_scrMeasure_screen_init(void)
     lv_label_set_recolor(ui_Label42, "true");
     lv_obj_set_style_text_letter_space(ui_Label42, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_line_space(ui_Label42, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label42, &ui_font_malgun20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label42, &ui_font_malgun26, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_blend_mode(ui_Label42, LV_BLEND_MODE_NORMAL, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel29 = lv_obj_create(ui_Container6);
     lv_obj_set_width(ui_Panel29, lv_pct(100));
-    lv_obj_set_height(ui_Panel29, lv_pct(15));
+    lv_obj_set_flex_grow(ui_Panel29, 8);
     lv_obj_set_x(ui_Panel29, -50);
     lv_obj_set_y(ui_Panel29, 110);
     lv_obj_set_align(ui_Panel29, LV_ALIGN_CENTER);
@@ -135,7 +135,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_Panel29, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblInputVoltRms = lv_label_create(ui_Panel29);
-    lv_obj_set_height(ui_lblInputVoltRms, lv_pct(100));
+    lv_obj_set_height(ui_lblInputVoltRms, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblInputVoltRms, 1);
     lv_obj_set_align(ui_lblInputVoltRms, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblInputVoltRms, "100V");
@@ -156,7 +156,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_lblInputVoltRms, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblInputCurrRms = lv_label_create(ui_Panel29);
-    lv_obj_set_height(ui_lblInputCurrRms, lv_pct(100));
+    lv_obj_set_height(ui_lblInputCurrRms, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblInputCurrRms, 1);
     lv_obj_set_align(ui_lblInputCurrRms, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblInputCurrRms, "10A");
@@ -177,7 +177,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_lblInputCurrRms, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblInputFreq = lv_label_create(ui_Panel29);
-    lv_obj_set_height(ui_lblInputFreq, lv_pct(100));
+    lv_obj_set_height(ui_lblInputFreq, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblInputFreq, 1);
     lv_obj_set_align(ui_lblInputFreq, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblInputFreq, "59.9Hz");
@@ -197,7 +197,7 @@ void ui_scrMeasure_screen_init(void)
 
     ui_Panel53 = lv_obj_create(ui_Container6);
     lv_obj_set_width(ui_Panel53, lv_pct(48));
-    lv_obj_set_height(ui_Panel53, LV_SIZE_CONTENT);    /// 10
+    lv_obj_set_flex_grow(ui_Panel53, 8);
     lv_obj_set_x(ui_Panel53, -320);
     lv_obj_set_y(ui_Panel53, -152);
     lv_obj_set_align(ui_Panel53, LV_ALIGN_CENTER);
@@ -224,11 +224,11 @@ void ui_scrMeasure_screen_init(void)
     lv_label_set_recolor(ui_Label92, "true");
     lv_obj_set_style_text_letter_space(ui_Label92, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_line_space(ui_Label92, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label92, &ui_font_malgun20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label92, &ui_font_malgun26, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel52 = lv_obj_create(ui_Container6);
     lv_obj_set_width(ui_Panel52, lv_pct(100));
-    lv_obj_set_height(ui_Panel52, lv_pct(15));
+    lv_obj_set_flex_grow(ui_Panel52, 8);
     lv_obj_set_x(ui_Panel52, -320);
     lv_obj_set_y(ui_Panel52, -152);
     lv_obj_set_align(ui_Panel52, LV_ALIGN_CENTER);
@@ -247,7 +247,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_Panel52, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblInvVoltRms = lv_label_create(ui_Panel52);
-    lv_obj_set_height(ui_lblInvVoltRms, lv_pct(100));
+    lv_obj_set_height(ui_lblInvVoltRms, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblInvVoltRms, 1);
     lv_obj_set_align(ui_lblInvVoltRms, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblInvVoltRms, "220V");
@@ -268,7 +268,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_lblInvVoltRms, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblInvCurrentRms = lv_label_create(ui_Panel52);
-    lv_obj_set_height(ui_lblInvCurrentRms, lv_pct(100));
+    lv_obj_set_height(ui_lblInvCurrentRms, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblInvCurrentRms, 1);
     lv_obj_set_align(ui_lblInvCurrentRms, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblInvCurrentRms, "10A");
@@ -289,7 +289,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_lblInvCurrentRms, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblInvFreq = lv_label_create(ui_Panel52);
-    lv_obj_set_height(ui_lblInvFreq, lv_pct(100));
+    lv_obj_set_height(ui_lblInvFreq, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblInvFreq, 1);
     lv_obj_set_align(ui_lblInvFreq, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblInvFreq, "59.9Hz");
@@ -309,7 +309,7 @@ void ui_scrMeasure_screen_init(void)
 
     ui_Panel51 = lv_obj_create(ui_Container6);
     lv_obj_set_width(ui_Panel51, lv_pct(48));
-    lv_obj_set_height(ui_Panel51, LV_SIZE_CONTENT);    /// 10
+    lv_obj_set_flex_grow(ui_Panel51, 8);
     lv_obj_set_x(ui_Panel51, -320);
     lv_obj_set_y(ui_Panel51, -152);
     lv_obj_set_align(ui_Panel51, LV_ALIGN_CENTER);
@@ -333,11 +333,11 @@ void ui_scrMeasure_screen_init(void)
     lv_label_set_recolor(ui_Label53, "true");
     lv_obj_set_style_text_letter_space(ui_Label53, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_line_space(ui_Label53, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label53, &ui_font_malgun20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label53, &ui_font_malgun26, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel44 = lv_obj_create(ui_Container6);
     lv_obj_set_width(ui_Panel44, lv_pct(100));
-    lv_obj_set_height(ui_Panel44, lv_pct(15));
+    lv_obj_set_flex_grow(ui_Panel44, 8);
     lv_obj_set_x(ui_Panel44, -320);
     lv_obj_set_y(ui_Panel44, -152);
     lv_obj_set_align(ui_Panel44, LV_ALIGN_CENTER);
@@ -357,7 +357,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_Panel44, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblOutputVoltRms = lv_label_create(ui_Panel44);
-    lv_obj_set_height(ui_lblOutputVoltRms, lv_pct(100));
+    lv_obj_set_height(ui_lblOutputVoltRms, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblOutputVoltRms, 1);
     lv_obj_set_align(ui_lblOutputVoltRms, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblOutputVoltRms, "220V");
@@ -378,7 +378,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_lblOutputVoltRms, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblOutputCurrRms = lv_label_create(ui_Panel44);
-    lv_obj_set_height(ui_lblOutputCurrRms, lv_pct(100));
+    lv_obj_set_height(ui_lblOutputCurrRms, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblOutputCurrRms, 1);
     lv_obj_set_align(ui_lblOutputCurrRms, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblOutputCurrRms, "10A");
@@ -399,7 +399,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_lblOutputCurrRms, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblOutputFreq = lv_label_create(ui_Panel44);
-    lv_obj_set_height(ui_lblOutputFreq, lv_pct(100));
+    lv_obj_set_height(ui_lblOutputFreq, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblOutputFreq, 1);
     lv_obj_set_align(ui_lblOutputFreq, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblOutputFreq, "59.9Hz");
@@ -420,7 +420,7 @@ void ui_scrMeasure_screen_init(void)
 
     ui_Panel48 = lv_obj_create(ui_Container6);
     lv_obj_set_width(ui_Panel48, lv_pct(66));
-    lv_obj_set_height(ui_Panel48, LV_SIZE_CONTENT);    /// 10
+    lv_obj_set_flex_grow(ui_Panel48, 8);
     lv_obj_set_x(ui_Panel48, -320);
     lv_obj_set_y(ui_Panel48, -152);
     lv_obj_set_align(ui_Panel48, LV_ALIGN_CENTER);
@@ -453,7 +453,7 @@ void ui_scrMeasure_screen_init(void)
 
     ui_Panel50 = lv_obj_create(ui_Container6);
     lv_obj_set_width(ui_Panel50, lv_pct(66));
-    lv_obj_set_height(ui_Panel50, lv_pct(15));
+    lv_obj_set_flex_grow(ui_Panel50, 8);
     lv_obj_set_x(ui_Panel50, -320);
     lv_obj_set_y(ui_Panel50, -152);
     lv_obj_set_align(ui_Panel50, LV_ALIGN_CENTER);
@@ -472,7 +472,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_Panel50, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblBatVoltRms = lv_label_create(ui_Panel50);
-    lv_obj_set_height(ui_lblBatVoltRms, lv_pct(100));
+    lv_obj_set_height(ui_lblBatVoltRms, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblBatVoltRms, 1);
     lv_obj_set_align(ui_lblBatVoltRms, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblBatVoltRms, "220V");
@@ -493,7 +493,7 @@ void ui_scrMeasure_screen_init(void)
     lv_obj_set_style_pad_column(ui_lblBatVoltRms, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_lblBatCurrentRms = lv_label_create(ui_Panel50);
-    lv_obj_set_height(ui_lblBatCurrentRms, lv_pct(100));
+    lv_obj_set_height(ui_lblBatCurrentRms, LV_SIZE_CONTENT);    /// 100
     lv_obj_set_flex_grow(ui_lblBatCurrentRms, 1);
     lv_obj_set_align(ui_lblBatCurrentRms, LV_ALIGN_CENTER);
     lv_label_set_text(ui_lblBatCurrentRms, "10A");

@@ -141,3 +141,6 @@ ko-KR:
   BATTERY: 배터리
   Log_Init : 로그초기화
   ENV_SET : 환경설정
+  ENTER : 확인 
+  MAIN : 메인 
+  OFFSET : 옵셋
