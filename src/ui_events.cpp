@@ -90,7 +90,7 @@ extern Arduino_RPi_DPI_RGBPanel *gfx ;
 void RebootSystem(uint16_t afterTime);
 void ChangeLanguage(lv_event_t * e)
 {
-	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 1 ){
+	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 ){
     	lv_i18n_set_locale("en-GB");
 		nvsSystemEEPRom.systemLanguage = 2;
 	}
@@ -101,7 +101,7 @@ void ChangeLanguage(lv_event_t * e)
 	}
     EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
     EEPROM.commit();
-	showMessageLabel(_("REBOOT"));
+	//showMessageLabel(_("REBOOT"));
   	lv_timer_handler(); 
 
   	lv_init();
