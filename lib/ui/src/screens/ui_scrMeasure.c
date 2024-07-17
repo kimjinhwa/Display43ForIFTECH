@@ -446,7 +446,7 @@ void ui_scrMeasure_screen_init(void)
     lv_label_set_recolor(ui_Label46, "true");
     lv_obj_set_style_text_letter_space(ui_Label46, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_line_space(ui_Label46, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label46, &ui_font_malgun20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label46, &ui_font_malgun26, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui_Label46, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_Label46, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Label46, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
