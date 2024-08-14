@@ -27,11 +27,17 @@
 #define TFT_BL 2
 
 #define BUTTON_ERASE 0 
+
 #define SERIAL_RX2 18
 #define SERIAL_TX2 17
-
 #define RTCEN 19
 #define BUZZER 20
+/* Change Port */
+// #define SERIAL_RX2 20 
+// #define SERIAL_TX2 19 
+// #define RTCEN 17
+// #define BUZZER 18 
+
 
 #define OFFSCR_COLOR 0xFFFFFF   /*DARK BLUE*/ 
 #define ONSCR_COLOR 0xFF0000   /* YELLOW*/
