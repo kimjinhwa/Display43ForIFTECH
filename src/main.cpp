@@ -25,6 +25,11 @@
 #define WDT_TIMEOUT 60 
 #define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
 #define TFT_BL 2
+
+#define BUTTON_ERASE 0 
+#define SERIAL_RX2 18
+#define SERIAL_TX2 17
+
 #define RTCEN 19
 #define BUZZER 20
 
@@ -315,10 +320,10 @@ void setRtc()
   Rtc.Begin();
   RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
   printf("\r\ncompiled time is %d/%d/%d %d:%d:%d\r\n", compiled.Year(), compiled.Month(), compiled.Day(), compiled.Hour(), compiled.Minute(), compiled.Second());
-  if (!Rtc.IsDateTimeValid())
+  if (!Rtc.IsDateTimeValid() || Rtc.GetDateTime().Year() == 2000)
   {
     printf("RTC lost confidence in the DateTime!\r\n");
-    // Rtc.SetDateTime(compiled);
+    Rtc.SetDateTime(compiled);
   }
   else
     printf("RTC available in the DateTime!\r\n");
@@ -632,7 +637,7 @@ void setup()
   EEPROM.begin(sizeof(nvsSystemSet_t) + 1);
 
   pinMode(BUZZER, OUTPUT);
-  pinMode(0, INPUT);
+  pinMode(BUTTON_ERASE , INPUT);
   digitalWrite(BUZZER, LOW);
 
   lsFile.littleFsInitFast(0);
@@ -675,9 +680,10 @@ void setup()
   setRtc();
 
   Serial.println("Setup done");
-  pinMode(18, INPUT);
-  Serial1.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, 18 /* RX */, 17 /* TX*/);
-  Serial1.println("Serial 1 started");
+  pinMode(SERIAL_TX2 , OUTPUT);
+  pinMode(SERIAL_RX2 , INPUT);
+  Serial2.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, SERIAL_RX2  /* RX */, SERIAL_TX2  /* TX*/);
+  Serial2.println("Serial 1 started");
   modbusSetup();
   // Init Display
   // Add
@@ -888,8 +894,8 @@ void loop()
     previous1000mills = now;
     incTime++;
     lcdOntime++;
-    if(digitalRead(0)==0){
-      ESP_LOGI("IO","Press Init button %d",digitalRead(0));
+    if(digitalRead(BUTTON_ERASE )==0){
+      ESP_LOGI("IO","Press Init button %d",digitalRead(BUTTON_ERASE ));
       pressedResetButton++;
       if(pressedResetButton>3){
         if( getSystemControlJob() == NO_JOB){
@@ -945,10 +951,3 @@ void loop()
   lv_timer_handler(); /* let the GUI do its work */
   vTaskDelay(10);     // Every 50ms
 }
-
-// touchTest(0);
-//  while(1)
-//  if(Serial1.available()) {
-//    //Serial.printf(" %02x",Serial1.read());
-//    Serial1.write(Serial1.read());
-//  }

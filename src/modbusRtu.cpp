@@ -216,7 +216,7 @@ void modbusSetup(){
   upsModbus232.registerWorker(address_485,READ_INPUT_REGISTER,&FC04);
   upsModbus232.registerWorker(address_485,WRITE_COIL,&FC05);
   upsModbus232.registerWorker(address_485,WRITE_HOLD_REGISTER,&FC06);
-  upsModbus232.begin(Serial1,nvsSystemEEPRom.BAUDRATE,address_485);
+  upsModbus232.begin(Serial2,nvsSystemEEPRom.BAUDRATE,address_485);
 }
 
 // void systemControllTask(void *parameter){
@@ -671,12 +671,6 @@ void handleError(Error error, uint32_t token)
   // ModbusError wraps the error code and provides a readable error message for it
   modbusErrorCounter++;
   if(modbusErrorCounter>10){
-    //MB.clearQueue();
-    //MB.end();
-    //vTaskDelay(100);
-    //MB.begin(Serial1,nvsSystemEEPRom.BAUDRATE,1);
-    //ESP_LOGW("MODBUS","Modbus Reset due to Line Error");
-    //modbusErrorCounter =0;
   }
   ModbusError me(error);
   ESP_LOGE("MODBUS","Error response: %02X - %s\n", (int)me, (const char *)me);
@@ -853,7 +847,7 @@ void modbusSetup()
   MB.onDataHandler(&handleData);
   MB.onErrorHandler(&handleError);
   MB.setTimeout(1000);
-  MB.begin(Serial1,nvsSystemEEPRom.BAUDRATE,1);
+  MB.begin(Serial2,nvsSystemEEPRom.BAUDRATE,1);
 }
 
 static int every1000ms = 1000;
@@ -920,3 +914,6 @@ void systemControllTask(void *parameter)
   };
 }
 #endif
+    //MB.clearQueue();
+    //MB.end();
+    //vTaskDelay(100);
