@@ -16,7 +16,7 @@ if ($content -match '#define VERSION "(.*?)".*\/\/(.*)')
     # Always commit and push
     git add -A
     git commit -am $comment
-    git push origin master 
+    git push origin main 
 
     # Create tag only if -t option is provided
     if ($createTag) {
