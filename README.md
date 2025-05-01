@@ -1,4 +1,17 @@
 # 아이에프텍 UPS용 4.3" 펌웨어 
+## 쪽 보드 디버깅
+- P2의 4(IO19)번을 끊고, 이것을   P3의 4번 IO17에서 점프한다.
+- P2에서 P3로 넘어가는 뒷판의 배선도 끊어 준다>
+## display 작업 
+- R17은 제거하여 준다 이것은 Touch Interrupt용이다
+- R5에서 
+- U1에서 IO18로 가는 라인을 끊어 줘야 한다.
+```cpp
+#define SERIAL_RX2 20 
+#define SERIAL_TX2 19 
+#define RTCEN 17
+#define BUZZER 18 
+```
 ## Basic Function & Enviroment 
 - CPU : ESP32 S3 32BIT 2Code 16M Flash
 - Platform : ESP32, Arduion,  platformio
@@ -28,4 +41,5 @@
   
 ## 중요 변경사항.
 - 회로의 패턴을 끊지 않고 처리하기 위하여 SerialPort의 IO를 19,20으로 변경하자. 
+  안되네..
 - 리셋버튼을 3초이상 누르고 있으면 로그파일을 초기하 한다.

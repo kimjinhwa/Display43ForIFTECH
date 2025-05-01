@@ -28,15 +28,15 @@
 
 #define BUTTON_ERASE 0 
 
-#define SERIAL_RX2 18
-#define SERIAL_TX2 17
-#define RTCEN 19
-#define BUZZER 20
+// #define SERIAL_RX2 18
+// #define SERIAL_TX2 17
+// #define RTCEN 19
+// #define BUZZER 20
 /* Change Port */
-// #define SERIAL_RX2 20 
-// #define SERIAL_TX2 19 
-// #define RTCEN 17
-// #define BUZZER 18 
+#define SERIAL_RX2 20 
+#define SERIAL_TX2 19 
+#define RTCEN 17
+#define BUZZER 18 
 
 
 #define OFFSCR_COLOR 0xFFFFFF   /*DARK BLUE*/ 
@@ -52,7 +52,7 @@
 // SimpleBLE mySerialBT;
 TaskHandle_t *h_pxsystemControllTask;
 
-ThreeWire myWire(MOSI, SCK /*12*/, RTCEN); // IO, SCLK, CE
+ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
 RtcDS1302<ThreeWire> Rtc(myWire);
 // LittleFileSystem lsFile;
 
@@ -326,13 +326,11 @@ void setRtc()
   Rtc.Begin();
   RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
   printf("\r\ncompiled time is %d/%d/%d %d:%d:%d\r\n", compiled.Year(), compiled.Month(), compiled.Day(), compiled.Hour(), compiled.Minute(), compiled.Second());
-  if (!Rtc.IsDateTimeValid() || Rtc.GetDateTime().Year() == 2000)
+  if (!Rtc.IsDateTimeValid() )
   {
     printf("RTC lost confidence in the DateTime!\r\n");
     Rtc.SetDateTime(compiled);
   }
-  else
-    printf("RTC available in the DateTime!\r\n");
   if (Rtc.GetIsWriteProtected())
   {
     printf("RTC was write protected, enabling writing now\r\n");
@@ -360,8 +358,17 @@ void setRtc()
   if (now < compiled)
   {
     printf("\r\nSet data with compiled time");
-    // Rtc.SetDateTime(compiled);
+    Rtc.SetDateTime(compiled);
   }
+  else if (now > compiled)
+  {
+        Serial.println("RTC is newer than compile time. (this is expected)");
+  }
+  else if (now == compiled) 
+  {
+        Serial.println("RTC is the same as compile time! (not expected but all is fine)");
+  }
+
   struct timeval tmv;
   tmv.tv_sec = now.TotalSeconds();
   tmv.tv_usec = 0;
@@ -718,7 +725,7 @@ void setup()
   // f->bitmap = (uint8_t *)&FreeSansBold12pt7bBitmaps;
   // gfx->setFont(f);
   gfx->setTextColor(WHITE);
-  gfx->printf("\nVER:%s", version1);
+  gfx->printf("\nVER:%s", VERSION);
   gfx->print("\nInit RTC");
   gfx->printf("\nbaud Rate %d", nvsSystemEEPRom.BAUDRATE);
   gfx->printf("\nlanguage %d", nvsSystemEEPRom.systemLanguage);
