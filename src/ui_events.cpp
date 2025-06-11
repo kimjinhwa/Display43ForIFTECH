@@ -752,7 +752,12 @@ void CommonEevntProc(lv_event_t * e){
 	//lv_textarea_set_placeholder_text(ui_txtInputArea,lv_textarea_get_text(ui_txtTempory));
 	lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED); 
 }
-
+//입력값 제한 방법
+/*
+	id를 24~32사이에 기록한다.
+	제한값을 하위 16, 상위 8 에 기록한다. 
+	상위값이 작은값을 하위값이 큰값을 기록한다.
+*/
 uint32_t BatCurrsetConstrain=0x00020014;
 void EventTxtBatCurrset(lv_event_t * e)
 {
