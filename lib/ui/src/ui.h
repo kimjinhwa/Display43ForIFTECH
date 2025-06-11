@@ -119,8 +119,11 @@ extern lv_obj_t * ui_Panel21;
 extern lv_obj_t * ui_Label21;
 void ui_event_Panel59(lv_event_t * e);
 extern lv_obj_t * ui_Panel59;
-void ui_event_chkHFMode(lv_event_t * e);
-extern lv_obj_t * ui_chkHFMode;
+void ui_event_txtHFMnBatFirstFaultUV(lv_event_t * e);
+extern lv_obj_t * ui_txtHFMnBatFirstFaultUV;
+//void ui_event_chkHFMode(lv_event_t * e);
+//extern lv_obj_t * ui_txtHFMnBatFirstUV;
+
 extern lv_obj_t * ui_Panel17;
 void ui_event_Label83(lv_event_t * e);
 extern lv_obj_t * ui_Label83;

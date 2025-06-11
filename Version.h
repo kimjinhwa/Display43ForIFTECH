@@ -1,1 +1,2 @@
-#define VERSION "VER_1.1.2"  // RTC 시간 설정 부분을 수정함.
+#define VERSION "VER_1.1.3"  // HFMODE를 변경하여 입력할 수 있게 한다.
+//efine VERSION "VER_1.1.2"  // RTC 시간 설정 부분을 수정함.

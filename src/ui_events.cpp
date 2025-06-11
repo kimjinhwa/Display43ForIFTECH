@@ -435,6 +435,7 @@ int checkValidation()
 		case INVERTER_VOLT_GAIN:
 		case INVERTER_CURRENT_GAIN:
 		case OUTPUT_CURRENT_GAIN:
+		case HFMODE:
 			token = WriteHoldRegistor(inputTextId,inputData ,inputTextId);
 			if(token==0) showMessageLabel(_("Comm_Error"));
 			else ESP_LOGI("MODUBS", "Received token %d..",token );
@@ -593,11 +594,12 @@ void scrSettingScreen(){
   lv_textarea_set_text(ui_txtBatCurrSet, String(upsModbusData.Bat_Current_Ref).c_str()); //2-20 default 2
   lv_textarea_set_text(ui_txtBatVolSet, String(upsModbusData.Bat_Voltage_Ref).c_str()); //
   lv_textarea_set_text(ui_txtOutputVolSet, String(upsModbusData.Output_Voltage_Ref).c_str()); //
+  lv_textarea_set_text(ui_txtHFMnBatFirstFaultUV, String(upsModbusData.HF_MODE).c_str()); //
 
-  if(upsModbusData.HF_MODE==1)
-    lv_obj_add_state( ui_chkHFMode, LV_STATE_CHECKED );     /// States
-  else 
-    lv_obj_clear_state(ui_chkHFMode,LV_STATE_CHECKED );
+//   if(upsModbusData.HF_MODE==1)
+//     lv_obj_add_state( ui_txtHFMnBatFirstFaultUV, LV_STATE_CHECKED );     /// States
+//   else 
+//     lv_obj_clear_state(ui_txtHFMnBatFirstFaultUV,LV_STATE_CHECKED );
 
 
 	sprintf(tempstr, "%d V", upsModbusData.Input_volt_rms);
@@ -787,6 +789,17 @@ void EventTxtOutputVolSet(lv_event_t * e)
 	outVoltageConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&outVoltageConstrain);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
+	CommonEevntProc(e);
+}
+
+uint32_t hfmBatFirstFaultUVConstrain=0x006400F0;
+void EventTxtHFMnBatFirstFaultUV(lv_event_t * e)
+{
+	int32_t id =  HFMODE<<24;
+	hfmBatFirstFaultUVConstrain+= id;
+	ui_txtTempory = lv_event_get_target(e);
+	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&hfmBatFirstFaultUVConstrain);
 	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
@@ -1179,20 +1192,19 @@ void btnAlarmRunStop(lv_event_t * e){
 
 void pnlNothingEvent(lv_event_t * e){
   ESP_LOGI("EVT","Event Received for chkbox");
-  const char * str = lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED ? "Checked" : "Unchecked";
+  const char * str = lv_obj_get_state(ui_txtHFMnBatFirstFaultUV) & LV_STATE_CHECKED ? "Checked" : "Unchecked";
   ESP_LOGI("CHECKBOX","%s",str );
   int token = millis();
-  lv_state_t state = lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED ;
+  lv_state_t state = lv_obj_get_state(ui_txtHFMnBatFirstFaultUV) & LV_STATE_CHECKED ;
   token = WriteHoldRegistor(HFMODE, state, token );
 }
-
 void pnlhfModeClickEvent(lv_event_t *e)
 {
-	if (lv_obj_get_state(ui_chkHFMode) & LV_STATE_CHECKED)
-		lv_obj_clear_state(ui_chkHFMode, LV_STATE_CHECKED);
+	if (lv_obj_get_state(ui_txtHFMnBatFirstFaultUV) & LV_STATE_CHECKED)
+		lv_obj_clear_state(ui_txtHFMnBatFirstFaultUV, LV_STATE_CHECKED);
 	else
-		lv_obj_add_state(ui_chkHFMode, LV_STATE_CHECKED); /// States
-	lv_event_send(ui_chkHFMode, LV_EVENT_CLICKED, 0);
+		lv_obj_add_state(ui_txtHFMnBatFirstFaultUV, LV_STATE_CHECKED); /// States
+	lv_event_send(ui_txtHFMnBatFirstFaultUV, LV_EVENT_CLICKED, 0);
 }
 void hfModeValueChangedEvent(lv_event_t * e){
   lv_event_send(ui_pnlNothing, LV_EVENT_CLICKED, 0);

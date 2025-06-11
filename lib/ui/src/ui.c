@@ -106,8 +106,9 @@ lv_obj_t * ui_Panel21;
 lv_obj_t * ui_Label21;
 void ui_event_Panel59(lv_event_t * e);
 lv_obj_t * ui_Panel59;
-void ui_event_chkHFMode(lv_event_t * e);
-lv_obj_t * ui_chkHFMode;
+
+void ui_event_txtHFMnBatFirstFaultUV(lv_event_t * e);
+lv_obj_t * ui_txtHFMnBatFirstFaultUV;
 lv_obj_t * ui_Panel17;
 void ui_event_Label83(lv_event_t * e);
 lv_obj_t * ui_Label83;
@@ -610,20 +611,21 @@ void ui_event_txtOutputVolSet(lv_event_t * e)
         EventTxtOutputVolSet(e);
     }
 }
+void ui_event_txtHFMnBatFirstFaultUV(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        EventTxtHFMnBatFirstFaultUV(e);
+    }
+}
+
 void ui_event_Panel59(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
         pnlhfModeClickEvent(e);
-    }
-}
-void ui_event_chkHFMode(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        hfModeValueChangedEvent(e);
     }
 }
 void ui_event_Label83(lv_event_t * e)

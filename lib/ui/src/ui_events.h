@@ -17,6 +17,7 @@ void pnlNothingEvent(lv_event_t * e);
 void EventTxtBatVolSet(lv_event_t * e);
 void EventTxtBatCurrset(lv_event_t * e);
 void EventTxtOutputVolSet(lv_event_t * e);
+void EventTxtHFMnBatFirstFaultUV(lv_event_t * e);
 void pnlhfModeClickEvent(lv_event_t * e);
 void hfModeValueChangedEvent(lv_event_t * e);
 void TabEventSetupVolClick(lv_event_t * e);

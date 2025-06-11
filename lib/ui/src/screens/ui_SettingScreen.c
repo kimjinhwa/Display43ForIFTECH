@@ -292,15 +292,12 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_radius(ui_Panel21, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_Panel21, lv_color_hex(0x706D6D), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Panel21, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_grad_color(ui_Panel21, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_Panel21, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_Panel21, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_left(ui_Panel21, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_Panel21, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_Panel21, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_top(ui_Panel21, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_bottom(ui_Panel21, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_row(ui_Panel21, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_column(ui_Panel21, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Label21 = lv_label_create(ui_Panel21);
     lv_obj_set_width(ui_Label21, 305);
@@ -339,23 +336,44 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_pad_top(ui_Panel59, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_bottom(ui_Panel59, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_chkHFMode = lv_checkbox_create(ui_Panel21);
-    lv_checkbox_set_text(ui_chkHFMode, "");
-    lv_obj_set_width(ui_chkHFMode, 104);
-    lv_obj_set_height(ui_chkHFMode, LV_SIZE_CONTENT);    /// 30
-    lv_obj_set_x(ui_chkHFMode, 148);
-    lv_obj_set_y(ui_chkHFMode, 2);
-    lv_obj_set_align(ui_chkHFMode, LV_ALIGN_CENTER);
-    lv_obj_set_flex_flow(ui_chkHFMode, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(ui_chkHFMode, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_add_flag(ui_chkHFMode, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_set_style_text_align(ui_chkHFMode, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_chkHFMode, &ui_font_malbun32, LV_PART_MAIN | LV_STATE_DEFAULT);
+    // ui_chkHFMode = lv_checkbox_create(ui_Panel21);
+    // lv_checkbox_set_text(ui_chkHFMode, "");
+    // lv_obj_set_width(ui_chkHFMode, 104);
+    // lv_obj_set_height(ui_chkHFMode, LV_SIZE_CONTENT);    /// 30
+    // lv_obj_set_x(ui_chkHFMode, 148);
+    // lv_obj_set_y(ui_chkHFMode, 2);
+    // lv_obj_set_align(ui_chkHFMode, LV_ALIGN_CENTER);
+    // lv_obj_set_flex_flow(ui_chkHFMode, LV_FLEX_FLOW_ROW);
+    // lv_obj_set_flex_align(ui_chkHFMode, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    // lv_obj_add_flag(ui_chkHFMode, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    // lv_obj_set_style_text_align(ui_chkHFMode, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    // lv_obj_set_style_text_font(ui_chkHFMode, &ui_font_malbun32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    lv_obj_set_style_pad_left(ui_chkHFMode, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_chkHFMode, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_chkHFMode, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_chkHFMode, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    // lv_obj_set_style_pad_left(ui_chkHFMode, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    // lv_obj_set_style_pad_right(ui_chkHFMode, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    // lv_obj_set_style_pad_top(ui_chkHFMode, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    // lv_obj_set_style_pad_bottom(ui_chkHFMode, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    ui_txtHFMnBatFirstFaultUV = lv_textarea_create(ui_Panel21);
+    lv_obj_set_height(ui_txtHFMnBatFirstFaultUV, LV_SIZE_CONTENT);    /// 30
+    lv_obj_set_flex_grow(ui_txtHFMnBatFirstFaultUV, 1);
+    lv_obj_set_align(ui_txtHFMnBatFirstFaultUV, LV_ALIGN_CENTER);
+    lv_textarea_set_text(ui_txtHFMnBatFirstFaultUV, "120");
+    lv_textarea_set_max_length(ui_txtHFMnBatFirstFaultUV, 3);
+    lv_textarea_set_one_line(ui_txtHFMnBatFirstFaultUV, true);
+    lv_obj_set_style_text_color(ui_txtHFMnBatFirstFaultUV, lv_color_hex(0xFF0000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_txtHFMnBatFirstFaultUV, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_letter_space(ui_txtHFMnBatFirstFaultUV, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(ui_txtHFMnBatFirstFaultUV, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_txtHFMnBatFirstFaultUV, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_txtHFMnBatFirstFaultUV, &ui_font_malgun26, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui_txtHFMnBatFirstFaultUV, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_txtHFMnBatFirstFaultUV, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_txtHFMnBatFirstFaultUV, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_txtHFMnBatFirstFaultUV, -10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_txtHFMnBatFirstFaultUV, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_txtHFMnBatFirstFaultUV, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_txtHFMnBatFirstFaultUV, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+
 
     ui_Panel17 = lv_obj_create(ui_Container9);
     lv_obj_set_width(ui_Panel17, 450);
@@ -3325,7 +3343,7 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_add_event_cb(ui_txtBatCurrSet, ui_event_txtBatCurrSet, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_txtOutputVolSet, ui_event_txtOutputVolSet, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Panel59, ui_event_Panel59, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_chkHFMode, ui_event_chkHFMode, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_txtHFMnBatFirstFaultUV, ui_event_txtHFMnBatFirstFaultUV, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Label83, ui_event_Label83, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_batSaveSetting, ui_event_batSaveSetting, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button4, ui_event_Button4, LV_EVENT_ALL, NULL);
