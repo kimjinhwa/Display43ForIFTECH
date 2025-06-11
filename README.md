@@ -43,3 +43,20 @@
 - 회로의 패턴을 끊지 않고 처리하기 위하여 SerialPort의 IO를 19,20으로 변경하자. 
   안되네..
 - 리셋버튼을 3초이상 누르고 있으면 로그파일을 초기하 한다.
+
+## Bluetooth 연결
+- BLEDevice::init("UPS_IFTECH1P1P");
+```cpp
+SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStream ) : commandQueueSize(commandQueueSize), errorQueueSize(errorQueueSize) {
+  this->inputStream = &Serial;
+  Command cmd_config = addCommand("ls",ls_configCallback);
+  cmd_config.setDescription(" File list \r\n ");
+  cmd_config =  addSingleArgCmd("cat", cat_configCallback);
+  cmd_config = addSingleArgCmd("rm", rm_configCallback);
+  cmd_config = addSingleArgCmd("format", format_configCallback);
+  cmd_config = addCommand("df", df_configCallback);
+  cmd_config = addSingleArgCmd("reboot", reboot_configCallback);
+  simpleCli.setOnError(errorCallback);
+  cmd_config= addCommand("help",help_Callback);
+}
+```
