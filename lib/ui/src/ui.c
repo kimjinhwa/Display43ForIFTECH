@@ -1081,7 +1081,8 @@ void ui_event_btnAlarmPrev2(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        EventLogPrev(e);
+        //entLogPrev(e);
+        EventLogNext(e);
     }
 }
 void ui_event_btnAlarmNext2(lv_event_t * e)
@@ -1089,7 +1090,8 @@ void ui_event_btnAlarmNext2(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        EventLogNext(e);
+        //entLogNext(e);
+        EventLogPrev(e);
     }
 }
 void ui_event_Button9(lv_event_t * e)

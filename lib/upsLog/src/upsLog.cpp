@@ -256,7 +256,7 @@ long upsLog::getFileSize()
     else
     {
         logCount = 0;
-        totalPage = 1;
+        totalPage = 0;
     }
     upslog_t log; 
     //마지막 로그를 하나 읽는다.
@@ -442,7 +442,61 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
     }
     return retStr.c_str() ;
 }
-const char * upsLog::readCurrentLog(directionType_t direction)
+
+const char * upsLog::readCurrentLogExt(directionType_t direction, bool viewOrder)
+{
+    if(eventType == FAULT_TYPE) return readCurrentLogFromVector(direction);
+    
+    // 1. 파일 열기 및 기본 정보 계산
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        ESP_LOGW("UI","File Open Error");
+        return "";
+    }
+
+    // 2. 로그 개수 계산
+    fseek(fp, 0, SEEK_END);
+    logCount = ftell(fp) / sizeof(upslog_t);
+    totalPage = ceil((double)logCount / LOG_PER_PAGE);
+    
+    // 3. 페이지 이동 처리
+    if(direction == PREVLOG) {
+        currentMemoryPage = (currentMemoryPage > 0) ? currentMemoryPage - 1 : 0;
+    }
+    else if(direction == NEXTLOG) {
+        currentMemoryPage = (currentMemoryPage < totalPage - 1) ? currentMemoryPage + 1 : totalPage - 1;
+    }
+
+    // 4. 읽기 위치 계산 (항상 오래된 순서로 읽기)
+    int startPos = (currentMemoryPage * LOG_PER_PAGE) + 1;
+    int endPos = startPos + LOG_PER_PAGE - 1;
+    if(endPos > logCount) endPos = logCount;
+
+    // 5. 로그 읽기
+    std::vector<std::tuple<uint16_t, std::string>> vectorlogs;
+    static std::string retStr;
+    vectorlogs.clear();
+    retStr.clear();
+
+    upslog_t upsLog;
+    for(int pos = startPos; pos <= endPos; pos++) {
+        if(fseek(fp, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0) {
+            if(fread(&upsLog, 1, sizeof(upslog_t), fp) == sizeof(upslog_t)) {
+                if(upsLog.checkBit == 0x55) {
+                    retStr.append((char*)upsLog.message);
+                    retStr.append("\n");
+                    vectorlogs.push_back(std::make_tuple(upsLog.logId, std::string((char*)upsLog.message)));
+                }
+            }
+        }
+    }
+
+    fclose(fp);
+    ESP_LOGI("LOG", "Page: %d/%d, Logs: %d/%d", currentMemoryPage + 1, totalPage, vectorlogs.size(), logCount);
+    
+    return retStr.c_str();
+}
+const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
 {
     ESP_LOGW("UI","Event Type is %d direction is %d",eventType,direction);
     if(eventType == FAULT_TYPE) return readCurrentLogFromVector(direction);
@@ -470,52 +524,79 @@ const char * upsLog::readCurrentLog(directionType_t direction)
         // currentMemoryPage = currentMemoryPage<0?0:currentMemoryPage;
     }
     else if(direction == PREVLOG){
-        currentMemoryPage++;
-        if(remain==0)
-        {
-            currentMemoryPage = currentMemoryPage>=totalPage ? totalPage:currentMemoryPage;
-            //currentMemoryPage  과 totalPage 가 같으면 화면 Display를 맞추기 위해 
-            // currentMemoryPage  를 하나 줄려준다.
+        if (viewOrder) {
+            // 최신 로그가 마지막에 오는 경우 (오래된 순서)
+            currentMemoryPage--;
+            currentMemoryPage = currentMemoryPage < 0 ? 0 : currentMemoryPage;
+        } else {
+            // 최신 로그가 처음에 오는 경우 (기존 방식)
+            currentMemoryPage++;
+            if(remain==0) {
+                currentMemoryPage = currentMemoryPage >= totalPage ? totalPage-1 : currentMemoryPage;
+            } else {
+                currentMemoryPage = currentMemoryPage >= totalPage ? totalPage-1 : currentMemoryPage;
+            }
         }
-        else 
-        {
-            currentMemoryPage = currentMemoryPage>totalPage-1 ? totalPage-1:currentMemoryPage;
-        }
-        //currentMemoryPage=logCount / LOG_PER_PAGE;
     }
     else if(direction == NEXTLOG){
-        currentMemoryPage--;
-        currentMemoryPage = currentMemoryPage<0?0:currentMemoryPage;
+        if (viewOrder) {
+            // 최신 로그가 마지막에 오는 경우 (오래된 순서)
+            currentMemoryPage++;
+            if(remain==0) {
+                currentMemoryPage = currentMemoryPage >= totalPage ? totalPage-1 : currentMemoryPage;
+            } else {
+                currentMemoryPage = currentMemoryPage >= totalPage ? totalPage-1 : currentMemoryPage;
+            }
+        } else {
+            // 최신 로그가 처음에 오는 경우 (기존 방식)
+            currentMemoryPage--;
+            currentMemoryPage = currentMemoryPage < 0 ? 0 : currentMemoryPage;
+        }
     }
-    ESP_LOGW("LOG","currentMemoryPage %d totalPage %d logCount %d",currentMemoryPage,totalPage, logCount);
+    ESP_LOGW("LOG","currentMemoryPage %d totalPage %d logCount %d remain %d", currentMemoryPage,totalPage, logCount,remain);
 
     if(remain>0)
     {
         if(currentMemoryPage>0)
-            filePos = remain + (currentMemoryPage)*LOG_PER_PAGE;
+            filePos = (currentMemoryPage * LOG_PER_PAGE) + 1;
         else 
-            filePos = remain ;
+            filePos = remain;
     }
     else
     {
-        filePos = (currentMemoryPage)*LOG_PER_PAGE;
+        filePos = (currentMemoryPage * LOG_PER_PAGE) + 1;
     }
     filePos = filePos > logCount? logCount:filePos;
 
-    // ESP_LOGI("LOG","\nlogcount %d ",logCount);
-    // ESP_LOGI("LOG","\nremain %d ",remain);
-    // ESP_LOGI("LOG","\nfilePos %d ",filePos);
-    // ESP_LOGI("LOG","\ntotalPage %d ",totalPage);
-    // ESP_LOGI("LOG","\ncurrentMemoryPage %d ",currentMemoryPage);
-
-    //filePos는 읽을 곳을 가르키고 있다.
     std::vector <std::tuple<uint16_t , std::string> >vectorlogs;
     static std::string retStr;
     vectorlogs.clear();
-    for (int i = 0; i < LOG_PER_PAGE; filePos--, i++)
+
+    // 읽기 위치 계산 수정
+    int startPos, endPos, step;
+    if (viewOrder) {
+        // 최신 로그가 마지막에 오도록 (오래된 순서)
+        startPos = filePos;  // filePos 사용
+        endPos = startPos + LOG_PER_PAGE;
+        step = 1;
+    } else {
+        // 최신 로그가 처음에 오도록 (기존 방식)
+        startPos = logCount;
+        endPos = 1;
+        step = -1;
+    }
+
+    // 페이지 범위 체크
+    if (startPos < 1) startPos = 1;
+    if (endPos < 1) endPos = 1;
+    if (startPos > logCount) startPos = logCount;
+    if (endPos > logCount) endPos = logCount;
+
+    // 읽기 개수 제한 수정
+    int readCount = 0;
+    for (int i = 0, pos = startPos; i < LOG_PER_PAGE && pos <= endPos && readCount < logCount; pos += step, i++)
     {
-        //filePos는 legth가 1일때 0을 갖고 있어야 읽을 수 있다.
-        if (fseek(fp, (filePos-1) * sizeof(upslog_t), SEEK_SET) == 0)
+        if (fseek(fp, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0)
         {
             bRet = fread((upslog_t *)&upsLog, 1, sizeof(upslog_t), fp);
             if(upsLog.checkBit != 0x55){
@@ -526,20 +607,25 @@ const char * upsLog::readCurrentLog(directionType_t direction)
             retStr.append((char*)upsLog.message);
             retStr.append("\n");
             vectorlogs.push_back(std::make_tuple(upsLog.logId, retStr));
+            readCount++;
         }
         else break;
     }
     fclose(fp);
-    filePos = filePos<0 ? 0:filePos;
+
     ESP_LOGI("LOG","vLogVector size %d ",vectorlogs.size());
     retStr.clear();
     for (const auto &entry : vectorlogs)
     {
-        //std::string app = std::get<1>(entry);
-        retStr += std::get<1>(entry);//app;
+        retStr += std::get<1>(entry);
     }
     return retStr.c_str() ;
 };
+
+
+
+
+
 // int upsLog::readPrevLog(upslog_t *upsLog)
 // {
 //     // filePos = filePos - 1;

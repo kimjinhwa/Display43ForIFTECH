@@ -986,7 +986,7 @@ void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction)
 	upslog_t log;
 	String retStr;
 	retStr = "";
-	retStr = upslog->readCurrentLog(direction);
+	retStr = upslog->readCurrentLog(direction,true);
 
 	//ESP_LOGW("UI EventLog","log \n%s",retStr.c_str() );
 	lv_textarea_set_text(obj, retStr.c_str());
@@ -1004,7 +1004,7 @@ std::string showEventTabTitle()
 		strMessage.append(_("eventHistory"));
 		strMessage.append("(");
 		int curPage=0;
-		curPage =  upslogEvent.totalPage - upslogEvent.currentMemoryPage;
+		curPage =  upslogEvent.getCurrentMemoryPage();
 		curPage = curPage == 0 ? 1:curPage;
 		strMessage.append(std::to_string(curPage));
 		strMessage.append("/");
@@ -1052,7 +1052,7 @@ void evtLogScreenLoaded(lv_event_t * e){
 		strMessage = "";
 		strMessage.append(_("alarmStatus"));
 		strMessage.append("(");
-		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
+		strMessage.append(std::to_string(upslogAlarm.getCurrentMemoryPage()));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogAlarm.totalPage));
 		strMessage.append(")");
@@ -1077,10 +1077,18 @@ void evtLogScreenLoaded(lv_event_t * e){
 }
 void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 {
-	if( upslogEvent.logCount % LOG_PER_PAGE == 0 && upslogEvent.currentMemoryPage == upslogEvent.totalPage)
+	if(upslogEvent.logCount == 0) return;
+	//로그가 1개라도 있으면 TotalPage는 1이어야 한다.
+	//이때 CurrentMemoryPage는 0이지만 1를 리턴 받는다.
+	if(upslogEvent.getCurrentMemoryPage() == upslogEvent.totalPage) 
 	{
+		showEventTabTitle();
 		return;
-	};
+	}
+	// if( upslogEvent.logCount % LOG_PER_PAGE == 0 && upslogEvent.getCurrentMemoryPage() + 1 == upslogEvent.totalPage)
+	// {
+	// 	return;
+	// };
 	uint16_t selectedTab = 0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	if (selectedTab == 0){
@@ -1093,28 +1101,12 @@ void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 	}
 	std::string strMessage;
 	showEventTabTitle();
-	// if (upslogEvent.logCount > 0)
-	// {
-	// 	strMessage = "";
-	// 	strMessage.append(_("eventHistory"));
-	// 	strMessage.append("(");
-	// 	strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage ));
-	// 	strMessage.append("/");
-	// 	strMessage.append(std::to_string(upslogEvent.totalPage));
-	// 	strMessage.append(")");
-	// 	lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
-	// }
-	// else{
-	// 	strMessage = "";
-	// 	strMessage.append(_("eventHistory"));
-	// 	lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
-	// }
 	if (upslogAlarm.logCount > 0)
 	{
 		strMessage = "";
 		strMessage.append(_("alarmStatus"));
 		strMessage.append("(");
-		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
+		strMessage.append(std::to_string(upslogAlarm.getCurrentMemoryPage()));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogAlarm.totalPage));
 		strMessage.append(")");
@@ -1144,27 +1136,12 @@ void EventLogPrev(lv_event_t *e) /* 다음 버튼*/
 
 	std::string strMessage;
 	showEventTabTitle();
-	// if (upslogEvent.logCount > 0)
-	// {
-	// 	strMessage.append(_("eventHistory"));
-	// 	strMessage.append("(");
-	// 	strMessage.append(std::to_string(upslogEvent.totalPage - upslogEvent.currentMemoryPage ));
-	// 	strMessage.append("/");
-	// 	strMessage.append(std::to_string(upslogEvent.totalPage));
-	// 	strMessage.append(")");
-	// 	lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
-	// }
-	// else{
-	// 	strMessage="";
-	// 	strMessage.append(_("eventHistory"));
-	// 	lv_tabview_rename_tab(ui_TabView2, 1, strMessage.c_str());
-	// }
 	if (upslogAlarm.logCount > 0)
 	{
 		strMessage = "";
 		strMessage.append(_("alarmStatus"));
 		strMessage.append("(");
-		strMessage.append(std::to_string(upslogAlarm.currentMemoryPage+1));
+		strMessage.append(std::to_string(upslogAlarm.getCurrentMemoryPage()));
 		strMessage.append("/");
 		strMessage.append(std::to_string(upslogAlarm.totalPage));
 		strMessage.append(")");

@@ -59,12 +59,18 @@ private:
     uint16_t mask_upsOperationFault =0b0111111111111111;
 
     int shrinkFile();
+    int16_t currentMemoryPage=0;
 
 public:
     uint16_t logCount=0;
     uint16_t totalPage;
-    int16_t currentMemoryPage=0;
     long getFileSize();
+    int16_t getCurrentMemoryPage(){
+        return currentMemoryPage+1;
+    };
+    void setCurrentMemoryPage(int16_t page){
+        currentMemoryPage = page;
+    };
     enum upsStatus_t
     {
         MODULE_STATUS = 0,
@@ -85,7 +91,8 @@ public:
     int setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint16_t upsOperationFault);
     void parseMessage(std::string *string_t,uint16_t logId,uint16_t value, upsStatus_t ups_status,uint32_t logtime);
     const char* getLogString(const upslog_t *logArray);
-    const char * readCurrentLog(directionType_t direction);
+    const char * readCurrentLog(directionType_t direction, bool viewOrder=false);
+    const char * readCurrentLogExt(directionType_t direction, bool viewOrder);
     const char * readCurrentLogFromVector(directionType_t direction);
  
 

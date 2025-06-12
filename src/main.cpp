@@ -432,8 +432,7 @@ void GetSetEventData()
     //          upsModbusData.ModuleState.status,
     //          upsModbusData.HWState.status,
     //          upsModbusData.upsOperationFault.status);
-    if(upslogAlarm.totalPage>0) upslogAlarm.currentMemoryPage = upslogAlarm.totalPage-1;
-    String retStr = upslogEvent.readCurrentLog(CURRENTLOG);
+    String retStr = upslogEvent.readCurrentLogExt(CURRENTLOG,true);
     lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
     while (lv_textarea_get_cursor_pos(ui_eventTextArea))
     {
@@ -446,8 +445,8 @@ void GetSetEventData()
 
   if (isAlarmLogChanged)
   {
-    upslogAlarm.currentMemoryPage = 0;
-    String retStr = upslogAlarm.readCurrentLog(CURRENTLOG);
+    upslogAlarm.setCurrentMemoryPage(0);
+    String retStr = upslogAlarm.readCurrentLogExt(CURRENTLOG,true);
     if(upslogAlarm.eventHistory ==0 ) retStr =""; //알람이 없으므로 클리어 하여 준다.
     lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
     ESP_LOGW("UI EventAlarm", "ui_alarmTextArea %s", retStr.c_str());
@@ -456,7 +455,6 @@ void GetSetEventData()
       //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_alarmTextArea));
       lv_textarea_cursor_up(ui_alarmTextArea);
     }
-    upslogEvent.currentMemoryPage =  upslogEvent.totalPage;
     lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
   }
 }
@@ -861,6 +859,11 @@ void setup()
   setMemoryDataToLCD();
   // esp_task_wdt_init(WDT_TIMEOUT,true);
   // esp_task_wdt_add(NULL);
+  // while(1){
+  //     digitalWrite(BUZZER, !digitalRead(BUZZER));
+  //     delay(200);
+  //     Serial.println("buzzer test");
+  // }
 };
 static int interval = 1000;
 static unsigned long previous300mills = 0;
@@ -916,7 +919,7 @@ void loop()
           //FormatFileSystem(1);
           lsFile.rm("eventLog.hex");
           upslogEvent.getFileSize();
-          upslogEvent.readCurrentLog(CURRENTLOG);
+          upslogEvent.readCurrentLogExt(CURRENTLOG,true);
 
           nvsSystemEEPRom.systemLedOffTime = 10;
           nvsSystemEEPRom.lcdBright= 255;
