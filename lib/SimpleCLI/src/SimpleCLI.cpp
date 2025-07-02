@@ -13,9 +13,11 @@
 #include "SimpleCLI.h"
 #include <RtcDS1302.h>
 #include "EEPROM.h"
+#include <WiFi.h>
 
 #include "../../../src/myBlueTooth.h"
 
+extern myBlueToothStream mySerialBT;
 LittleFileSystem lsFile;
 SimpleCLI simpleCli;
 static char TAG[] ="CLI" ;
@@ -120,17 +122,68 @@ void SimpleCLI::setOutputStream(Print *outputStream ){
 void SimpleCLI::setInputStream(Stream *inputStream ){
         this->inputStream = inputStream ;
 }
-SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStream ) : commandQueueSize(commandQueueSize), errorQueueSize(errorQueueSize) {
-  this->inputStream = &Serial;
-  Command cmd_config = addCommand("ls",ls_configCallback);
-  cmd_config.setDescription(" File list \r\n ");
-  cmd_config =  addSingleArgCmd("cat", cat_configCallback);
-  cmd_config = addSingleArgCmd("rm", rm_configCallback);
-  cmd_config = addSingleArgCmd("format", format_configCallback);
-  cmd_config = addCommand("df", df_configCallback);
-  cmd_config = addSingleArgCmd("reboot", reboot_configCallback);
-  simpleCli.setOnError(errorCallback);
-  cmd_config= addCommand("help",help_Callback);
+extern const char *ssid;
+extern const char *password;
+void ssid_Callback(cmd *cmdPtr)
+{
+    Command cmd(cmdPtr);
+    Argument arg = cmd.getArgument(0);
+    String ssid = arg.getValue();
+    if(ssid.length() > 0){
+        if(ssid.compareTo("erase") == 0){
+            mySerialBT.printf("\nSSID : %s\n", ssid);
+            mySerialBT.printf("PASS : %s\n", password);
+        }
+    }
+}
+void pass_Callback(cmd *cmdPtr)
+{
+    Command cmd(cmdPtr);
+    Argument arg = cmd.getArgument(0);
+    String ssid = arg.getValue();
+    if(ssid.length() > 0){
+        if(ssid.compareTo("erase") == 0){
+            mySerialBT.printf("\nSSID : %s\n", ssid);
+            mySerialBT.printf("PASS : %s\n", password);
+        }
+    }
+}
+
+extern const char *host;
+void ip_Callback(cmd *cmdPtr){
+    if(mySerialBT.deviceConnected){
+        mySerialBT.printf("\nIPAddress: %s\n", WiFi.localIP().toString().c_str());
+        mySerialBT.printf("Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+        mySerialBT.printf("SubnetMask: %s\n", WiFi.subnetMask().toString().c_str());
+        mySerialBT.printf("Y can Update Firmware http://%s/serverIndex \n", WiFi.localIP().toString().c_str());
+        mySerialBT.printf("Y can Update Firmware http://%s/serverIndex \n", host);
+
+    }
+    else{
+        mySerialBT.printf("Not connected\n");
+    }
+}
+SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStream ) : commandQueueSize(commandQueueSize), errorQueueSize(errorQueueSize)
+{
+    this->inputStream = &Serial;
+    Command cmd_config = addCommand("ls", ls_configCallback);
+    Command ssid, pass, ip;
+    cmd_config.setDescription(" File list \r\n ");
+    cmd_config = addSingleArgCmd("cat", cat_configCallback);
+    cmd_config = addSingleArgCmd("rm", rm_configCallback);
+    cmd_config = addSingleArgCmd("format", format_configCallback);
+    cmd_config = addCommand("df", df_configCallback);
+    cmd_config = addSingleArgCmd("reboot", reboot_configCallback);
+
+    ssid = simpleCli.addSingleArgCmd("ssid", ssid_Callback); // SSID
+    ssid.setDescription("Set the SSID");
+    pass = simpleCli.addSingleArgCmd("pass", pass_Callback); // PASS
+    pass.setDescription("Set the PASS");
+    ip = simpleCli.addSingleArgCmd("ip", ip_Callback); // IP
+    ip.setDescription("Read the IPAddress,GW,SUBNETMASK");
+
+    simpleCli.setOnError(errorCallback);
+    cmd_config = addCommand("help", help_Callback);
 }
 
 SimpleCLI::~SimpleCLI() {

@@ -8,6 +8,8 @@
 #include <ESPmDNS.h>
 #include <Update.h>
 
+extern const char* host;
+
 void wifiOTAsetup(void) ;
 void wifiOtaloop(void) ;
 #endif

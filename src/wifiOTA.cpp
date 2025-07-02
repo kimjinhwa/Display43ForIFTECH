@@ -1,8 +1,9 @@
 #include "wifiOTA.h"
 
-static const char *host= "esp32";
-static const char *ssid = "iptime_mbhong";
-static const char *password = "";
+const char *host= "ups1p1p";
+//static const char *ssid = "iptime_mbhong";
+const char *ssid = "iftech";
+const char *password = "iftech0273";
 WebServer server(80);
 const char* loginIndex =
  "<form name='loginForm'>"
@@ -94,7 +95,7 @@ IPAddress dns2(8, 8, 8, 8);
 void wifiOTAsetup(void)
 {
   Serial.begin(BAUDRATEDEF);
-  WiFi.config(ipaddress, gateway, subnetmask, dns1, dns2);
+  //WiFi.config(ipaddress, gateway, subnetmask, dns1, dns2);
   WiFi.begin(ssid, password);
   Serial.println("");
 
@@ -116,12 +117,8 @@ void wifiOTAsetup(void)
   Serial.println(WiFi.localIP());
 
   /*use mdns for host name resolution*/
-  //   if (!MDNS.begin(host)) { //http://esp32.local
-  //     Serial.println("Error setting up MDNS responder!");
-  //     while (1) {
-  //       delay(1000);
-  //     }
-  //   }
+  MDNS.begin(host);
+  MDNS.addService("http", "tcp", 80);
   Serial.println("mDNS responder started");
   /*return index page which is stored in serverIndex */
   server.on("/", HTTP_GET, []()
