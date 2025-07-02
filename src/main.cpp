@@ -594,23 +594,6 @@ void mainScrUpdata(){
     //lv_obj_set_style_bg_color(ui_imgInvertorPowerLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
   }
   toggleBuzzer();
- //
-// if(upsModbusData.HWState.Bit.BAT_MCCB_Fault == 0 &&  upsModbusData.HWState.Bit.BAT_FUSE == 0)
-// {
-//   lv_obj_set_style_bg_color(ui_imgBattery, lv_color_hex(0x1DF32C), LV_PART_MAIN | LV_STATE_DEFAULT );
-// }
-// else
-//   lv_obj_set_style_bg_color(ui_imgBattery, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
-
-//   if(upsModbusData.upsRun.upsRunCommandBit.UpsON){
-//     lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT );
-//     lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT );
-//   }
-//   else{
-//     lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT );
-//     lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT );
-
-//   }
 }
 /* 부저는 UPS에서 설정하면 작동을 시작한다. 
 *  하지만 사용자가 강제 중지하는 경우 애니매이션은 제외하고 부저음은 작동을 멈춘다.
@@ -854,8 +837,7 @@ void setup()
   upsModbusData.ModuleState.Bit.Charger_RUN = 0;
   // 인버터 정지 상태이다;
   upsModbusData.ModuleState.Bit.Inverter_RUN = 0;
-  // upsModbusData.HWState.status;
-  // upsModbusData.upsOperationFault.status;
+ 
   setMemoryDataToLCD();
   // esp_task_wdt_init(WDT_TIMEOUT,true);
   // esp_task_wdt_add(NULL);

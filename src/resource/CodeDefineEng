@@ -8,7 +8,7 @@ ALARM_RESET : ALARM RESET
 Bat_Curr_Set : Bat Curr Set
 Bat_Volt_Set : Bat Volt Set
 Inv_Volt_Set : Inv Volt Set
-HF_Mode : HF Mode
+HF_Mode : BAT 1st Low Vol
 R_C_Start_Run_Event : R/C Start Run
 R_C_Re-Start_Event : R/C Re-Start
 R_C_Stop_by_Command_Event : R/C Stop by Command

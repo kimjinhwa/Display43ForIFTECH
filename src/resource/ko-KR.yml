@@ -66,7 +66,7 @@ ko-KR:
   Bat_Curr_Set: 충전전류 설정 
   Bat_Volt_Set: 배터리전압 설정 
   Inv_Volt_Set: 출력전압 설정
-  HF_Mode: 고효율 모드
+  HF_Mode: 배터리 1차 저전압
   R_C_Start_Run_Event: 충전기 운전
   R_C_Re_Start_Event: 충전기 자동운전
   R_C_Stop_by_Command_Event: 충전기 정지
