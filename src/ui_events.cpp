@@ -269,43 +269,14 @@ void TabEvtSystemSetClick(lv_event_t * e){
     lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
     lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
 }
+extern void setTimeText();
 void TabEventSetupTimeClick(lv_event_t * e)
 {
 	uint16_t selectedTab=0;
+	setTimeText();
 	lv_tabview_set_act(ui_TabView1,4,LV_ANIM_OFF);
 	selectedTab = lv_tabview_get_tab_act(ui_TabView1);
-	ESP_LOGW("UI","Tab selected %d",selectedTab);
-	/*
-	if (selectedTab != 3) return ;
-
-    uint16_t brightness = String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
-    nvsSystemEEPRom.lcdBright= map(brightness , 0, 255, 0, 255); 
-    ledcWrite(0, nvsSystemEEPRom.lcdBright ); // Screen brightness can be modified by adjusting this parameter. (0-255) 
-
-    uint16_t offtime= String(lv_textarea_get_text(ui_txtBrigtness )).toInt();
-    nvsSystemEEPRom.systemLedOffTime = offtime; 
-
-	if(strcmp(lv_label_get_text(ui_Label8), "English") == 0)
-		nvsSystemEEPRom.systemLanguage = 0 ; //한글 
-	else 
-		nvsSystemEEPRom.systemLanguage = 1 ;// English 
-
-
-	// timeval tmv;
-	tm nowTime;
-	nowTime.tm_year = String(lv_textarea_get_text(ui_txtYear)).toInt() +2000  ;
-	nowTime.tm_mon = String(lv_textarea_get_text(ui_txtMonth)).toInt();
-	nowTime.tm_mday = String(lv_textarea_get_text(ui_txtDay)).toInt();
-	nowTime.tm_hour = String(lv_textarea_get_text(ui_txtHour)).toInt();
-	nowTime.tm_min = String(lv_textarea_get_text(ui_txtMinute)).toInt();
-	nowTime.tm_sec = String(lv_textarea_get_text(ui_txtSecond)).toInt();
-	RtcDateTime nowRtc = RtcDateTime(nowTime.tm_year,nowTime.tm_mon,nowTime.tm_mday,nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
-	setRtcNewTime(nowRtc );
- 	ESP_LOGI("Set Rtc","Set Rtc");
-	showMessageLabel(_("SAVED"));
-	EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
-	EEPROM.commit();
-	*/
+	ESP_LOGW("UI","Set Time Tab selected %d",selectedTab);
 }
 
 void btnEventRunUps(lv_event_t * e)
@@ -760,18 +731,18 @@ void CommonEevntProc(lv_event_t * e){
 	제한값을 하위 16, 상위 8 에 기록한다. 
 	상위값이 작은값을 하위값이 큰값을 기록한다.
 */
-uint32_t BatCurrsetConstrain=0x00020014;
+uint32_t BatCurrsetConstrain=0x0000ffff;
 void EventTxtBatCurrset(lv_event_t * e)
 {
 	ui_txtTempory = lv_event_get_target(e);
 	int32_t id =  BATCURR_REF<<24;
 	BatCurrsetConstrain += id;
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&BatCurrsetConstrain);
-	lv_textarea_set_max_length(ui_txtInputArea , 2);
+	lv_textarea_set_max_length(ui_txtInputArea , 3);
 	CommonEevntProc(e);
 }
 
-uint32_t BatVoltageConstrain=0x00500118;
+uint32_t BatVoltageConstrain=0x0000ffff;
 void EventTxtBatVolSet(lv_event_t * e)
 {
 	int32_t id =  BATVOL_REF<<24;
@@ -782,7 +753,7 @@ void EventTxtBatVolSet(lv_event_t * e)
 	CommonEevntProc(e);
 }
 
-uint32_t outVoltageConstrain=0x006400F0;
+uint32_t outVoltageConstrain=0x0000ffff;
 void EventTxtOutputVolSet(lv_event_t * e)
 {
 	int32_t id =  OUTPUTVOL_REF<<24;
@@ -793,7 +764,7 @@ void EventTxtOutputVolSet(lv_event_t * e)
 	CommonEevntProc(e);
 }
 
-uint32_t hfmBatFirstFaultUVConstrain=0x006400F0;
+uint32_t hfmBatFirstFaultUVConstrain=0x0000ffff;
 void EventTxtHFMnBatFirstFaultUV(lv_event_t * e)
 {
 	int32_t id =  HFMODE<<24;

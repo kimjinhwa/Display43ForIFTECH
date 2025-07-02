@@ -625,6 +625,22 @@ void toggleBuzzer()
 }
 
 int modbusEventSendLoop(int timeout);
+void setTimeText()
+{
+    timeval tmv;
+    gettimeofday(&tmv, NULL);
+    RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
+    lv_textarea_set_text(ui_txtYear, String(nowTime.Year() - 2000).c_str());
+    lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
+    lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
+    lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
+    lv_textarea_set_text(ui_txtMinute, String(nowTime.Minute()).c_str());
+    lv_textarea_set_text(ui_txtSecond, String(nowTime.Second()).c_str());
+
+    lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
+    lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
+
+}
 void setup()
 {
   Serial.begin(BAUDRATEDEF);
@@ -802,27 +818,8 @@ void setup()
     // setTime();
 
     /* System setting screen*/
-    timeval tmv;
-    gettimeofday(&tmv, NULL);
-    RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
-    lv_textarea_set_text(ui_txtYear, String(nowTime.Year() - 2000).c_str());
-    lv_textarea_set_text(ui_txtMonth, String(nowTime.Month()).c_str());
-    lv_textarea_set_text(ui_txtDay, String(nowTime.Day()).c_str());
-    lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
-    lv_textarea_set_text(ui_txtMinute, String(nowTime.Minute()).c_str());
-    lv_textarea_set_text(ui_txtSecond, String(nowTime.Second()).c_str());
+    setTimeText();
 
-    lv_textarea_set_text(ui_txtOfftime, String(nvsSystemEEPRom.systemLedOffTime).c_str());
-    lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
-
-    // lv_obj_set_style_bg_img_recolor(ui_imgMainPower, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN| LV_STATE_DEFAULT);
-    // lv_obj_set_style_bg_img_recolor(ui_imgScrBypass, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
-    // lv_obj_set_style_bg_img_recolor(ui_imgScrOutput, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
-    // lv_obj_set_style_bg_img_recolor(ui_imgConvertor, lv_color_hex(OFFCONV_FORE_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
-    // lv_obj_set_style_bg_img_recolor(ui_imgInvertor, lv_color_hex(OFFCONV_FORE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
-    // lv_obj_set_style_bg_img_recolor(ui_imgInvertorPowerLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
-
-    // lv_label_set_text(ui_NiceLabel,_("RunAniButton"));
   }
   // Modbus는 내부적으로 task를 사용하고 있다.
   xTaskCreate(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask);
