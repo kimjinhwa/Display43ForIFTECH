@@ -84,9 +84,6 @@ void scrSettingScreen();
 void scrMeasureLoad();
 void toggleBuzzer();
 void RebootSystem(uint16_t afterTime);
-void FormatFileSystem(uint16_t afterTime);
-void setNoJob();
-jobCommant_t getSystemControlJob();
 #define DISPLAY_43
 
 #ifdef DISPLAY_7
@@ -414,18 +411,9 @@ void setRtcNewTime(RtcDateTime rtc)
   // SPI.begin(SCK,MISO,MOSI,RTCEN );
 }
 
-void GetSetEventData()
-{
-  int16_t isEventLogChanged = 0;
-  int16_t isAlarmLogChanged = 0;
-  upslog_t log;
-  isEventLogChanged = upslogEvent.setEventCode(upsModbusData.ModuleState.status,
-                                               upsModbusData.HWState.status,
-                                               upsModbusData.upsOperationFault.status);
-
-  isAlarmLogChanged = upslogAlarm.setEventCode(upsModbusData.ModuleState.status,
-                                               upsModbusData.HWState.status,
-                                               upsModbusData.upsOperationFault.status);
+int16_t isEventLogChanged = 0;
+int16_t isAlarmLogChanged = 0;
+void isGetSetEventData(){
   if (isEventLogChanged)
   {
     // ESP_LOGW("UI", "%d %d %d %d", isAlarmLogChanged,
@@ -457,6 +445,17 @@ void GetSetEventData()
     }
     lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
   }
+}
+void GetSetEventData()
+{
+  upslog_t log;
+  isEventLogChanged = upslogEvent.setEventCode(upsModbusData.ModuleState.status,
+                                               upsModbusData.HWState.status,
+                                               upsModbusData.upsOperationFault.status);
+
+  isAlarmLogChanged = upslogAlarm.setEventCode(upsModbusData.ModuleState.status,
+                                               upsModbusData.HWState.status,
+                                               upsModbusData.upsOperationFault.status);
 }
 
 void mainScrUpdata(){
@@ -822,7 +821,7 @@ void setup()
 
   }
   // Modbus는 내부적으로 task를 사용하고 있다.
-  xTaskCreate(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask);
+  xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask, 0);  
 #ifdef USEWIFI
   wifiOTAsetup();
 #endif
@@ -870,13 +869,14 @@ void loop()
   if(modbusErrorCounter>2)
     showMessageLabel(_("Comm_Error"));
   #endif
+  isGetSetEventData();
   if ((now - previous300mills > every300ms))
   {
     // 여기서 모드버스 통신을 하자
     //
     //modbusEventSendLoop(30);
-    modbusEventSendLoop(100);
-    GetSetEventData();
+    // modbusEventSendLoop(100);
+    // GetSetEventData();
     previous300mills = now;
   }
 
@@ -893,9 +893,8 @@ void loop()
       ESP_LOGI("IO","Press Init button %d",digitalRead(BUTTON_ERASE ));
       pressedResetButton++;
       if(pressedResetButton>3){
-        if( getSystemControlJob() == NO_JOB){
+        {
           showMessageLabel(_("Log_Init"));
-          //FormatFileSystem(1);
           lsFile.rm("eventLog.hex");
           upslogEvent.getFileSize();
           upslogEvent.readCurrentLogExt(CURRENTLOG,true);
@@ -910,24 +909,6 @@ void loop()
           pressedResetButton =0;
           ESP_LOGI("IO","Now On file format...Do not Turn Off system");
         }
-        else if(getSystemControlJob()== FILE_FORMAT ){
-          showMessageLabel(_("Log_Init"));
-          ESP_LOGI("IO","Now On file format...Do not Turn Off system");
-        }
-        else if(getSystemControlJob()== JOB_DONE){
-          showMessageLabel(_("Log_Init"));
-          ESP_LOGI("IO","Now On file format...Do not Turn Off system");
-          setNoJob();
-        }
-        lv_label_set_text(ui_lblDate, _("Log_Init"));
-        //RebootSystem(uint16_t afterTime);
-        // gfx->fillScreen(GREEN);
-        // gfx->setTextColor(WHITE);
-        // gfx->printf("\nLog File Format....." );
-        // gfx->printf("\nDo Not system Off !!");
-        // gfx->printf("\nDo Not system Off ");
-        // gfx->printf("\nuntil REBOOT!!");
-        //showMessageLabel(_("Finish"));
       }
     }
     else{
@@ -945,4 +926,14 @@ void loop()
   }
   lv_timer_handler(); /* let the GUI do its work */
   vTaskDelay(10);     // Every 50ms
+}
+
+void systemControllTask(void *parameter)
+{
+  for (;;)
+  {
+    modbusEventSendLoop(100);
+    GetSetEventData();
+    vTaskDelay(300);
+  };
 }

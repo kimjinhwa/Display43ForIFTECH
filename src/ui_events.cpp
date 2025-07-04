@@ -87,7 +87,6 @@ void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::str
 }
 void mainScrUpdata();
 extern Arduino_RPi_DPI_RGBPanel *gfx ;
-void RebootSystem(uint16_t afterTime);
 void ChangeLanguage(lv_event_t * e)
 {
 	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 ){
@@ -106,17 +105,6 @@ void ChangeLanguage(lv_event_t * e)
 
   	lv_init();
 	ui_init();
-  	// gfx->fillScreen(GREEN);
-  	// gfx->setTextColor(WHITE);
-  	// gfx->printf("\nSystem Rebooting for change Language.." );
-	//vTaskDelay(2000);
-    //RebootSystem(2);
-	//esp_restart();
- 	//   ui_init();
- 	//mainScrUpdata();
-	//lv_disp_load_scr( ui_SettingScreen);
-    //lv_i18n_set_locale("en-GB");
-	// Your code here
 }
 
 void evtTabUpsSetup(lv_event_t * e)

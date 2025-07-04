@@ -219,12 +219,6 @@ void modbusSetup(){
   upsModbus232.begin(Serial2,nvsSystemEEPRom.BAUDRATE,address_485);
 }
 
-// void systemControllTask(void *parameter){
-//   modbusSetup();
-//   for(;;){
-//     vTaskDelay(100);
-//   };
-// }
 
 void setSendbuffer(uint16_t *sendValue){
   EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
@@ -857,62 +851,9 @@ static unsigned long now;
 
 unsigned long elaspTime=0;
 uint16_t targetTime=0;
-jobCommant_t systemControllJob=NO_JOB;
-void RebootSystem(uint16_t afterTime)
-{
-  targetTime = elaspTime + afterTime;
-  systemControllJob = SYSTEM_REBOOT;
-}
 #include <Arduino_GFX_Library.h>
 extern Arduino_RPi_DPI_RGBPanel *gfx;
-jobCommant_t getSystemControlJob(){
-  return systemControllJob;
-}
-void setNoJob(){
-  systemControllJob = NO_JOB;
-}
-void FormatFileSystem(uint16_t afterTime)
-{
-  targetTime = elaspTime + afterTime;
-  systemControllJob = FILE_FORMAT;
-}
 extern LittleFileSystem lsFile;
-void systemControllTask(void *parameter)
-{
-  //modbusSetup();
-  for (;;)
-  {
-    now = millis();
-    if ((now - previous1000mills > every1000ms))
-    {
-      //modbusEventSendLoop(100);
-      switch (systemControllJob)
-      {
-      case SYSTEM_REBOOT:
-        if(elaspTime > targetTime){
-	        esp_restart();
-          systemControllJob = JOB_DONE;
-        }
-        break;
-      case FILE_FORMAT:
-        if(elaspTime > targetTime){
-          lsFile.format();
-	        esp_restart();
-          systemControllJob = JOB_DONE;
-        }
-        /* code */
-        break;
-      
-      default:
-        break;
-      }
-      elaspTime++;
-      previous1000mills = now;
-    }
-    //modbusEventGetLoop();
-    vTaskDelay(100);
-  };
-}
 #endif
     //MB.clearQueue();
     //MB.end();
