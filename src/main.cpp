@@ -72,7 +72,7 @@ int16_t minDisMessageTime = 1;
 static char TAG[] = "main";
 
 extern LittleFileSystem lsFile;
-extern jobCommant_t systemControllJob;
+//extern jobCommant_t systemControllJob;
 
 upsLog upslogEvent("/spiffs/eventLog.hex", EVENT_TYPE);
 upsLog upslogAlarm(FAULT_TYPE); //
@@ -83,10 +83,10 @@ void systemControllTask(void *parameter);
 void scrSettingScreen();
 void scrMeasureLoad();
 void toggleBuzzer();
-void RebootSystem(uint16_t afterTime);
+//void RebootSystem(uint16_t afterTime);
 void FormatFileSystem(uint16_t afterTime);
-void setNoJob();
-jobCommant_t getSystemControlJob();
+//void setNoJob();
+//jobCommant_t getSystemControlJob();
 #define DISPLAY_43
 
 #ifdef DISPLAY_7
@@ -148,25 +148,25 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
 
 extern XPT2046_Touchscreen ts;
 extern int modbusErrorCounter;
-void touchTest(int loopCount)
-{
-  uint16_t x, y;
-  uint8_t z;
-  TS_Point p;
-  do
-  {
-    if (ts.touched())
-    {
-      ts.readData(&x, &y, &z);
-      TS_Point p = ts.getPoint();
-      Serial.printf("\n%d,%d,%d", x, y, z);
-      Serial.printf("\np.x %d,p.y %d", p.x, p.y);
-      touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, gfx->width() - 1);
-      touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
-      Serial.printf("\np.x %d,p.y %d", touch_last_x, touch_last_y);
-    }
-  } while (loopCount);
-}
+// void touchTest(int loopCount)
+// {
+//   uint16_t x, y;
+//   uint8_t z;
+//   TS_Point p;
+//   do
+//   {
+//     if (ts.touched())
+//     {
+//       ts.readData(&x, &y, &z);
+//       TS_Point p = ts.getPoint();
+//       Serial.printf("\n%d,%d,%d", x, y, z);
+//       Serial.printf("\np.x %d,p.y %d", p.x, p.y);
+//       touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, gfx->width() - 1);
+//       touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
+//       Serial.printf("\np.x %d,p.y %d", touch_last_x, touch_last_y);
+//     }
+//   } while (loopCount);
+// }
 void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 {
   uint16_t x, y;
@@ -175,7 +175,6 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
   {
     if (ts.touched())
     {
-      //ESP_LOGI("TOUCH", "Touch wait ");
       vTaskDelay(11); //10   15 23 33  노이즈를 방지하기 위하여 한번 더 읽는다.
       if (ts.touched())
       {
@@ -190,7 +189,6 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
         long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
         ledcWrite(0, brightness < 80 ? 80 : brightness);
         lcdOntime = 0;
-        //ESP_LOGI("TOUCH", "Data (x,y,z)(%d,%d,%d)", data->point.x, data->point.y, p.z);
       }
     }
     else if (touch_released())
@@ -254,12 +252,10 @@ void showSystemUpdate()
   // lv_textarea_set_text(ui_txtHour, String(nowTime.Hour()).c_str());
   // lv_textarea_set_text(ui_txtMinute, String(nowTime.Minute()).c_str());
   // lv_textarea_set_text(ui_txtSecond, String(nowTime.Second()).c_str());
-  // ESP_LOGI(TAG,"%s",buf);
 
   sprintf(buf, "%02d:%02d:%02d",
           nowTime.Hour(), nowTime.Minute(), nowTime.Second());
   lv_label_set_text(ui_lblTime, buf);
-  // ESP_LOGI(TAG,"%s",buf);
 
   sprintf(buf, "%d-%02d-%02d %02d:%02d:%02d",
           nowTime.Year(), nowTime.Month(), nowTime.Day(),
@@ -428,18 +424,12 @@ void GetSetEventData()
                                                upsModbusData.upsOperationFault.status);
   if (isEventLogChanged)
   {
-    // ESP_LOGW("UI", "%d %d %d %d", isAlarmLogChanged,
-    //          upsModbusData.ModuleState.status,
-    //          upsModbusData.HWState.status,
-    //          upsModbusData.upsOperationFault.status);
     String retStr = upslogEvent.readCurrentLogExt(CURRENTLOG,true);
     lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
     while (lv_textarea_get_cursor_pos(ui_eventTextArea))
     {
-      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_eventTextArea));
       lv_textarea_cursor_up(ui_eventTextArea);
     }
-
     lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
   }
 
@@ -449,10 +439,8 @@ void GetSetEventData()
     String retStr = upslogAlarm.readCurrentLogExt(CURRENTLOG,true);
     if(upslogAlarm.eventHistory ==0 ) retStr =""; //알람이 없으므로 클리어 하여 준다.
     lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
-    ESP_LOGW("UI EventAlarm", "ui_alarmTextArea %s", retStr.c_str());
     while (lv_textarea_get_cursor_pos(ui_alarmTextArea))
     {
-      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_alarmTextArea));
       lv_textarea_cursor_up(ui_alarmTextArea);
     }
     lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
@@ -653,7 +641,7 @@ void setup()
   lsFile.littleFsInitFast(0);
   lsFile.setOutputStream(&Serial);
 
-  bleSetup();
+  blueToothSetup();
   upslogEvent.getFileSize();
   // mySerialBT.begin("UPS1P1P_BLE");
   if (EEPROM.read(0) != 0x55)
@@ -746,20 +734,12 @@ void setup()
   if (nvsSystemEEPRom.systemLanguage == 1){
     lv_i18n_set_locale("ko-KR");
   }
-  else //if (nvsSystemEEPRom.systemLanguage == 2)
+  else 
   {
     lv_i18n_set_locale("en-GB");
   }
   lv_init();
 
-  // led = lv_led_create(lv_scr_act());
-
-  // Init touch devicSeconde
-  // pinMode(TOUCH_GT911_RST, OUTPUT);
-  // digitalWrite(TOUCH_GT911_RST, LOW);
-  // delay(10);
-  // digitalWrite(TOUCH_GT911_RST, HIGH);
-  // delay(10);
   touch_init();
 
   screenWidth = gfx->width();
@@ -793,27 +773,13 @@ void setup()
 
     lv_indev_drv_register(&indev_drv);
 
-    // lv_i18n_set_locale("ko-KR");
-    // lv_i18n_set_locale("en-GB");
-
-    // upslog_t log;
-
-    // for (int i = 0; i < 16; i++)
-    //   Serial.printf("\n%s", upslog.converter_status_eng[i]);
-    // for (int i = 0; i < 16; i++)
-    //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
-
-    // for (int i = 0; i < 16; i++)
-    //   Serial.printf("\n%s", upslog.converter_status_eng[i]);
-    // for (int i = 0; i < 16; i++)
-    //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
     ui_init();
     lv_obj_scroll_to_view_recursive(ui_alarmTextArea,LV_ANIM_OFF);
     lv_obj_scroll_to_view_recursive(ui_eventTextArea,LV_ANIM_OFF);
     lv_tabview_set_act(ui_TabView2,1,LV_ANIM_OFF); 
     lv_tabview_set_act(ui_TabView2,0,LV_ANIM_OFF); 
-    // lv_obj_add_flag(ui_TabView2,LV_OBJ_FLAG_GESTURE_BUBBLE);
+
     myui_MainScreen_screen_init();
     // setTime();
 
@@ -822,7 +788,7 @@ void setup()
 
   }
   // Modbus는 내부적으로 task를 사용하고 있다.
-  xTaskCreate(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask);
+  xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 4096, NULL, 2, h_pxsystemControllTask,1);
 #ifdef USEWIFI
   wifiOTAsetup();
 #endif
@@ -873,10 +839,8 @@ void loop()
   if ((now - previous300mills > every300ms))
   {
     // 여기서 모드버스 통신을 하자
-    //
-    //modbusEventSendLoop(30);
     modbusEventSendLoop(100);
-    GetSetEventData();
+    //GetSetEventData();
     previous300mills = now;
   }
 
@@ -893,7 +857,8 @@ void loop()
       ESP_LOGI("IO","Press Init button %d",digitalRead(BUTTON_ERASE ));
       pressedResetButton++;
       if(pressedResetButton>3){
-        if( getSystemControlJob() == NO_JOB){
+        //if( getSystemControlJob() == NO_JOB)
+        {
           showMessageLabel(_("Log_Init"));
           //FormatFileSystem(1);
           lsFile.rm("eventLog.hex");
@@ -910,24 +875,16 @@ void loop()
           pressedResetButton =0;
           ESP_LOGI("IO","Now On file format...Do not Turn Off system");
         }
-        else if(getSystemControlJob()== FILE_FORMAT ){
-          showMessageLabel(_("Log_Init"));
-          ESP_LOGI("IO","Now On file format...Do not Turn Off system");
-        }
-        else if(getSystemControlJob()== JOB_DONE){
-          showMessageLabel(_("Log_Init"));
-          ESP_LOGI("IO","Now On file format...Do not Turn Off system");
-          setNoJob();
-        }
-        lv_label_set_text(ui_lblDate, _("Log_Init"));
-        //RebootSystem(uint16_t afterTime);
-        // gfx->fillScreen(GREEN);
-        // gfx->setTextColor(WHITE);
-        // gfx->printf("\nLog File Format....." );
-        // gfx->printf("\nDo Not system Off !!");
-        // gfx->printf("\nDo Not system Off ");
-        // gfx->printf("\nuntil REBOOT!!");
-        //showMessageLabel(_("Finish"));
+        // else if(getSystemControlJob()== FILE_FORMAT ){
+        //   showMessageLabel(_("Log_Init"));
+        //   ESP_LOGI("IO","Now On file format...Do not Turn Off system");
+        // }
+        // else if(getSystemControlJob()== JOB_DONE){
+        //   showMessageLabel(_("Log_Init"));
+        //   ESP_LOGI("IO","Now On file format...Do not Turn Off system");
+        //   //setNoJob();
+        // }
+        lv_label_set_text(ui_lblDate, _("Log_Init")); //RebootSystem(uint16_t afterTime);
       }
     }
     else{
@@ -935,7 +892,7 @@ void loop()
     }
     showSystemUpdate();
     mainScrUpdata();
-
+    //화면 꺼짐 
     if (nvsSystemEEPRom.systemLedOffTime != 0 && lcdOntime >= nvsSystemEEPRom.systemLedOffTime*60) // lv_led_off(led);
     {
       //_ui_screen_change(&ui_InitScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_InitScreen_screen_init); // lv_disp_load_scr( ui_InitScreen);
@@ -943,6 +900,16 @@ void loop()
       ledcWrite(0, 0);
     }
   }
-  lv_timer_handler(); /* let the GUI do its work */
+//  lv_timer_handler(); /* let the GUI do its work */
   vTaskDelay(10);     // Every 50ms
+  lv_timer_handler(); /* let the GUI do its work */
+}
+
+void systemControllTask(void *parameter)
+{
+  for (;;)
+  {
+    GetSetEventData();
+    vTaskDelay(10);
+  }
 }

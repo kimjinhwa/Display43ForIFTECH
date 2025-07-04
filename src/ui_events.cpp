@@ -87,7 +87,7 @@ void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::str
 }
 void mainScrUpdata();
 extern Arduino_RPi_DPI_RGBPanel *gfx ;
-void RebootSystem(uint16_t afterTime);
+//void RebootSystem(uint16_t afterTime);
 void ChangeLanguage(lv_event_t * e)
 {
 	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 ){
@@ -966,6 +966,27 @@ void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction)
 		lv_textarea_cursor_up(obj);
 	}
 }
+void showAlarmTabTitle()
+{
+	std::string strMessage;
+	if (upslogAlarm.logCount > 0)
+	{
+		strMessage = "";
+		strMessage.append(_("alarmStatus"));
+		// strMessage.append("(");
+		// strMessage.append(std::to_string(upslogAlarm.getCurrentMemoryPage()));
+		// strMessage.append("/");
+		// strMessage.append(std::to_string(upslogAlarm.totalPage));
+		// strMessage.append(")");
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+	}
+	else
+	{
+		strMessage = "";
+		strMessage.append(_("alarmStatus"));
+		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
+	}
+}
 std::string showEventTabTitle()
 {
 	std::string strMessage;
@@ -1017,34 +1038,7 @@ void evtLogScreenLoaded(lv_event_t * e){
 		lv_textarea_cursor_up(ui_alarmTextArea);
 	}
 	showEventTabTitle();
-	std::string strMessage;
-	if (upslogAlarm.logCount > 0)
-	{
-		strMessage = "";
-		strMessage.append(_("alarmStatus"));
-		strMessage.append("(");
-		strMessage.append(std::to_string(upslogAlarm.getCurrentMemoryPage()));
-		strMessage.append("/");
-		strMessage.append(std::to_string(upslogAlarm.totalPage));
-		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
-	}
-	else
-	{
-		strMessage = "";
-		strMessage.append(_("alarmStatus"));
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
-	}
-
-	//lv_obj_set_scroll_snap_y(ui_eventTextArea,LV_SCROLL_SNAP_START);
-	//lv_obj_set_scroll_snap_y(ui_alarmTextArea,LV_SCROLL_SNAP_START);
-	
-    //lv_obj_scroll_to(ui_alarmTextArea,(lv_coord_t )0,(lv_coord_t )0,LV_ANIM_OFF);
-	// lv_event_t lpl;
-	// lv_obj_t * cont = ui_eventTextArea;
-	// lv_obj_add_event_cb(cont, scroll_event_cb, LV_EVENT_SCROLL, NULL);
-	//lv_event_send(ui_alarmTextArea,LV_SCROLL_SNAP_START);
-	//ESP_LOGW("UI EventAlarm","cursor %d",lv_textarea_get_cursor_pos(ui_alarmTextArea) );
+	showAlarmTabTitle();
 }
 void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 {
@@ -1056,10 +1050,6 @@ void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 		showEventTabTitle();
 		return;
 	}
-	// if( upslogEvent.logCount % LOG_PER_PAGE == 0 && upslogEvent.getCurrentMemoryPage() + 1 == upslogEvent.totalPage)
-	// {
-	// 	return;
-	// };
 	uint16_t selectedTab = 0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	if (selectedTab == 0){
@@ -1072,22 +1062,7 @@ void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 	}
 	std::string strMessage;
 	showEventTabTitle();
-	if (upslogAlarm.logCount > 0)
-	{
-		strMessage = "";
-		strMessage.append(_("alarmStatus"));
-		strMessage.append("(");
-		strMessage.append(std::to_string(upslogAlarm.getCurrentMemoryPage()));
-		strMessage.append("/");
-		strMessage.append(std::to_string(upslogAlarm.totalPage));
-		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
-	}
-	else{
-		strMessage = "";
-		strMessage.append(_("alarmStatus"));
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
-	}
+	showAlarmTabTitle();
 }
 void EventLogPrev(lv_event_t *e) /* 다음 버튼*/
 {
@@ -1107,22 +1082,7 @@ void EventLogPrev(lv_event_t *e) /* 다음 버튼*/
 
 	std::string strMessage;
 	showEventTabTitle();
-	if (upslogAlarm.logCount > 0)
-	{
-		strMessage = "";
-		strMessage.append(_("alarmStatus"));
-		strMessage.append("(");
-		strMessage.append(std::to_string(upslogAlarm.getCurrentMemoryPage()));
-		strMessage.append("/");
-		strMessage.append(std::to_string(upslogAlarm.totalPage));
-		strMessage.append(")");
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
-	}
-	else{
-		strMessage = "";
-		strMessage.append(_("alarmStatus"));
-		lv_tabview_rename_tab(ui_TabView2, 0, strMessage.c_str());
-	}
+	showAlarmTabTitle();
 }
 
 void btnAlarmRunStopAtLog(lv_event_t * e){

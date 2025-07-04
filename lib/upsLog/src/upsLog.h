@@ -11,6 +11,7 @@
 #include <vector>
 #include <tuple>
 #include <cstring>
+#include <queue>
 #include "lv_i18n.h"
 #ifndef WINDOWS
 #include "../../../src/mainGrobal.h"
@@ -57,6 +58,9 @@ private:
     uint16_t mask_moduleStatusEvent =0b0111111111111111;
     uint16_t mask_HwStatusEvent     =0b0110110111100111;
     uint16_t mask_upsOperationFault =0b0111111111111111;
+    FILE *logFile;  // 파일 포인터를 멤버 변수로 추가
+    FILE *readFile;  // 읽기용 파일 포인터 추가
+    std::queue<upslog_t> writeQueue;  // 비동기 쓰기를 위한 큐
 
     int shrinkFile();
     int16_t currentMemoryPage=0;
@@ -86,6 +90,9 @@ public:
     upsLog(eventType_t eventType);
     void init();
     upsLog(const char* filename,eventType_t eventType);
+    ~upsLog();  // 소멸자 추가
+    void closeFile();  // 파일 닫기 함수 추가
+    int processWriteQueue();  // 큐 처리 함수 추가
     int writeLog(upslog_t *log);
     int writeLogToVmem(upslog_t *log);
     int setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint16_t upsOperationFault);

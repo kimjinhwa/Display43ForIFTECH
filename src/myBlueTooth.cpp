@@ -1,21 +1,23 @@
 #include "myBlueTooth.h"
 #include "fileSystem.h"
 #include "SimpleCLI.h"
+#include "WiFi.h"
 
 extern LittleFileSystem lsFile;
 extern SimpleCLI simpleCli;
-
+myBlueToothStream mySerialBT;
 BLEServer *pServer = NULL;
 BLECharacteristic * pTxCharacteristic;
-bool deviceConnected = false;
+//bool deviceConnected = false;
+
 bool oldDeviceConnected = false;
 uint8_t txValue = 0;
 void MyServerCallbacks::onConnect(BLEServer* pServer) {
-      deviceConnected = true;
+      mySerialBT.deviceConnected = true;
 };
 
 void  MyServerCallbacks::onDisconnect(BLEServer* pServer) {
-      deviceConnected = false;
+      mySerialBT.deviceConnected = false;
 }
 bool btDataReceived=false;
 String btReceiveString="";
@@ -113,9 +115,10 @@ size_t myBlueToothStream::printf(const char *format, ...)
     }
     return len;
 }
-
-void bleSetup(){
- BLEDevice::init("UPS_IFTECH1P1P");
+void blueToothSetup(){
+ char bleName[64];
+ snprintf(bleName, sizeof(bleName), "UPS_IFTECH1P1P_%s", WiFi.macAddress().c_str());
+ BLEDevice::init(bleName);
  //lsFile.littleFsInit(1);// 
 
  simpleCli.outputStream = &Serial;
@@ -148,11 +151,11 @@ void bleSetup(){
   pServer->getAdvertising()->start();
   Serial.println("Waiting a client connection to notify...");
 }
-myBlueToothStream mySerialBT;
+
 void bleCheck()
 {
   String cmd;
-  if (deviceConnected)
+  if (mySerialBT.deviceConnected)
   {
     mySerialBT.deviceConnected=true;
     if(mySerialBT.available()){
@@ -161,9 +164,6 @@ void bleCheck()
         cmd = mySerialBT.readString().c_str();
         simpleCli.parse(cmd );
         mySerialBT.printf("*** %s",cmd.c_str());
-        // mySerialBT.printf("\nHello %s",cmd.c_str());
-        // mySerialBT.printf("\nThis is a ");
-        // mySerialBT.printf("\n wonderful land.....!!! ");
     }
     //pTxCharacteristic->setValue(&txValue, 1);
     // pTxCharacteristic->notify();
@@ -175,20 +175,20 @@ void bleCheck()
 
 
   // disconnecting
-  if (!deviceConnected && oldDeviceConnected)
+  if (!mySerialBT.deviceConnected && oldDeviceConnected)
   {
     delay(500);                  // give the bluetooth stack the chance to get things ready
     pServer->startAdvertising(); // restart advertising
     Serial.println("start advertising");
-    oldDeviceConnected = deviceConnected;
+    oldDeviceConnected = mySerialBT.deviceConnected;
     // lsFile.setOutputStream(&Serial);
     // simpleCli.outputStream = &Serial;
   }
   // connecting
-  if (deviceConnected && !oldDeviceConnected)
+  if (mySerialBT.deviceConnected && !oldDeviceConnected)
   {
     // do stuff here on connecting
-    oldDeviceConnected = deviceConnected;
+    oldDeviceConnected = mySerialBT.deviceConnected;
     // lsFile.setOutputStream(&mySerialBT);
     // simpleCli.outputStream = &mySerialBT;
   }

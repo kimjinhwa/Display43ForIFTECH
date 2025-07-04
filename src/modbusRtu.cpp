@@ -724,23 +724,16 @@ int WriteHoldRegistorNoSync(int index,int value,uint32_t Token){
 int WriteHoldRegistor(int index,int value,uint32_t Token){
 
   tokenLoopCount = -1;  // 더이상 Looping을 하지 않게 한다
+  vTaskDelay(100); //최소한 100ms 이상 대기한다. 이 시간은 timeout 시간이다.
   ESP_LOGE("MODBUS","ready WriteHoldRegistor %ld ",millis());
-  //waitDataReceive(30);
   ESP_LOGE("MODBUS","send WriteHoldRegistor index %ld ,value %d ", index,value);
-  //if(data_ready == false) vTaskDelay(300);
   data_ready = false;
 
-  //Error err = MB.addRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
-  // if (err!=SUCCESS) {
-  //   ModbusError e(err);
-  //   ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
-  // }
-  //ModbusMessage rc = MB.syncRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
   uint16_t address=1;
   uint8_t byteCount=2;
   uint16_t arrayWord[1];
   arrayWord[0]= value;
-  //                               (uint8_t serverID, uint8_t functionCode, uint16_t p1, uint16_t p2, uint8_t count, uint16_t *arrayOfWords);
+  
   uint16_t *values;
   values = (uint16_t *)&upsModbusData;
   values[index] = value;
@@ -752,22 +745,19 @@ int WriteHoldRegistor(int index,int value,uint32_t Token){
     ESP_LOGW("MODUBS","MODBUS ERROR %d",rc.getError());
     Token=0;
   }
+  // 서버에 설정을 새롭게 했으므로 상태 데이타를 한번 더 받는다. 
+  rc = MB.syncRequest ('E', 1, READ_INPUT_REGISTER, 15, 3);
+  if(rc.getError() == 0){
+    handleData(rc,requestToken[tokenLoopCount]);
+  }
+  else{
+    modbusErrorCounter++;
+    ESP_LOGE("MODBUS", "Comm Error");
+  }
+
   tokenLoopCount = 0;  // 다시 데이타를 받기 시작한다 
   return Token;
 }
-// int WriteHoldRegistor(int index,int value,uint32_t Token){
-//   uint16_t sendCount=1;
-//   tokenLoopCount = -1;
-//   vTaskDelay(300);
-//   data_ready = false;
-//   Error err = MB.addRequest(Token, 1, WRITE_MULT_REGISTERS, sendCount, index, value);
-//   if (err!=SUCCESS) {
-//     ModbusError e(err);
-//     ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
-//   }
-//   //waitDataReceive();
-//   return 0;
-// }
 
 int modbusEventSendLoop(int timeout)
 {
@@ -777,8 +767,8 @@ int modbusEventSendLoop(int timeout)
   modbustimeout = timeout;
   data_ready = false;
   
-  if (tokenLoopCount >= 12)
-    tokenLoopCount = 0;
+  if (tokenLoopCount >= 12) tokenLoopCount = 0;
+
   FunctionCode func;
   int16_t startAddress;
   int16_t dataCount;
@@ -799,14 +789,6 @@ int modbusEventSendLoop(int timeout)
   default:
     break;
   }
-  // Error err = MB.addRequest(requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
-  // if (err != SUCCESS)
-  // {
-  //   ModbusError e(err);
-  //   ESP_LOGE("MODBUS", "Error creating request: %02X - %s\n", (int)e, (const char *)e);
-  //   return 0;
-  // }
-  //int32_t Token= millis();
   ModbusMessage rc = MB.syncRequest (requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
   if(rc.getError() == 0){
     handleData(rc,requestToken[tokenLoopCount]);
@@ -818,15 +800,6 @@ int modbusEventSendLoop(int timeout)
     ESP_LOGE("MODBUS", "Comm Error");
     return 0;
   }
-
-  // if(timeout>0)
-  // for(int i=0;i<timeout;i++){
-  //   vTaskDelay(1);
-  //   if(data_ready) 
-  //     break;
-  // }
-
-  //return data_ready;
 }
 void modbusStop(){
   tokenLoopCount=-1;
@@ -857,62 +830,62 @@ static unsigned long now;
 
 unsigned long elaspTime=0;
 uint16_t targetTime=0;
-jobCommant_t systemControllJob=NO_JOB;
-void RebootSystem(uint16_t afterTime)
-{
-  targetTime = elaspTime + afterTime;
-  systemControllJob = SYSTEM_REBOOT;
-}
+//jobCommant_t systemControllJob=NO_JOB;
+// void RebootSystem(uint16_t afterTime)
+// {
+//   targetTime = elaspTime + afterTime;
+//   systemControllJob = SYSTEM_REBOOT;
+// }
 #include <Arduino_GFX_Library.h>
 extern Arduino_RPi_DPI_RGBPanel *gfx;
-jobCommant_t getSystemControlJob(){
-  return systemControllJob;
-}
-void setNoJob(){
-  systemControllJob = NO_JOB;
-}
-void FormatFileSystem(uint16_t afterTime)
-{
-  targetTime = elaspTime + afterTime;
-  systemControllJob = FILE_FORMAT;
-}
+// jobCommant_t getSystemControlJob(){
+//   return systemControllJob;
+// }
+// void setNoJob(){
+//   systemControllJob = NO_JOB;
+// }
+// void FormatFileSystem(uint16_t afterTime)
+// {
+//   targetTime = elaspTime + afterTime;
+//   systemControllJob = FILE_FORMAT;
+// }
 extern LittleFileSystem lsFile;
-void systemControllTask(void *parameter)
-{
-  //modbusSetup();
-  for (;;)
-  {
-    now = millis();
-    if ((now - previous1000mills > every1000ms))
-    {
-      //modbusEventSendLoop(100);
-      switch (systemControllJob)
-      {
-      case SYSTEM_REBOOT:
-        if(elaspTime > targetTime){
-	        esp_restart();
-          systemControllJob = JOB_DONE;
-        }
-        break;
-      case FILE_FORMAT:
-        if(elaspTime > targetTime){
-          lsFile.format();
-	        esp_restart();
-          systemControllJob = JOB_DONE;
-        }
-        /* code */
-        break;
+// void systemControllTask(void *parameter)
+// {
+//   //modbusSetup();
+//   for (;;)
+//   {
+//     now = millis();
+//     if ((now - previous1000mills > every1000ms))
+//     {
+//       //modbusEventSendLoop(100);
+//       switch (systemControllJob)
+//       {
+//       case SYSTEM_REBOOT:
+//         if(elaspTime > targetTime){
+// 	        esp_restart();
+//           systemControllJob = JOB_DONE;
+//         }
+//         break;
+//       case FILE_FORMAT:
+//         if(elaspTime > targetTime){
+//           lsFile.format();
+// 	        esp_restart();
+//           systemControllJob = JOB_DONE;
+//         }
+//         /* code */
+//         break;
       
-      default:
-        break;
-      }
-      elaspTime++;
-      previous1000mills = now;
-    }
-    //modbusEventGetLoop();
-    vTaskDelay(100);
-  };
-}
+//       default:
+//         break;
+//       }
+//       elaspTime++;
+//       previous1000mills = now;
+//     }
+//     //modbusEventGetLoop();
+//     vTaskDelay(100);
+//   };
+// }
 #endif
     //MB.clearQueue();
     //MB.end();

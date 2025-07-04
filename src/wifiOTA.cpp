@@ -1,7 +1,8 @@
 #include "wifiOTA.h"
 
 const char *host= "ups1p1p";
-//static const char *ssid = "iptime_mbhong";
+//const char *ssid = "iptime_mbhong";
+// const char *password = "";
 const char *ssid = "iftech";
 const char *password = "iftech0273";
 WebServer server(80);

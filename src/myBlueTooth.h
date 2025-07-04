@@ -10,7 +10,7 @@
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9B"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9B"
 
-void bleSetup();
+void blueToothSetup();
 void bleCheck();
 
 class MyServerCallbacks: public BLEServerCallbacks {
@@ -36,4 +36,5 @@ class myBlueToothStream : public Stream {
     String readString();
     size_t printf(const char *format, ...);
 };
+extern myBlueToothStream mySerialBT;
 #endif

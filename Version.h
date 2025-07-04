@@ -1,4 +1,5 @@
-#define VERSION "VER_1.1.4"  // 시간 설정 부분을 수정한다. 
+#define VERSION "VER_1.1.4"  // 화면 깜빡임을 사용하기 위하여 queue를 사용하기 전 커밋한다.
+//#define VERSION "VER_1.1.4"  // 시간 설정 부분을 수정한다. 
 //#define VERSION "VER_1.1.4"  // 입력제한을 풀어준다 
 //#define VERSION "VER_1.1.4"  // 고효율모드->배터리 1차저전압 으로 변경 
 //#define VERSION "VER_1.1.4"  // WIFI ssid를 변경할수 있게 명령을 추가한다. 

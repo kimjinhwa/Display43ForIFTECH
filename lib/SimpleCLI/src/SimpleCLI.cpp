@@ -150,6 +150,19 @@ void pass_Callback(cmd *cmdPtr)
 }
 
 extern const char *host;
+
+void wifiOn_Callback(cmd *cmdPtr)
+{
+    Command cmd(cmdPtr);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+}
+void wifiOff_Callback(cmd *cmdPtr)
+{
+    Command cmd(cmdPtr);
+    WiFi.mode(WIFI_OFF);
+}
+
 void ip_Callback(cmd *cmdPtr){
     if(mySerialBT.deviceConnected){
         mySerialBT.printf("\nIPAddress: %s\n", WiFi.localIP().toString().c_str());
@@ -167,7 +180,7 @@ SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStrea
 {
     this->inputStream = &Serial;
     Command cmd_config = addCommand("ls", ls_configCallback);
-    Command ssid, pass, ip;
+    Command ssid, pass, ip, wifiOn, wifiOff;
     cmd_config.setDescription(" File list \r\n ");
     cmd_config = addSingleArgCmd("cat", cat_configCallback);
     cmd_config = addSingleArgCmd("rm", rm_configCallback);
@@ -181,6 +194,10 @@ SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStrea
     pass.setDescription("Set the PASS");
     ip = simpleCli.addSingleArgCmd("ip", ip_Callback); // IP
     ip.setDescription("Read the IPAddress,GW,SUBNETMASK");
+    wifiOn = simpleCli.addSingleArgCmd("wifiOn", wifiOn_Callback); // IP
+    wifiOn.setDescription("Set the WIFI ON");
+    wifiOff = simpleCli.addSingleArgCmd("wifiOff", wifiOff_Callback); // IP
+    wifiOff.setDescription("Set the WIFI OFF");
 
     simpleCli.setOnError(errorCallback);
     cmd_config = addCommand("help", help_Callback);

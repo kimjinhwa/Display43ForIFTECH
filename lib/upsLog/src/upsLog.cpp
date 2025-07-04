@@ -21,6 +21,8 @@ upsLog::upsLog()
     totalPage = 0;
     oldHWState.status =0x00;
     currentMemoryPage =0;
+    logFile = NULL;  // 파일 포인터 초기화
+    readFile = NULL;  // 읽기용 파일 포인터 초기화
 }
 upsLog::upsLog(eventType_t eventType)
 {
@@ -30,6 +32,8 @@ upsLog::upsLog(eventType_t eventType)
     totalPage = 0;
     oldHWState.status =0x00;
     currentMemoryPage =0;
+    logFile = NULL;  // 파일 포인터 초기화
+    readFile = NULL;  // 읽기용 파일 포인터 초기화
 }
 void upsLog::init(){
     logCount = 0;
@@ -60,9 +64,53 @@ upsLog::upsLog(const char* filename,eventType_t eventType)
     logid = 0;
     totalPage = 0;
     oldHWState.status =0x00;
+    logFile = NULL;  // 파일 포인터 초기화
+    readFile = NULL;  // 읽기용 파일 포인터 초기화
     // if(eventType==FAULT_TYPE)
     //     currentMemoryPage =0;
 };
+
+upsLog::~upsLog() {
+    fflush(logFile);
+    closeFile();
+}
+
+void upsLog::closeFile() {
+    if (logFile != NULL) {
+        fflush(logFile);
+        fclose(logFile);
+        logFile = NULL;
+    }
+    if (readFile != NULL) {
+        fclose(readFile);
+        readFile = NULL;
+    }
+}
+
+int upsLog::processWriteQueue() {
+    int writtenCount = 0;
+    
+    // 큐에 있는 모든 데이터를 파일에 쓰기
+    while (!writeQueue.empty()) {
+        upslog_t log = writeQueue.front();
+        writeQueue.pop();
+        
+        if (logFile != NULL) {
+            int wSize = fwrite(&log, 1, sizeof(upslog_t), logFile);
+            if (wSize > 0) {
+                writtenCount++;
+            }
+        }
+    }
+    
+    // 모든 데이터를 디스크에 쓰기
+    if (logFile != NULL && writtenCount > 0) {
+        fflush(logFile);
+    }
+    
+    return writtenCount;
+}
+
 int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint16_t upsOperationFault)
 {
     upslog_t log;
@@ -103,8 +151,8 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
         log.operationFault = mask_upsOperationFault & upsOperationFault;
         // 이제 EVENT를 기록 한다.
         // 변화가 있기는 하나 값이 0->1로 되어야 하므로 
-        if(log.modulestatus || log.HWstatus || log.operationFault )
-            writeLog(&log);
+        if(log.modulestatus || log.HWstatus || log.operationFault ) 
+        writeLog(&log);
     }
     else if(eventType == FAULT_TYPE)// Alarm Event
     {
@@ -148,7 +196,7 @@ void upsLog::parseMessage(std::string *string_t,uint16_t logId,uint16_t value, u
     timeval tmv;
     char temp[3];
     tmv.tv_sec = logtime;
-    printf("\ntmv.tv_sec = logtime %d\n",logtime);
+    ESP_LOGI("LOG","tmv.tv_sec = logtime %d\n",logtime);
     RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
     const char **sArray[3] = {Module_state_event, ups_hw_state_alarm, ups_operation_fault_alarm};
     const char **status = sArray[ups_status];
@@ -225,9 +273,9 @@ const char *upsLog::getLogString(const upslog_t *logArray)
     }
     else
     {
-        printf("\nstep1\n");
+        //printf("\nstep1\n");
         parseMessage(&strRet,logArray->logId, logArray->HWstatus, HW_STATUS, logArray->logTime);               // 1 : moduleStatus
-        printf("\nstep2\n");
+        //printf("\nstep2\n");
         parseMessage(&strRet,logArray->logId, logArray->operationFault, OPERATIONAL_FAULT, logArray->logTime); // 1 : moduleStatus
     }
     return strRet.c_str(); // descString.data();
@@ -236,15 +284,18 @@ const char *upsLog::getLogString(const upslog_t *logArray)
 long upsLog::getFileSize()
 {
     int bRet = -1;
-    FILE *fp;
-    fp = fopen(filename, "rb");
-    if (fp == NULL)
-    {
-        ESP_LOGW("UI","getFileSize File Open Error");
-        return bRet;
+    
+    // 읽기용 파일이 열려있지 않으면 열기
+    if (readFile == NULL) {
+        readFile = fopen(filename, "rb");
+        if (readFile == NULL) {
+            ESP_LOGW("UI","getFileSize File Open Error");
+            return bRet;
+        }
     }
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
+    
+    fseek(readFile, 0, SEEK_END);
+    long file_size = ftell(readFile);
     //printf("\nlong file_size %d\n",file_size ) ;
     if (file_size > 0)
     {
@@ -260,12 +311,12 @@ long upsLog::getFileSize()
     }
     upslog_t log; 
     //마지막 로그를 하나 읽는다.
-    if(logCount) fseek(fp, (logCount-1)*sizeof(upslog_t), SEEK_SET);
-    if(fread((upslog_t *)&log, 1, sizeof(upslog_t), fp)){
+    if(logCount) fseek(readFile, (logCount-1)*sizeof(upslog_t), SEEK_SET);
+    if(fread((upslog_t *)&log, 1, sizeof(upslog_t), readFile)){
         logid =  log.logId;
         //printf("\ngetFileSize %s ",log.message);
     }
-    fclose(fp);
+    // 파일을 닫지 않고 계속 사용
     ESP_LOGW("CURRENTLOG","currentMemoryPage %d logCount %d",currentMemoryPage,logCount);
     return file_size;
 }
@@ -308,51 +359,51 @@ int upsLog::shrinkFile()
     return 1;
 }
 
+//wirteLog을 하면 currentMemoryPage를 마지막 값으로 돌린다.
 int upsLog::writeLog(upslog_t *log)
 {
-    //wirteLog을 하면 currentMemoryPage를 마지막 값으로 돌린다.
-    if(eventType == FAULT_TYPE) return writeLogToVmem(log);
-    long file_size = getFileSize();
-    FILE *fp;
     int wSize;
+    if(eventType == FAULT_TYPE) return writeLogToVmem(log);
+    
+    // 파일이 열려있지 않으면 열기
+    if (logFile == NULL) {
+        logFile = fopen(filename, "ab+");
+        if (logFile == NULL) {
+            ESP_LOGW("UI","write Log File Open Error");
+            return -1;
+        }
+    }
+    
+    long file_size = getFileSize();
     int16_t  filePos;
-
     long file_position;
 
     timeval tmv;
     gettimeofday(&tmv, NULL);
-    //RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
     log->logTime = tmv.tv_sec;
     if (logCount > MAX_LOG_COUNT)
         shrinkFile();
-    fp = fopen(filename, "ab+");
-    if (fp == NULL)
-    {
-        ESP_LOGW("UI","writeLog File Open Error");
-        return -1;
-    }
+    
     logCount++;
     log->logId = ++logid;
     static std::string retStr;
 
     vlogs.clear();
-    //vLogs 값을 할당한다.
-    retStr.append( getLogString(log));
+    retStr.append( getLogString(log)); //vLogs 값을 할당한다.
     int i=0;
-    fseek(fp, 0, logCount * sizeof(upslog_t));
+    fseek(logFile, 0, logCount * sizeof(upslog_t));
     ESP_LOGW("LOG","File Write Log Data"); 
     log->checkBit = 0x55;
+    
+    // 큐에 데이터 추가 (비동기 처리)
     for (const auto& entry : vlogs) {
-        ESP_LOGW("LOG","Log ID(%d): %d , Log Message: %s" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
+        //ESP_LOGW("LOG","Log ID(%d): %d , Log Message: %s" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
         strncpy((char *)&log->message, std::get<1>(entry).c_str(),MAX_LOGMESSAGE_LENGTH );
-        //printf("-->%s",log->message);
-        wSize = fwrite((upslog_t *)log, 1, sizeof(upslog_t), fp);
+        writeQueue.push(*log);  // 큐에 추가
     }
-    fclose(fp);
-    //printf("log.message=\n%s",retStr.c_str());
-
-    return wSize;
-
+    
+    // 파일을 닫지 않고 계속 사용
+    return vlogs.size();  // 큐에 추가된 개수 반환
 };
 int upsLog::writeLogToVmem(upslog_t *log)
 {
@@ -373,7 +424,7 @@ int upsLog::writeLogToVmem(upslog_t *log)
     getLogString(log);
     int i=0;
     for (const auto& entry : vWarninglogs) {
-        printf("\nvvWarninglogs(%d): %d , Log Message: %s\n" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
+        //printf("\nvvWarninglogs(%d): %d , Log Message: %s\n" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
         strncpy((char *)&log->message, std::get<1>(entry).c_str(),MAX_LOGMESSAGE_LENGTH );
     }
     //printf("log.message=\n%s",retStr.c_str());
@@ -400,7 +451,7 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
     else if(direction == NEXTLOG){
         currentMemoryPage++;
         currentMemoryPage = currentMemoryPage>=totalPage ? totalPage-1:currentMemoryPage;
-        printf("\ncurrentMemoryPage----> %d ",currentMemoryPage);
+        //printf("\ncurrentMemoryPage----> %d ",currentMemoryPage);
     }
 
     logMemPos = (currentMemoryPage)*LOG_PER_PAGE ;
@@ -447,16 +498,19 @@ const char * upsLog::readCurrentLogExt(directionType_t direction, bool viewOrder
 {
     if(eventType == FAULT_TYPE) return readCurrentLogFromVector(direction);
     
-    // 1. 파일 열기 및 기본 정보 계산
-    FILE *fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        ESP_LOGW("UI","File Open Error");
-        return "";
+    // 읽기용 파일이 열려있지 않으면 열기
+    if (readFile == NULL) {
+        readFile = fopen(filename, "rb");
+        if (readFile == NULL) {
+            ESP_LOGW("UI","File Open Error");
+            return "";
+        }
     }
-
+    
+    // 1. 파일 열기 및 기본 정보 계산
     // 2. 로그 개수 계산
-    fseek(fp, 0, SEEK_END);
-    logCount = ftell(fp) / sizeof(upslog_t);
+    fseek(readFile, 0, SEEK_END);
+    logCount = ftell(readFile) / sizeof(upslog_t);
     totalPage = ceil((double)logCount / LOG_PER_PAGE);
     
     // 3. 페이지 이동 처리
@@ -480,8 +534,8 @@ const char * upsLog::readCurrentLogExt(directionType_t direction, bool viewOrder
 
     upslog_t upsLog;
     for(int pos = startPos; pos <= endPos; pos++) {
-        if(fseek(fp, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0) {
-            if(fread(&upsLog, 1, sizeof(upslog_t), fp) == sizeof(upslog_t)) {
+        if(fseek(readFile, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0) {
+            if(fread(&upsLog, 1, sizeof(upslog_t), readFile) == sizeof(upslog_t)) {
                 if(upsLog.checkBit == 0x55) {
                     retStr.append((char*)upsLog.message);
                     retStr.append("\n");
@@ -491,7 +545,7 @@ const char * upsLog::readCurrentLogExt(directionType_t direction, bool viewOrder
         }
     }
 
-    fclose(fp);
+    // 파일을 닫지 않고 계속 사용
     ESP_LOGI("LOG", "Page: %d/%d, Logs: %d/%d", currentMemoryPage + 1, totalPage, vectorlogs.size(), logCount);
     
     return retStr.c_str();
@@ -500,18 +554,22 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
 {
     ESP_LOGW("UI","Event Type is %d direction is %d",eventType,direction);
     if(eventType == FAULT_TYPE) return readCurrentLogFromVector(direction);
+    
+    // 읽기용 파일이 열려있지 않으면 열기
+    if (readFile == NULL) {
+        readFile = fopen(filename, "rb");
+        if (readFile == NULL) {
+            ESP_LOGW("UI","File Open Error");
+            return "";
+        }
+    }
+    
     upslog_t upsLog;
     int16_t  filePos;
     int bRet = -1;
-    FILE *fp;
-    fp = fopen(filename, "rb");
-    if (fp == NULL)
-    {
-        ESP_LOGW("UI","File Open Error");
-        return "";
-    }
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
+    
+    fseek(readFile, 0, SEEK_END);
+    long file_size = ftell(readFile);
     int16_t remain;
     if (file_size > 0)
         logCount = file_size / sizeof(upslog_t);
@@ -596,9 +654,9 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
     int readCount = 0;
     for (int i = 0, pos = startPos; i < LOG_PER_PAGE && pos <= endPos && readCount < logCount; pos += step, i++)
     {
-        if (fseek(fp, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0)
+        if (fseek(readFile, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0)
         {
-            bRet = fread((upslog_t *)&upsLog, 1, sizeof(upslog_t), fp);
+            bRet = fread((upslog_t *)&upsLog, 1, sizeof(upslog_t), readFile);
             if(upsLog.checkBit != 0x55){
                 ESP_LOGE("ERROR","File CheckBit Error!..It need to format!");
                 break;
@@ -611,7 +669,7 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
         }
         else break;
     }
-    fclose(fp);
+    // 파일을 닫지 않고 계속 사용
 
     ESP_LOGI("LOG","vLogVector size %d ",vectorlogs.size());
     retStr.clear();
