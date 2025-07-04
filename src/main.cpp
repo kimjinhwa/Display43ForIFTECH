@@ -872,6 +872,8 @@ void loop()
   isGetSetEventData();
   if ((now - previous300mills > every300ms))
   {
+    showSystemUpdate();
+    mainScrUpdata();
     // 여기서 모드버스 통신을 하자
     //
     //modbusEventSendLoop(30);
@@ -914,8 +916,6 @@ void loop()
     else{
       pressedResetButton =0;
     }
-    showSystemUpdate();
-    mainScrUpdata();
 
     if (nvsSystemEEPRom.systemLedOffTime != 0 && lcdOntime >= nvsSystemEEPRom.systemLedOffTime*60) // lv_led_off(led);
     {

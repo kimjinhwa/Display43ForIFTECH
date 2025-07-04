@@ -60,6 +60,8 @@ private:
 
     int shrinkFile();
     int16_t currentMemoryPage=0;
+    FILE* logFile = nullptr;   // 쓰기용 파일 포인터
+    FILE* readFile = nullptr;  // 읽기용 파일 포인터
 
 public:
     uint16_t logCount=0;
@@ -94,7 +96,8 @@ public:
     const char * readCurrentLog(directionType_t direction, bool viewOrder=false);
     const char * readCurrentLogExt(directionType_t direction, bool viewOrder);
     const char * readCurrentLogFromVector(directionType_t direction);
- 
+    void closeFile();
+    ~upsLog();
 
    const char *Module_state_event[16] = {
         "R_C_Start_Run_Event",               /* 0 */

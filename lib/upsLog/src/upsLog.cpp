@@ -21,6 +21,8 @@ upsLog::upsLog()
     totalPage = 0;
     oldHWState.status =0x00;
     currentMemoryPage =0;
+    logFile = nullptr;  // 파일 포인터 초기화
+    readFile = nullptr;  // 읽기용 파일 포인터 초기화
 }
 upsLog::upsLog(eventType_t eventType)
 {
@@ -30,6 +32,8 @@ upsLog::upsLog(eventType_t eventType)
     totalPage = 0;
     oldHWState.status =0x00;
     currentMemoryPage =0;
+    logFile = nullptr;  // 파일 포인터 초기화
+    readFile = nullptr;  // 읽기용 파일 포인터 초기화
 }
 void upsLog::init(){
     logCount = 0;
@@ -60,9 +64,29 @@ upsLog::upsLog(const char* filename,eventType_t eventType)
     logid = 0;
     totalPage = 0;
     oldHWState.status =0x00;
+    logFile = nullptr;  // 파일 포인터 초기화
+    readFile = nullptr;  // 읽기용 파일 포인터 초기화
     // if(eventType==FAULT_TYPE)
     //     currentMemoryPage =0;
 };
+
+upsLog::~upsLog() {
+    fflush(logFile);
+    closeFile();
+}
+
+void upsLog::closeFile() {
+    if (logFile != NULL) {
+        fflush(logFile);
+        fclose(logFile);
+        logFile = NULL;
+    }
+    if (readFile != NULL) {
+        fclose(readFile);
+        readFile = NULL;
+    }
+}
+
 int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint16_t upsOperationFault)
 {
     upslog_t log;
@@ -236,21 +260,21 @@ const char *upsLog::getLogString(const upslog_t *logArray)
 long upsLog::getFileSize()
 {
     int bRet = -1;
-    FILE *fp;
-    fp = fopen(filename, "rb");
-    if (fp == NULL)
-    {
-        ESP_LOGW("UI","getFileSize File Open Error");
-        return bRet;
+    // readFile 멤버 사용
+    if (readFile == NULL) {
+        readFile = fopen(filename, "rb");
+        if (readFile == NULL)
+        {
+            ESP_LOGW("UI","getFileSize File Open Error");
+            return bRet;
+        }
     }
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
-    //printf("\nlong file_size %d\n",file_size ) ;
+    fseek(readFile, 0, SEEK_END);
+    long file_size = ftell(readFile);
     if (file_size > 0)
     {
         logCount = file_size / sizeof(upslog_t);
         totalPage = ceil((double)logCount / LOG_PER_PAGE);
-        //printf("\ntotalPage  %d\n",totalPage) ;
         currentMemoryPage=logCount / LOG_PER_PAGE;
     }
     else
@@ -260,12 +284,10 @@ long upsLog::getFileSize()
     }
     upslog_t log; 
     //마지막 로그를 하나 읽는다.
-    if(logCount) fseek(fp, (logCount-1)*sizeof(upslog_t), SEEK_SET);
-    if(fread((upslog_t *)&log, 1, sizeof(upslog_t), fp)){
+    if(logCount) fseek(readFile, (logCount-1)*sizeof(upslog_t), SEEK_SET);
+    if(fread((upslog_t *)&log, 1, sizeof(upslog_t), readFile)){
         logid =  log.logId;
-        //printf("\ngetFileSize %s ",log.message);
     }
-    fclose(fp);
     ESP_LOGW("CURRENTLOG","currentMemoryPage %d logCount %d",currentMemoryPage,logCount);
     return file_size;
 }
@@ -312,46 +334,39 @@ int upsLog::writeLog(upslog_t *log)
 {
     //wirteLog을 하면 currentMemoryPage를 마지막 값으로 돌린다.
     if(eventType == FAULT_TYPE) return writeLogToVmem(log);
-    long file_size = getFileSize();
-    FILE *fp;
+    // 파일이 열려있지 않으면 열기
+    if (logFile == NULL) {
+        logFile = fopen(filename, "ab+");
+        if (logFile == NULL) {
+            ESP_LOGW("UI","write Log File Open Error");
+            return -1;
+        }
+    }
     int wSize;
-    int16_t  filePos;
-
-    long file_position;
-
     timeval tmv;
     gettimeofday(&tmv, NULL);
     //RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
     log->logTime = tmv.tv_sec;
-    if (logCount > MAX_LOG_COUNT)
-        shrinkFile();
-    fp = fopen(filename, "ab+");
-    if (fp == NULL)
-    {
-        ESP_LOGW("UI","writeLog File Open Error");
-        return -1;
-    }
+    if (logCount > MAX_LOG_COUNT) shrinkFile();
     logCount++;
     log->logId = ++logid;
-    static std::string retStr;
 
     vlogs.clear();
     //vLogs 값을 할당한다.
-    retStr.append( getLogString(log));
+    getLogString(log);
     int i=0;
-    fseek(fp, 0, logCount * sizeof(upslog_t));
+    fseek(logFile, 0, logCount * sizeof(upslog_t));
     ESP_LOGW("LOG","File Write Log Data"); 
     log->checkBit = 0x55;
     for (const auto& entry : vlogs) {
         ESP_LOGW("LOG","Log ID(%d): %d , Log Message: %s" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
         strncpy((char *)&log->message, std::get<1>(entry).c_str(),MAX_LOGMESSAGE_LENGTH );
-        //printf("-->%s",log->message);
-        wSize = fwrite((upslog_t *)log, 1, sizeof(upslog_t), fp);
+        wSize = fwrite((upslog_t *)log, 1, sizeof(upslog_t), logFile);
     }
-    fclose(fp);
-    //printf("log.message=\n%s",retStr.c_str());
+    fflush(logFile);
 
     return wSize;
+
 
 };
 int upsLog::writeLogToVmem(upslog_t *log)
@@ -446,19 +461,18 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
 const char * upsLog::readCurrentLogExt(directionType_t direction, bool viewOrder)
 {
     if(eventType == FAULT_TYPE) return readCurrentLogFromVector(direction);
-    
-    // 1. 파일 열기 및 기본 정보 계산
-    FILE *fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        ESP_LOGW("UI","File Open Error");
-        return "";
+    // 읽기용 파일이 열려있지 않으면 열기
+    if (readFile == NULL) {
+        readFile = fopen(filename, "rb");
+        if (readFile == NULL) {
+            ESP_LOGW("UI","File Open Error");
+            return "";
+        }
     }
-
     // 2. 로그 개수 계산
-    fseek(fp, 0, SEEK_END);
-    logCount = ftell(fp) / sizeof(upslog_t);
+    fseek(readFile, 0, SEEK_END);
+    logCount = ftell(readFile) / sizeof(upslog_t);
     totalPage = ceil((double)logCount / LOG_PER_PAGE);
-    
     // 3. 페이지 이동 처리
     if(direction == PREVLOG) {
         currentMemoryPage = (currentMemoryPage > 0) ? currentMemoryPage - 1 : 0;
@@ -466,22 +480,19 @@ const char * upsLog::readCurrentLogExt(directionType_t direction, bool viewOrder
     else if(direction == NEXTLOG) {
         currentMemoryPage = (currentMemoryPage < totalPage - 1) ? currentMemoryPage + 1 : totalPage - 1;
     }
-
     // 4. 읽기 위치 계산 (항상 오래된 순서로 읽기)
     int startPos = (currentMemoryPage * LOG_PER_PAGE) + 1;
     int endPos = startPos + LOG_PER_PAGE - 1;
     if(endPos > logCount) endPos = logCount;
-
     // 5. 로그 읽기
     std::vector<std::tuple<uint16_t, std::string>> vectorlogs;
     static std::string retStr;
     vectorlogs.clear();
     retStr.clear();
-
     upslog_t upsLog;
     for(int pos = startPos; pos <= endPos; pos++) {
-        if(fseek(fp, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0) {
-            if(fread(&upsLog, 1, sizeof(upslog_t), fp) == sizeof(upslog_t)) {
+        if(fseek(readFile, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0) {
+            if(fread(&upsLog, 1, sizeof(upslog_t), readFile) == sizeof(upslog_t)) {
                 if(upsLog.checkBit == 0x55) {
                     retStr.append((char*)upsLog.message);
                     retStr.append("\n");
@@ -490,10 +501,7 @@ const char * upsLog::readCurrentLogExt(directionType_t direction, bool viewOrder
             }
         }
     }
-
-    fclose(fp);
     ESP_LOGI("LOG", "Page: %d/%d, Logs: %d/%d", currentMemoryPage + 1, totalPage, vectorlogs.size(), logCount);
-    
     return retStr.c_str();
 }
 const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
@@ -503,15 +511,17 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
     upslog_t upsLog;
     int16_t  filePos;
     int bRet = -1;
-    FILE *fp;
-    fp = fopen(filename, "rb");
-    if (fp == NULL)
-    {
-        ESP_LOGW("UI","File Open Error");
-        return "";
+    // readFile 멤버 사용
+    if (readFile == NULL) {
+        readFile = fopen(filename, "rb");
+        if (readFile == NULL)
+        {
+            ESP_LOGW("UI","File Open Error");
+            return "";
+        }
     }
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
+    fseek(readFile, 0, SEEK_END);
+    long file_size = ftell(readFile);
     int16_t remain;
     if (file_size > 0)
         logCount = file_size / sizeof(upslog_t);
@@ -596,9 +606,9 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
     int readCount = 0;
     for (int i = 0, pos = startPos; i < LOG_PER_PAGE && pos <= endPos && readCount < logCount; pos += step, i++)
     {
-        if (fseek(fp, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0)
+        if (fseek(readFile, (pos-1) * sizeof(upslog_t), SEEK_SET) == 0)
         {
-            bRet = fread((upslog_t *)&upsLog, 1, sizeof(upslog_t), fp);
+            bRet = fread((upslog_t *)&upsLog, 1, sizeof(upslog_t), readFile);
             if(upsLog.checkBit != 0x55){
                 ESP_LOGE("ERROR","File CheckBit Error!..It need to format!");
                 break;
@@ -611,7 +621,6 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
         }
         else break;
     }
-    fclose(fp);
 
     ESP_LOGI("LOG","vLogVector size %d ",vectorlogs.size());
     retStr.clear();
@@ -620,228 +629,5 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
         retStr += std::get<1>(entry);
     }
     return retStr.c_str() ;
-};
+}
 
-
-
-
-
-// int upsLog::readPrevLog(upslog_t *upsLog)
-// {
-//     // filePos = filePos - 1;
-//     // return getLogFromFile(filePos, upsLog);
-//     return 0;
-// };
-// int upsLog::readNextLog(upslog_t *upsLog)
-// {
-//     // filePos = filePos + 1;
-//     // return getLogFromFile(filePos, upsLog);
-//     return 0;
-// };
-
-// const char *upsLog::readNextLog()
-// {
-//     // std::string messageStr;
-//     // uint16_t endPos;
-//     // uint16_t logid;
-//     // std::tuple<uint16_t , std::string> logEntry; 
-//     // if( vlogs.empty()) readLogToVector(999);
-//     // if( vlogs.empty()) return "";
-//     // printf("\nvlogs.size(): %d",vlogs.size());
-//     // if(vlogs.size() < vlogMemPos+LOG_PER_PAGE) 
-//     // {
-//     //     currentMemoryPage++;
-//     //     readLogToVector(currentMemoryPage);
-//     // }
-    
-//     // //vLogs에 마지막 데이타를 채워 넣는다.
-//     // //vlogMemPos = vlogs.size()-LOG_PER_PAGE>=0 ? vlogs.size()-LOG_PER_PAGE:0;
-//     // endPos = vlogs.size()- vlogMemPos>= LOG_PER_PAGE? vlogMemPos+:LOG_PER_PAGEvlogs.size() ;
-//     // //printf("vlogs.size()=%d vlogMemPos %d endPos %d",vlogs.size(),vlogMemPos,endPos);
-//     // for(;vlogMemPos< endPos;vlogMemPos++){
-//     //     logEntry = vlogs.at(vlogMemPos); 
-//     //     logid = std::get<0>(logEntry);
-//     //     messageStr = std::get<1>(logEntry);
-//     //     ESP_LOGW("log", "[%d] id=%d, message=%s",vlogMemPos,logid,messageStr.c_str());
-//     // }
-//     // return messageStr.c_str();
-// }
-// const char *upsLog::readStartLog()
-// {
-//     //vlogs.push_back(std::make_tuple(logId,*string_t));
-//     std::string messageStr;
-//     uint16_t endPos;
-//     uint16_t logid;
-//     std::tuple<uint16_t , std::string> logEntry; 
-
-//     //vLogs에 데이타를 채워 넣는다.
-//     readLogToVector(0);
-//     if( vlogs.empty()) return "";
-//     vlogMemPos = 0;
-//     endPos = vlogs.size()- vlogMemPos >= vlogMemPos+LOG_PER_PAGE? LOG_PER_PAGE:vlogs.size() ;
-//     for(;vlogMemPos< endPos;vlogMemPos++){
-//         logEntry = vlogs.at(vlogMemPos); 
-//         logid = std::get<0>(logEntry);
-//         messageStr = std::get<1>(logEntry);
-//         ESP_LOGW("log", "[%d] id=%d, message=%s",vlogMemPos,logid,messageStr.c_str());
-//     }
-//     return messageStr.c_str();
-// }
-/* 
-* readLogToVector(999)
-*/
-// const char *upsLog::readLastLog()
-// {
-//     // std::string messageStr;
-//     // uint16_t endPos;
-//     // uint16_t logid;
-//     // std::tuple<uint16_t , std::string> logEntry; 
-
-//     // //vLogs에 마지막 데이타를 채워 넣는다.
-//     // readLogToVector(999);
-//     // if( vlogs.empty()) return "";
-//     // //vlogMemPos = vlogs.size()-LOG_PER_PAGE>=0 ? vlogs.size()-LOG_PER_PAGE:0;
-//     // vlogMemPos  = 0;
-//     // endPos = vlogs.size()- vlogMemPos>= LOG_PER_PAGE ? vlogMemPos+LOG_PER_PAGE:vlogs.size() ;
-//     // //printf("vlogs.size()=%d vlogMemPos %d endPos %d",vlogs.size(),vlogMemPos,endPos);
-//     // for(;vlogMemPos< endPos;vlogMemPos++){
-//     //     logEntry = vlogs.at(vlogMemPos); 
-//     //     logid = std::get<0>(logEntry);
-//     //     messageStr = std::get<1>(logEntry);
-//     //     ESP_LOGW("log", "[%d] id=%d, message=%s",vlogMemPos,logid,messageStr.c_str());
-//     // }
-//     // return messageStr.c_str();
-//     return "";
-// }
-// const char *upsLog::readPrevLog()
-// {
-//     std::string retStr;
-//     return retStr.c_str();
-// }
-
-    // getFileSize();
-    // retStr="";
-    // ESP_LOGW("log","%s->%d(%d)\n\n",filename,filePos,logCount);
-    // //filePos는 최대 읽을수 있는 수를 설정한다.
-    // if(filePos < 0)filePos = 0;
-    // if(filePos >= logCount )filePos = logCount-1;
-    // int tempFilePos=filePos;
-    // for(int i=0;i<count;i++,tempFilePos--){
-    //     if(tempFilePos< 0){
-    //         tempFilePos=0;
-    //         break;
-    //     }
-    //     if ( getLogFromFile(tempFilePos, upsLog) == 0) break;
-
-    //     ESP_LOGW("log","%s->pos:%d id:%d(count:%d)-->tempFP %d",filename,filePos, upsLog->logId,logCount,tempFilePos);
-    //     retStr.append( getLogString(upsLog));
-    // }
-    // return retStr.c_str();
-// int upsLog::getLogFromFile(uint16_t index, upslog_t *retLog )
-// {
-//     int bRet = 0;
-//     if(index< 0 || index  >= logCount )
-//       return 0;
-//     FILE *fp;
-//     fp = fopen(filename, "rb");
-//     if (fp == NULL)
-//     {
-//         return 0;
-//     }
-//     fseek(fp, (index)*sizeof(upslog_t), SEEK_SET);
-//     bRet =fread((upslog_t *)retLog, 1, sizeof(upslog_t), fp);
-//     fclose(fp);
-//     return bRet;
-// }
-/*
-* vLogs에 파일에 있는 데이타를 Windowing하여 채워 넣는다.
-* memereyPage는 0~시작하며, 999는 마지막 페이지를 로드한다.
-*/
-// int upsLog::readLogToVector(int16_t memoryPage)
-// {
-//     getFileSize(); // logCount를 얻는다.
-//     upslog_t upsLog;
-//     int logPage = logCount/(LOG_PER_PAGE*MAX_TOTAL_PAGE);
-//     printf("\nmemoryPage=%d",memoryPage);
-//     if(memoryPage==999 || memoryPage==0)
-//     {
-//         vlogs.clear();
-//     }
-//     else
-//     {
-//         //mPos까지 데이타를 지우고 뒤에 데이타를 붙인다. 
-//         vlogs.erase(vlogs.begin(),vlogs.begin()+vlogMemPos);
-//     }
-//     memoryPage = memoryPage>logPage ? logPage:memoryPage;
-//     if(memoryPage<0)memoryPage=0;
-//     int endMemoryLogPos = (memoryPage+1)*LOG_PER_PAGE*MAX_TOTAL_PAGE;// 5*20=100
-//     endMemoryLogPos = endMemoryLogPos > logCount ? logCount:endMemoryLogPos;
-//     int startMemoryLogPos;// = memoryPage*LOG_PER_PAGE*MAX_TOTAL_PAGE;// 5*20=100
-//     startMemoryLogPos = endMemoryLogPos-100>0?endMemoryLogPos-100:0;
-//     //startMemoryLogPos = startMemoryLogPos > logCount ? logCount : startMemoryLogPos; 
-//     //endMemoryLogPos = endMemoryLogPos > logCount ? logCount:endMemoryLogPos;
-//     int tempFilePos = endMemoryLogPos-1 ;
-//     std::string messageStr;
-//     printf("reqPage %d start: %d , end: %d" , memoryPage,startMemoryLogPos,endMemoryLogPos);
-//     for (int i = startMemoryLogPos ; i < endMemoryLogPos  ; i++, tempFilePos--)
-//     {
-//         if (getLogFromFile(tempFilePos, &upsLog) == 0) break;
-        
-//         getLogStringToVlogs(&upsLog);
-//         //vlogs.pop_back();
-//         //ESP_LOGW("log", "message=%s",messageStr.c_str());
-//     }
-//     int i=0;
-//     for (const auto& entry : vlogs) {
-//             printf("Log ID(%d): %d , Log Message: %s\n" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
-//     }
-//     // uint16_t logid;
-//     // std::tuple<uint16_t , std::string> logEntry; 
-//     // for(int i=0;i< vlogs.size();i++){
-//     //     logEntry = vlogs.at(i); 
-//     //     logid = std::get<0>(logEntry);
-//     //     messageStr = std::get<1>(logEntry);
-//     //     ESP_LOGW("log", "[%d] id=%d, message=%s",i,logid,messageStr.c_str());
-//     // }
-
-//     filePos = logCount - 1;
-//     currentMemoryPage = memoryPage;
-//     return memoryPage;
-// };
-//  for (const auto& entry : vlogs) {
-//         std::cout << "Log ID: " << std::get<0>(entry) << ", Log Message: " << std::get<1>(entry) << std::endl;
-//     }
-// int upsLog::readFirstLog(upslog_t *upsLog)
-// {
-//     getFileSize();
-// };
-// int upsLog::readCurrentLog(upslog_t *upsLog)
-// {
-//     getFileSize();
-//     return getLogFromFile(filePos, upsLog);
-// };
-// void upsLog::getLogStringToVlogs(const upslog_t *logArray)
-// {
-//     static std::string strRet;
-//     strRet.clear();
-//     if (eventType == 0)
-//     {
-//         parseMessage(&strRet,logArray->logId, logArray->modulestatus, MODULE_STATUS, logArray->logTime); // 0 : moduleStatus
-//     }
-//     else
-//     {
-//         parseMessage(&strRet, logArray->logId,logArray->HWstatus, HW_STATUS, logArray->logTime);               // 1 : moduleStatus
-//         parseMessage(&strRet,logArray->logId, logArray->operationFault, OPERATIONAL_FAULT, logArray->logTime); // 1 : moduleStatus
-//     }
-//     //return strRet.c_str(); // descString.data();
-// }
-        //filePos = filePos == -2 ? logCount:filePos;
-        //currentMemoryPage--;
-        // if(filePos<0){
-        //     filePos = LOG_PER_PAGE;
-        //     filePos = filePos >= logCount? logCount:filePos;
-        // }
-        // else{
-        //     filePos = 2*LOG_PER_PAGE;
-        //     filePos = filePos >= logCount? logCount:filePos;
-        // }
