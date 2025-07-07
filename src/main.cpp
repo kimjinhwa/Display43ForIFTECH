@@ -120,7 +120,7 @@ Arduino_RPi_DPI_RGBPanel *gfx = new Arduino_RPi_DPI_RGBPanel(
     bus,
     480 /* width */, 0 /* hsync_polarity */, 8 /* hsync_front_porch */, 4 /* hsync_pulse_width */, 43 /* hsync_back_porch */,
     272 /* height */, 0 /* vsync_polarity */, 8 /* vsync_front_porch */, 4 /* vsync_pulse_width */, 12 /* vsync_back_porch */,
-    1 /* pclk_active_neg */, 9000000 /* prefer_speed */, true /* auto_flush */);
+    1 /* pclk_active_neg */, 6000000 /* prefer_speed */, true /* auto_flush */);
 
 #endif
 

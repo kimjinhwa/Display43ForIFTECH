@@ -1,4 +1,5 @@
-#define VERSION "VER_1.1.4"  // file pointer를 사용하여 로그 파일을 쓰는 부분을 수정한다. 
+#define VERSION "VER_1.1.4"  // 화면 흔들림을 clk를 조절해서 잡았다. 6000000
+//#define VERSION "VER_1.1.4"  // file pointer를 사용하여 로그 파일을 쓰는 부분을 수정한다. 
 //#define VERSION "VER_1.1.4"  // 쓰레드를 분리하여 CPU0에서 모드버스 통신을 하게 한다. 
 //#define VERSION "VER_1.1.4"  // 시간 설정 부분을 수정한다. 
 //#define VERSION "VER_1.1.4"  // 입력제한을 풀어준다 
