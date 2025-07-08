@@ -117,21 +117,31 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
             return  0;
         }
         //변화가 생겼다.
+        uint16_t result_1 = moduleStatusEvent ^ old_moduleStatusEvent;
+        uint16_t result_2 = HwStatusEvent ^ old_HwStatusEvent;
+        uint16_t result_3 = upsOperationFault ^ old_upsOperationFault;
+        if(result_1 == 0 && result_2 == 0 && result_3 == 0){
+            return 0;
+        }
         ESP_LOGW("EV", "-----------EV Changed---------");
-        ESP_LOGW("EV", "now_mo_st 0x%04x :old 0x%04x %ld", moduleStatusEvent,old_moduleStatusEvent,millis());
-        ESP_LOGW("EV", "now_hw_st 0x%04x :old 0x%04x %ld", HwStatusEvent,old_HwStatusEvent,millis());
-        ESP_LOGW("EV", "now_op_st 0x%04x :old 0x%04x %ld", upsOperationFault,old_upsOperationFault,millis());
+        ESP_LOGW("EV", "now_mo_st 0x%04x :old 0x%04x result 0x%04x %ld", moduleStatusEvent,old_moduleStatusEvent,result_1,millis());
+        ESP_LOGW("EV", "now_hw_st 0x%04x :old 0x%04x result 0x%04x %ld", HwStatusEvent,old_HwStatusEvent,result_2,millis());
+        ESP_LOGW("EV", "now_op_st 0x%04x :old 0x%04x result 0x%04x %ld", upsOperationFault,old_upsOperationFault,result_3,millis());
 
         old_moduleStatusEvent = moduleStatusEvent;
         old_HwStatusEvent = HwStatusEvent ;
         old_upsOperationFault = upsOperationFault ;
 
         log.logTime=0;
-        log.modulestatus= mask_moduleStatusEvent & moduleStatusEvent;
-        log.HWstatus = mask_HwStatusEvent &  HwStatusEvent ;
-        log.operationFault = mask_upsOperationFault & upsOperationFault;
+        log.modulestatus = result_1 & mask_moduleStatusEvent;
+        log.HWstatus = result_2 & mask_HwStatusEvent;
+        log.operationFault = result_3 & mask_upsOperationFault;
+        //log.modulestatus= mask_moduleStatusEvent & moduleStatusEvent;
+        //log.HWstatus = mask_HwStatusEvent &  HwStatusEvent ;
+        //log.operationFault = mask_upsOperationFault & upsOperationFault;
         // 이제 EVENT를 기록 한다.
         // 변화가 있기는 하나 값이 0->1로 되어야 하므로 
+        // 중요 : 1이기는 하지만 앞에 기록된 값은 제외 한다.
         if(log.modulestatus || log.HWstatus || log.operationFault )
             writeLog(&log);
     }
