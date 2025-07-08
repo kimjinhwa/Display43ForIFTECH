@@ -2,8 +2,12 @@
 #include <EEPROM.h>
 #include "modbusRtu.h"
 #include "mainGrobal.h"
+#include "main.h"
 #include "fileSystem.h"
+#include "upsLog.h"
 #include "lv_i18n.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #ifdef MODBUSSERVER
 #include <ModbusServerRTU.h>
 #else
@@ -714,13 +718,17 @@ int WriteHoldRegistorNoSync(int index,int value,uint32_t Token){
   tokenLoopCount = 0;  // 다시 데이타를 받기 시작한다 
   return Token;
 }
-int WriteHoldRegistor(int index,int value,uint32_t Token){
+void enqueueModbusCommand(int index, int value, uint32_t token) {
+    ModbusCommand cmd = { index, value, token };
+    //ESP_LOGW("MODBUS","enqueueModbusCommand index %d ,value %d ,token %d", index,value,token);
+    xQueueSend(modbusCmdQueue, &cmd, portMAX_DELAY);
+}
 
+int WriteHoldRegistor(int index,int value,uint32_t Token){
+  // 태스크 핸들 유효성 검사
   tokenLoopCount = -1;  // 더이상 Looping을 하지 않게 한다
-  ESP_LOGW("MODBUS","ready WriteHoldRegistor %ld ",millis());
-  //waitDataReceive(30);
-  ESP_LOGW("MODBUS","send WriteHoldRegistor index %ld ,value %d ", index,value);
-  //if(data_ready == false) vTaskDelay(300);
+  // ESP_LOGW("MODBUS","ready WriteHoldRegistor %ld ",millis());
+  // ESP_LOGW("MODBUS","send WriteHoldRegistor index %ld ,value %d ", index,value);
   data_ready = false;
 
   uint16_t address=1;
@@ -756,6 +764,7 @@ int WriteHoldRegistor(int index,int value,uint32_t Token){
 //   return 0;
 // }
 
+void showMessageLabel(const char *message);
 int modbusEventSendLoop(int timeout)
 {
   if (tokenLoopCount == -1)
@@ -769,6 +778,19 @@ int modbusEventSendLoop(int timeout)
   FunctionCode func;
   int16_t startAddress;
   int16_t dataCount;
+  
+  ModbusCommand modbusCommand;
+  if(xQueueReceive(modbusCmdQueue,&modbusCommand,0) == pdPASS){
+    ESP_LOGW("MODBUS","modbusCommand received");
+    int token = WriteHoldRegistor(modbusCommand.index,modbusCommand.value,modbusCommand.token);
+    ESP_LOGW("MODBUS","modbusCommand received token %d",token);
+		if (token == 0)
+			showMessageLabel(_("Comm_Error"));
+    tokenLoopCount=0;
+		// else
+		// 	ESP_LOGI("MODUBS", "Received token %d..", token);
+  }
+
   switch (requestToken[tokenLoopCount])
   {
   case 'E':
@@ -827,7 +849,7 @@ void modbusSetup()
 {
   MB.onDataHandler(&handleData);
   MB.onErrorHandler(&handleError);
-  MB.setTimeout(6000);
+  MB.setTimeout(10000);
   MB.begin(Serial2,nvsSystemEEPRom.BAUDRATE,1);
 }
 

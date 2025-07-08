@@ -50,6 +50,7 @@ enum TIMESAVE {
 	S_SEC = 6
 };
 int WriteHoldRegistor(int index,int value,uint32_t Token);
+void enqueueModbusCommand(int index, int value, uint32_t token) ;
 void showMessageLabel(const char *message);
 void timeSave(TIMESAVE tType,int16_t value);
 void scrSettingScreen();
@@ -277,12 +278,14 @@ void btnEventRunUps(lv_event_t * e)
 	}
 	else  //off 상태 이므로 RUN Command를 보낸다.
 	{
+		ESP_LOGW("UPS","----->btnEventRunUps 런 명령");
 		upsModbusData.upsRun.upsRunCommandBit.UpsON ^= 1;
-		token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-		if (token == 0)
-			showMessageLabel(_("Comm_Error"));
-		else
-			ESP_LOGI("MODUBS", "Received token %d..", token);
+		//token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+		enqueueModbusCommand(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+		// if (token == 0)
+		// 	showMessageLabel(_("Comm_Error"));
+		// else
+		// 	ESP_LOGI("MODUBS", "Received token %d..", token);
 	}
 }
 
@@ -293,37 +296,19 @@ void btnEventStopUps(lv_event_t * e)
 		upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE ||
 		upsModbusData.HWState.Bit.INVERTER_RUN_STOP_STATE)
 	{  // RUN 상태이므로 STOP를 보낸다
+		ESP_LOGW("UPS","----->btnEventStopUps 스톱 명령");
 		upsModbusData.upsRun.upsRunCommandBit.UpsOFF ^= 1;
-		token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-		if (token == 0)
-			showMessageLabel(_("Comm_Error"));
-		else
-			ESP_LOGI("MODUBS", "Received token %d..", token);
-		// lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
-		// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
+		enqueueModbusCommand(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+		// token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+		// if (token == 0)
+		// 	showMessageLabel(_("Comm_Error"));
+		// else
+		// 	ESP_LOGI("MODUBS", "Received token %d..", token);
 	}
 	else  //off 상태 이므로 RUN Command를 보낸다.
 	{
-		// lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-		// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
 	}
 
-	// upsModbusData.upsRun.upsRunCommandBit.UpsOFF =
-	// 	upsModbusData.upsRun.upsRunCommandBit.UpsOFF ? 0 : 1;
-	// if(upsModbusData.upsRun.upsRunCommandBit.UpsOFF)
-	// {
-	// 	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
-	// }
-	// else 
-	// {
-	// 	lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-	// }
-	// //lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-	// int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-	// if(token==0) showMessageLabel(_("Comm_Error"));
-	// else ESP_LOGI("MODUBS", "Received token %d..",token );
-	// //uint32_t token = waitDataReceive(100);
-	// //ESP_LOGI("MODUBS", "Received token %d..",token );
 }
 
 
@@ -375,11 +360,10 @@ int checkValidation()
 		case INVERTER_CURRENT_GAIN:
 		case OUTPUT_CURRENT_GAIN:
 		case HFMODE:
-			token = WriteHoldRegistor(inputTextId,inputData ,inputTextId);
-			if(token==0) showMessageLabel(_("Comm_Error"));
-			else ESP_LOGI("MODUBS", "Received token %d..",token );
-			//token = waitDataReceive(100);
-			//ESP_LOGI("MODUBS", "Received token %d..",token );
+			enqueueModbusCommand(inputTextId,inputData ,inputTextId);
+			// token = WriteHoldRegistor(inputTextId,inputData ,inputTextId);
+			// if(token==0) showMessageLabel(_("Comm_Error"));
+			// else ESP_LOGI("MODUBS", "Received token %d..",token );
 			break;
 		case EVENTTXTOFFTIME_:
 			ESP_LOGI("SET", "Set Off Time %d minute ",inputData );
@@ -1031,11 +1015,11 @@ void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 	uint16_t selectedTab = 0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	if (selectedTab == 0){
-		ESP_LOGI("EVENT", "Alarm Next Selected");
+		//ESP_LOGI("EVENT", "Alarm Next Selected");
 		setLogTextArea(ui_alarmTextArea, &upslogAlarm,NEXTLOG);
 	}
 	else{
-		ESP_LOGI("EVENT", "logEvent  Next Selected");
+		//ESP_LOGI("EVENT", "logEvent  Next Selected");
 		setLogTextArea(ui_eventTextArea, &upslogEvent,NEXTLOG);
 	}
 	std::string strMessage;
@@ -1096,9 +1080,9 @@ void EventLogPrev(lv_event_t *e) /* 다음 버튼*/
 void btnAlarmRunStopAtLog(lv_event_t * e){
 	upslogAlarm.runBuzzStatus =upslogAlarm.runBuzzStatus  ? 0:1;
 	upsModbusData.upsRun.upsRunCommandBit.ALARM_RESET = upsModbusData.upsRun.upsRunCommandBit.ALARM_RESET ? 0: 1;
-	int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
-	//uint32_t token = waitDataReceive(100);
-	ESP_LOGI("MODUBS", "Received token %d..",token );
+	enqueueModbusCommand(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	// int token = WriteHoldRegistor(UPSONOFF, upsModbusData.upsRun.upsRun, UPSONOFF);
+	// ESP_LOGI("MODUBS", "Received token %d..",token );
 }
 void btnAlarmRunStop(lv_event_t * e){
  	ESP_LOGI("UI","AlarmRunStop Animation start");
@@ -1112,7 +1096,8 @@ void pnlNothingEvent(lv_event_t * e){
   ESP_LOGI("CHECKBOX","%s",str );
   int token = millis();
   lv_state_t state = lv_obj_get_state(ui_txtHFMnBatFirstFaultUV) & LV_STATE_CHECKED ;
-  token = WriteHoldRegistor(HFMODE, state, token );
+  enqueueModbusCommand(HFMODE, state, token );
+  // token = WriteHoldRegistor(HFMODE, state, token );
 }
 void pnlhfModeClickEvent(lv_event_t *e)
 {

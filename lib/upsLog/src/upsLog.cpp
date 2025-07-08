@@ -118,9 +118,9 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
         }
         //변화가 생겼다.
         ESP_LOGW("EV", "-----------EV Changed---------");
-        ESP_LOGW("EV", "now_mo_st %d :old %d ", moduleStatusEvent,old_moduleStatusEvent);
-        ESP_LOGW("EV", "now_hw_st %d :old %d ", HwStatusEvent,old_HwStatusEvent);
-        ESP_LOGW("EV", "now_op_st %d :old %d ", upsOperationFault,old_upsOperationFault);
+        ESP_LOGW("EV", "now_mo_st 0x%04x :old 0x%04x %ld", moduleStatusEvent,old_moduleStatusEvent,millis());
+        ESP_LOGW("EV", "now_hw_st 0x%04x :old 0x%04x %ld", HwStatusEvent,old_HwStatusEvent,millis());
+        ESP_LOGW("EV", "now_op_st 0x%04x :old 0x%04x %ld", upsOperationFault,old_upsOperationFault,millis());
 
         old_moduleStatusEvent = moduleStatusEvent;
         old_HwStatusEvent = HwStatusEvent ;
@@ -151,8 +151,8 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
         }
 
         ESP_LOGW("FAULT", "-----------FAULT Changed---------");
-        ESP_LOGW("FAULT", "now_hw_st %d :old %d ", HwStatusEvent ,old_HwStatusEvent);
-        ESP_LOGW("FAULT", "now_op_st %d :old %d ", upsOperationFault,old_upsOperationFault);
+        ESP_LOGW("FAULT", "now_hw_st 0x%04x :old 0x%04x %ld", HwStatusEvent ,old_HwStatusEvent,millis());
+        ESP_LOGW("FAULT", "now_op_st 0x%04x :old 0x%04x %ld", upsOperationFault,old_upsOperationFault,millis());
         old_HwStatusEvent = HwStatusEvent;
         old_upsOperationFault = upsOperationFault;
         log.modulestatus = 0;
@@ -178,7 +178,7 @@ void upsLog::parseMessage(std::string *string_t,uint16_t logId,uint16_t value, u
     timeval tmv;
     char temp[3];
     tmv.tv_sec = logtime;
-    printf("\ntmv.tv_sec = logtime %d\n",logtime);
+    //printf("\ntmv.tv_sec = logtime %d\n",logtime);
     RtcDateTime nowTime = RtcDateTime(tmv.tv_sec);
     const char **sArray[3] = {Module_state_event, ups_hw_state_alarm, ups_operation_fault_alarm};
     const char **status = sArray[ups_status];
@@ -255,9 +255,9 @@ const char *upsLog::getLogString(const upslog_t *logArray)
     }
     else
     {
-        printf("\nstep1\n");
+        //printf("\nstep1\n");
         parseMessage(&strRet,logArray->logId, logArray->HWstatus, HW_STATUS, logArray->logTime);               // 1 : moduleStatus
-        printf("\nstep2\n");
+        //printf("\nstep2\n");
         parseMessage(&strRet,logArray->logId, logArray->operationFault, OPERATIONAL_FAULT, logArray->logTime); // 1 : moduleStatus
     }
     return strRet.c_str(); // descString.data();
@@ -394,7 +394,7 @@ int upsLog::writeLogToVmem(upslog_t *log)
     getLogString(log);
     int i=0;
     for (const auto& entry : vWarninglogs) {
-        printf("\nvvWarninglogs(%d): %d , Log Message: %s\n" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
+        //printf("\nvvWarninglogs(%d): %d , Log Message: %s\n" ,i++, std::get<0>(entry)  ,std::get<1>(entry).c_str() );
         strncpy((char *)&log->message, std::get<1>(entry).c_str(),MAX_LOGMESSAGE_LENGTH );
     }
     //printf("log.message=\n%s",retStr.c_str());
@@ -421,7 +421,7 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
     else if(direction == NEXTLOG){
         currentMemoryPage++;
         currentMemoryPage = currentMemoryPage>=totalPage ? totalPage-1:currentMemoryPage;
-        printf("\ncurrentMemoryPage----> %d ",currentMemoryPage);
+        //printf("\ncurrentMemoryPage----> %d ",currentMemoryPage);
     }
 
     logMemPos = (currentMemoryPage)*LOG_PER_PAGE ;

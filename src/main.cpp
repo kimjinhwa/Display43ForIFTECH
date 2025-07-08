@@ -844,7 +844,7 @@ void setup()
 
   }
   // Modbus는 내부적으로 task를 사용하고 있다.
-  xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 3000, NULL, 1, h_pxsystemControllTask, 0);  
+  xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask, 0);  
 
   // 시스템 시작시에는 바이패스로 놓는다
   // upsModbusData.ModuleState.Bit.To_Bypass_ModeChange = 1;
@@ -946,12 +946,14 @@ void loop()
 }
 
 int isReceiveEventData = 0;
+QueueHandle_t modbusCmdQueue;
 void systemControllTask(void *parameter)
 {
+  modbusCmdQueue = xQueueCreate(10, sizeof(ModbusCommand));
   for (;;)
   {
     isReceiveEventData = modbusEventSendLoop(100);
-    if(isReceiveEventData != 'E'){
+    if(isReceiveEventData == 'E'){
       GetSetEventData();
     }
     vTaskDelay(300);

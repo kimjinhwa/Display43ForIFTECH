@@ -1,4 +1,7 @@
-#define VERSION "2.0.0"  // BlueTooth에 update 명령을 추가한다. 
+#define VERSION "2.1.1"  // 중복 로그를 지우기 전 동작 버전 Backup 
+//#define VERSION "2.1.0"  // 큐를 사용하여 모드버스 통신을 하게 한다. 
+//#define VERSION "2.0.1"  // 잡다한 출력 로그를 없앤다. 
+//#define VERSION "2.0.0"  // BlueTooth에 update 명령을 추가한다. 
 //#define VERSION "1.1.9"  // BlueTooth에 update 명령을 추가한다. 
 //#define VERSION "1.1.4"  // 화면 흔들림을 clk를 조절해서 잡았다. 6000000
 //#define VERSION "VER_1.1.4"  // file pointer를 사용하여 로그 파일을 쓰는 부분을 수정한다. 
