@@ -1,6 +1,7 @@
 #include "myBlueTooth.h"
 #include "fileSystem.h"
 #include "SimpleCLI.h"
+#include "WiFi.h"
 
 extern LittleFileSystem lsFile;
 extern SimpleCLI simpleCli;
@@ -113,12 +114,13 @@ size_t myBlueToothStream::printf(const char *format, ...)
     }
     return len;
 }
-
 void bleSetup(){
- BLEDevice::init("UPS_IFTECH1P1P");
+    String bleName = "IFTECH_UPS_"+WiFi.macAddress();
+ BLEDevice::init(bleName.c_str());
  //lsFile.littleFsInit(1);// 
 
- simpleCli.outputStream = &Serial;
+  simpleCli.outputStream = &Serial;
+  simpleCli.inputStream = &Serial;
   // Create the BLE Server
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
@@ -156,8 +158,8 @@ void bleCheck()
   {
     mySerialBT.deviceConnected=true;
     if(mySerialBT.available()){
-        lsFile.setOutputStream(&Serial);
-        simpleCli.outputStream = &Serial;
+        lsFile.setOutputStream(&mySerialBT);
+        simpleCli.outputStream = &mySerialBT;
         cmd = mySerialBT.readString().c_str();
         simpleCli.parse(cmd );
         mySerialBT.printf("*** %s",cmd.c_str());

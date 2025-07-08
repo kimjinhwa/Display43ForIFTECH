@@ -14,8 +14,10 @@
 #include <RtcDS1302.h>
 #include "EEPROM.h"
 #include <WiFi.h>
-
+#include "../../../src/mainGrobal.h"
+#include "../../../Version.h"
 #include "../../../src/myBlueTooth.h"
+#include "../../../src/esp32SelfUploder.h"
 
 extern myBlueToothStream mySerialBT;
 LittleFileSystem lsFile;
@@ -26,6 +28,8 @@ extern "C" {
 #include "c/parser.h"    // parse_lines
 #include "c/cmd_error.h" // cmd_error_destroy
 }
+extern const char *ssid;
+extern const char *password;
 int makeRelayControllData(uint8_t *buf,uint8_t modbusId,uint8_t funcCode, uint16_t address, uint16_t len);
 int readResponseData(uint8_t modbusId,uint8_t funcCode, uint8_t *buf,uint8_t len,uint16_t timeout);
 void setRtcNewTime(RtcDateTime rtc);
@@ -42,7 +46,7 @@ void rm_configCallback(cmd *cmdPtr)
   Command cmd(cmdPtr);
   Argument arg = cmd.getArgument(0);
   String argVal = arg.getValue();
-  simpleCli.outputStream->printf("\r\n");
+  mySerialBT.printf("\r\n");
 
   if (argVal.length() == 0)
     return;
@@ -61,12 +65,59 @@ void df_configCallback(cmd *cmdPtr)
 void reboot_configCallback(cmd *cmdPtr)
 {
   Command cmd(cmdPtr);
-  simpleCli.outputStream->println( "\r\nNow System Rebooting...\r\n");
+  mySerialBT.printf( "\r\nNow System Rebooting...\r\n");
   esp_restart();
+}
+
+ESP32SelfUploder selfUploder;
+extern nvsSystemSet_t nvsSystemEEPRom;
+void update()
+{
+    mySerialBT.printf("\r\nUpdate를 시작합니다.");
+
+    //selfUploder.begin(ssid, password, "https://raw.githubusercontent.com/kimjinhwa/IP-Fineder-For-ESP32/main/dist/ups1p1p");
+    //Serial.printf("Free heap before SSL: %d\n", ESP.getFreeHeap());
+
+    //if (selfUploder.checkNewVersion(selfUploder.update_url))
+    {
+        mySerialBT.printf("Now System reboot for update!");
+        nvsSystemEEPRom.isUpdate = true;
+        EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+        EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
+        EEPROM.commit();
+        ESP.restart();
+        // if (selfUploder.tryAutoUpdate(selfUploder.updateFile_url.c_str()))
+        // {
+        //     return;
+        // }
+    }
+    // else
+    // {
+    //     mySerialBT.printf("Already on latest version");
+    // }
+}
+void wifiOTAsetup();
+void update_configCallback(cmd *cmdPtr)
+{
+  Command cmd(cmdPtr);
+  // wifi에 연결되어 있지 않으면 연결을 시도 한다.
+  if(!WiFi.isConnected()) wifiOTAsetup();
+
+  if(WiFi.isConnected()){
+    mySerialBT.printf( "\r\nNow System Update...");
+    update();
+  }
+  else{
+    mySerialBT.printf( "\r\nNot connected to WiFi..." );
+    mySerialBT.printf( "\r\nPlease connect to WiFi..." );
+    mySerialBT.printf( "\r\nHotstop를 켜 주거나 무선WIFI를 연결 해 주세요." );
+    mySerialBT.printf( "\r\nSSID: %s", ssid );
+    mySerialBT.printf( "\r\nPASS: %s", password );
+  }
 }
 void format_configCallback(cmd *cmdPtr)
 {
-  simpleCli.outputStream->printf("\r\nWould you system formating(Y/n)...\r\n");
+  mySerialBT.printf("\r\nWould you system formating(Y/n)...\r\n");
   int c = 0;
   while (1)
   {
@@ -76,7 +127,7 @@ void format_configCallback(cmd *cmdPtr)
     if (c == 'Y')
     {
       lsFile.littleFsInit(1);
-      simpleCli.outputStream->printf("\r\nSystem format completed\r\n");
+      mySerialBT.printf("\r\nSystem format completed\r\n");
       return;
     }
     if (c == 'n')
@@ -88,7 +139,7 @@ void cat_configCallback(cmd *cmdPtr)
   Command cmd(cmdPtr);
   Argument arg = cmd.getArgument(0);
   String argVal = arg.getValue();
-  simpleCli.outputStream->printf("\r\n");
+  mySerialBT.printf("\r\n");
 
   if (argVal.length() == 0)
     return;
@@ -101,15 +152,15 @@ void errorCallback(cmd_error *errorPtr)
 {
   CommandError e(errorPtr);
 
-  simpleCli.outputStream->printf( (String("ERROR: ") + e.toString()).c_str());
+  mySerialBT.printf( (String("ERROR: ") + e.toString()).c_str());
 
   if (e.hasCommand())
   {
-    simpleCli.outputStream->printf(  (String("Did you mean? ") + e.getCommand().toString()).c_str());
+    mySerialBT.printf(  (String("Did you mean? ") + e.getCommand().toString()).c_str());
   }
   else
   {
-     simpleCli.outputStream->printf(  simpleCli.toString().c_str());
+     mySerialBT.printf(  simpleCli.toString().c_str());
   }
 }
 void help_Callback(cmd *cmdptr){
@@ -122,30 +173,46 @@ void SimpleCLI::setOutputStream(Print *outputStream ){
 void SimpleCLI::setInputStream(Stream *inputStream ){
         this->inputStream = inputStream ;
 }
-extern const char *ssid;
-extern const char *password;
+void version_Callback(cmd *cmdPtr)
+{
+    Command cmd(cmdPtr);
+    mySerialBT.printf("\r\nVERSION : %s\r\n", VERSION);
+}
 void ssid_Callback(cmd *cmdPtr)
 {
     Command cmd(cmdPtr);
     Argument arg = cmd.getArgument(0);
-    String ssid = arg.getValue();
-    if(ssid.length() > 0){
-        if(ssid.compareTo("erase") == 0){
-            mySerialBT.printf("\nSSID : %s\n", ssid);
-            mySerialBT.printf("PASS : %s\n", password);
-        }
+    String ssid_arg = arg.getValue();
+    if(ssid_arg.length() > 0){
+       mySerialBT.printf("\r\nSSID : %s\r\n", ssid_arg.c_str());
+       mySerialBT.printf("PASS : %s\r\n", password);
+       strncpy(nvsSystemEEPRom.ssid, ssid_arg.c_str(), 20);
+       EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+       EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
+       EEPROM.commit();
+    }
+    else
+    {
+        mySerialBT.printf("\r\nSSID : %s\r\n", nvsSystemEEPRom.ssid);
+        mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
     }
 }
 void pass_Callback(cmd *cmdPtr)
 {
     Command cmd(cmdPtr);
     Argument arg = cmd.getArgument(0);
-    String ssid = arg.getValue();
-    if(ssid.length() > 0){
-        if(ssid.compareTo("erase") == 0){
-            mySerialBT.printf("\nSSID : %s\n", ssid);
-            mySerialBT.printf("PASS : %s\n", password);
-        }
+    String pass_arg = arg.getValue();
+    if(pass_arg.length() > 0){
+       mySerialBT.printf("\r\nPASS : %s\r\n", pass_arg.c_str());
+       strncpy(nvsSystemEEPRom.password, pass_arg.c_str(), 20);
+       EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+       EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
+       EEPROM.commit();
+    }
+    else
+    {
+        mySerialBT.printf("\r\nSSID : %s\r\n", nvsSystemEEPRom.ssid);
+        mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
     }
 }
 
@@ -167,14 +234,16 @@ SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStrea
 {
     this->inputStream = &Serial;
     Command cmd_config = addCommand("ls", ls_configCallback);
-    Command ssid, pass, ip;
+    Command ssid, pass, ip,version;
     cmd_config.setDescription(" File list \r\n ");
     cmd_config = addSingleArgCmd("cat", cat_configCallback);
     cmd_config = addSingleArgCmd("rm", rm_configCallback);
     cmd_config = addSingleArgCmd("format", format_configCallback);
     cmd_config = addCommand("df", df_configCallback);
     cmd_config = addSingleArgCmd("reboot", reboot_configCallback);
-
+    cmd_config = addSingleArgCmd("update", update_configCallback);
+    version = simpleCli.addSingleArgCmd("version", version_Callback); // VERSION
+    version.setDescription("Read the VERSION");
     ssid = simpleCli.addSingleArgCmd("ssid", ssid_Callback); // SSID
     ssid.setDescription("Set the SSID");
     pass = simpleCli.addSingleArgCmd("pass", pass_Callback); // PASS

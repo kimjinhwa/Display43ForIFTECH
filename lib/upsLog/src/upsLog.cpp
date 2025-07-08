@@ -117,6 +117,11 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
             return  0;
         }
         //변화가 생겼다.
+        ESP_LOGW("EV", "-----------EV Changed---------");
+        ESP_LOGW("EV", "now_mo_st %d :old %d ", moduleStatusEvent,old_moduleStatusEvent);
+        ESP_LOGW("EV", "now_hw_st %d :old %d ", HwStatusEvent,old_HwStatusEvent);
+        ESP_LOGW("EV", "now_op_st %d :old %d ", upsOperationFault,old_upsOperationFault);
+
         old_moduleStatusEvent = moduleStatusEvent;
         old_HwStatusEvent = HwStatusEvent ;
         old_upsOperationFault = upsOperationFault ;
@@ -145,8 +150,9 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
             runBuzzStatus =0;
         }
 
-        ESP_LOGW("UI", "HwStatusEvent %d %d ", HwStatusEvent ,old_HwStatusEvent);
-        ESP_LOGW("UI", "upsOperationFault %d %d ", upsOperationFault,old_upsOperationFault);
+        ESP_LOGW("FAULT", "-----------FAULT Changed---------");
+        ESP_LOGW("FAULT", "now_hw_st %d :old %d ", HwStatusEvent ,old_HwStatusEvent);
+        ESP_LOGW("FAULT", "now_op_st %d :old %d ", upsOperationFault,old_upsOperationFault);
         old_HwStatusEvent = HwStatusEvent;
         old_upsOperationFault = upsOperationFault;
         log.modulestatus = 0;
@@ -421,11 +427,11 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
     logMemPos = (currentMemoryPage)*LOG_PER_PAGE ;
     logMemPos = logMemPos > logCount? logCount:logMemPos;
 
-    ESP_LOGI("VLOG","logcount %d ",logCount);
-    ESP_LOGI("VLOG","remain %d ",remain);
-    ESP_LOGI("VLOG","logMemPos %d ",logMemPos);
-    ESP_LOGI("VLOG","totalPage %d ",totalPage);
-    ESP_LOGI("VLOG","currentMemoryPage %d ",currentMemoryPage);
+    // ESP_LOGI("VLOG","logcount %d ",logCount);
+    // ESP_LOGI("VLOG","remain %d ",remain);
+    // ESP_LOGI("VLOG","logMemPos %d ",logMemPos);
+    // ESP_LOGI("VLOG","totalPage %d ",totalPage);
+    // ESP_LOGI("VLOG","currentMemoryPage %d ",currentMemoryPage);
 
     //logMemPos는 읽을 곳을 가르키고 있다.
     std::vector <std::tuple<uint16_t , std::string> >vectorlogs;
@@ -448,7 +454,7 @@ const char * upsLog::readCurrentLogFromVector(directionType_t direction)
         // else break;
     }
     logMemPos = logMemPos<0 ? 0:logMemPos;
-    ESP_LOGI("VLOG","\nvLogVector size %d ",vectorlogs.size());
+    //ESP_LOGI("VLOG","\nvLogVector size %d ",vectorlogs.size());
     retStr.clear();
     for (const auto &entry : vectorlogs)
     {
@@ -501,12 +507,12 @@ const char * upsLog::readCurrentLogExt(directionType_t direction, bool viewOrder
             }
         }
     }
-    ESP_LOGI("LOG", "Page: %d/%d, Logs: %d/%d", currentMemoryPage + 1, totalPage, vectorlogs.size(), logCount);
+    //ESP_LOGI("LOG", "Page: %d/%d, Logs: %d/%d", currentMemoryPage + 1, totalPage, vectorlogs.size(), logCount);
     return retStr.c_str();
 }
 const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
 {
-    ESP_LOGW("UI","Event Type is %d direction is %d",eventType,direction);
+    //ESP_LOGW("UI","Event Type is %d direction is %d",eventType,direction);
     if(eventType == FAULT_TYPE) return readCurrentLogFromVector(direction);
     upslog_t upsLog;
     int16_t  filePos;
@@ -563,7 +569,7 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
             currentMemoryPage = currentMemoryPage < 0 ? 0 : currentMemoryPage;
         }
     }
-    ESP_LOGW("LOG","currentMemoryPage %d totalPage %d logCount %d remain %d", currentMemoryPage,totalPage, logCount,remain);
+    //ESP_LOGW("LOG","currentMemoryPage %d totalPage %d logCount %d remain %d", currentMemoryPage,totalPage, logCount,remain);
 
     if(remain>0)
     {
@@ -622,7 +628,7 @@ const char * upsLog::readCurrentLog(directionType_t direction, bool viewOrder)
         else break;
     }
 
-    ESP_LOGI("LOG","vLogVector size %d ",vectorlogs.size());
+    //ESP_LOGI("LOG","vLogVector size %d ",vectorlogs.size());
     retStr.clear();
     for (const auto &entry : vectorlogs)
     {

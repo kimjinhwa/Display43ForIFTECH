@@ -416,15 +416,12 @@ int16_t isAlarmLogChanged = 0;
 void isGetSetEventData(){
   if (isEventLogChanged)
   {
-    // ESP_LOGW("UI", "%d %d %d %d", isAlarmLogChanged,
-    //          upsModbusData.ModuleState.status,
-    //          upsModbusData.HWState.status,
-    //          upsModbusData.upsOperationFault.status);
     String retStr = upslogEvent.readCurrentLogExt(CURRENTLOG,true);
+    //ESP_LOGW("UI Event", "ui_eventTextArea %s", retStr.c_str());
     lv_textarea_set_text(ui_eventTextArea, retStr.c_str());
     while (lv_textarea_get_cursor_pos(ui_eventTextArea))
     {
-      //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_eventTextArea));
+      //ESP_LOGW("UI Event", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_eventTextArea));
       lv_textarea_cursor_up(ui_eventTextArea);
     }
 
@@ -437,7 +434,7 @@ void isGetSetEventData(){
     String retStr = upslogAlarm.readCurrentLogExt(CURRENTLOG,true);
     if(upslogAlarm.eventHistory ==0 ) retStr =""; //알람이 없으므로 클리어 하여 준다.
     lv_textarea_set_text(ui_alarmTextArea, retStr.c_str());
-    ESP_LOGW("UI EventAlarm", "ui_alarmTextArea %s", retStr.c_str());
+    //ESP_LOGW("UI Alarm", "ui_alarmTextArea %s", retStr.c_str());
     while (lv_textarea_get_cursor_pos(ui_alarmTextArea))
     {
       //ESP_LOGW("UI EventAlarm", "lv_textarea_cursor_up%d", lv_textarea_get_cursor_pos(ui_alarmTextArea));
@@ -640,23 +637,13 @@ void setTimeText()
     lv_textarea_set_text(ui_txtBrigtness, String(nvsSystemEEPRom.lcdBright).c_str());
 
 }
-void setup()
+void initialEEPROM()
 {
-  Serial.begin(BAUDRATEDEF);
-  EEPROM.begin(sizeof(nvsSystemSet_t) + 1);
-
-  pinMode(BUZZER, OUTPUT);
-  pinMode(BUTTON_ERASE , INPUT);
-  digitalWrite(BUZZER, LOW);
-
-  lsFile.littleFsInitFast(0);
-  lsFile.setOutputStream(&Serial);
-
-  bleSetup();
-  upslogEvent.getFileSize();
-  // mySerialBT.begin("UPS1P1P_BLE");
-  if (EEPROM.read(0) != 0x55)
+  EEPROM.begin(sizeof(nvsSystemSet_t) + 2);
+  if (EEPROM.read(0) != 0x55 || EEPROM.read(sizeof(nvsSystemSet_t) + 1) != 0x55)
   {
+    Serial.println("Memory Initialized first booting....");
+    nvsSystemEEPRom.isUpdate = false;
     nvsSystemEEPRom.systemLanguage = 1; // default Not Set Hangul
     nvsSystemEEPRom.systemModusId = 1;
     nvsSystemEEPRom.lcdBright = 255 /*0xFFFF*/;
@@ -673,27 +660,34 @@ void setup()
     nvsSystemEEPRom.operatingMode.sysOpModeBit.useBlueTooth = 1;
     nvsSystemEEPRom.operatingMode.sysOpModeBit.useWiFi = 1;
     nvsSystemEEPRom.operatingMode.sysOpModeBit.useWebServer = 1;
-
+    strncpy(nvsSystemEEPRom.ssid, "iftech", 6);
+    strncpy(nvsSystemEEPRom.password, "iftech0273", 10);
     strncpy(nvsSystemEEPRom.deviceName, "UPS1P1P", 9);
 
     EEPROM.writeByte(0, 0x55);
     // EEPROM.commit();
     EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+    EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
     EEPROM.commit();
-    Serial.println("Memory Initialized first booting....");
+  }
+  else
+  {
+    Serial.println("Using EEPROM....");
   }
   EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+}
+void setup()
+{
+  Serial.begin(BAUDRATEDEF);
+  initialEEPROM();
+  pinMode(BUZZER, OUTPUT);
+  pinMode(BUTTON_ERASE , INPUT);
+  digitalWrite(BUZZER, LOW);
+  // mySerialBT.begin("UPS1P1P_BLE");
   // nvsSystemEEPRom.BAUDRATE = 9600;
   //  while (!Serial);
   nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
-  setRtc();
 
-  Serial.println("Setup done");
-  pinMode(SERIAL_TX2 , OUTPUT);
-  pinMode(SERIAL_RX2 , INPUT);
-  Serial2.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, SERIAL_RX2  /* RX */, SERIAL_TX2  /* TX*/);
-  Serial2.println("Serial 1 started");
-  modbusSetup();
   // Init Display
   // Add
   gfx->begin();
@@ -708,15 +702,44 @@ void setup()
   uint16_t brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
   ledcWrite(0, brightness);
 
-  gfx->fillScreen(RED);
-  delay(100);
-  gfx->fillScreen(GREEN);
-  delay(100);
-  gfx->fillScreen(BLUE);
-  delay(100);
-  gfx->fillScreen(BLACK);
-  delay(100);
+  gfx->fillScreen(RED); delay(100);
+  gfx->fillScreen(GREEN); delay(100);
+  gfx->fillScreen(BLUE); delay(100);
+  gfx->fillScreen(BLACK); delay(100);
   gfx->setCursor(0, 10);
+  // update를 할것인지 확인한다. 이것은 bluetooth에서 설정한다.
+  if(nvsSystemEEPRom.isUpdate)
+  {
+    Serial.println("Update....");
+    gfx->println("Update....");
+    //#ifdef USEWIFI
+    wifiOTAsetup();
+    //#endif
+    nvsSystemEEPRom.isUpdate = false;
+    EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+    EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
+    EEPROM.commit();
+  }
+  else
+  {
+    Serial.println("No Update....");
+  }
+
+  // 로그파일 기록을 위해 파일시스템을 초기화 한다.
+  lsFile.littleFsInitFast(0);
+  lsFile.setOutputStream(&Serial);
+
+  upslogEvent.getFileSize();
+
+  //모드버스를 위한 serial2 포트를 초기화 한다
+  Serial.println("Setup done");
+  pinMode(SERIAL_TX2 , OUTPUT);
+  pinMode(SERIAL_RX2 , INPUT);
+  Serial2.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, SERIAL_RX2  /* RX */, SERIAL_TX2  /* TX*/);
+  Serial2.println("Serial 1 started");
+  bleSetup();
+  setRtc();
+  modbusSetup();
   // GFXfont *f;
   // f->bitmap = (uint8_t *)&FreeSansBold12pt7bBitmaps;
   // gfx->setFont(f);
@@ -821,11 +844,7 @@ void setup()
 
   }
   // Modbus는 내부적으로 task를 사용하고 있다.
-  xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask, 0);  
-#ifdef USEWIFI
-  wifiOTAsetup();
-#endif
-  EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemEEPRom));
+  xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 3000, NULL, 1, h_pxsystemControllTask, 0);  
 
   // 시스템 시작시에는 바이패스로 놓는다
   // upsModbusData.ModuleState.Bit.To_Bypass_ModeChange = 1;
@@ -861,8 +880,6 @@ uint16_t pressedResetButton=0;
 void loop()
 {
   void *parameters;
-  //esp_task_wdt_reset();
-  wifiOtaloop();
   bleCheck();
   now = millis();
   #ifndef DONOTUSECOMM
@@ -928,12 +945,15 @@ void loop()
   vTaskDelay(10);     // Every 50ms
 }
 
+int isReceiveEventData = 0;
 void systemControllTask(void *parameter)
 {
   for (;;)
   {
-    modbusEventSendLoop(100);
-    GetSetEventData();
+    isReceiveEventData = modbusEventSendLoop(100);
+    if(isReceiveEventData != 'E'){
+      GetSetEventData();
+    }
     vTaskDelay(300);
   };
 }

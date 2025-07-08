@@ -239,7 +239,10 @@ typedef struct
     uint16_t systemModbusQInterval;
     operatingMode_t operatingMode; // 0 : Agent, 1: Server
     uint16_t alarmSetStatus;
+    bool isUpdate;
     char deviceName[20];
+    char ssid[20];
+    char password[20];
 } nvsSystemSet_t;
 
 extern nvsSystemSet_t nvsSystemEEPRom;

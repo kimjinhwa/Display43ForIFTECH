@@ -629,8 +629,7 @@ void handleData(ModbusMessage response, uint32_t token)
     const uint8_t *rev =  response.data();
     int len = response.size();
     address = rev[2]<<8 | rev[3];
-    for(int i=0;i<len;i++)
-      ESP_LOGE("MODBUS"," %02x",rev[i]);
+    //for(int i=0;i<len;i++) ESP_LOGE("MODBUS"," %02x",rev[i]);
     offs = 4;
     offs = response.get(offs, len);
     ESP_LOGE("MODBUS","multi func %d token %d address %d count %d",func, token,address, values[token]);
@@ -718,18 +717,12 @@ int WriteHoldRegistorNoSync(int index,int value,uint32_t Token){
 int WriteHoldRegistor(int index,int value,uint32_t Token){
 
   tokenLoopCount = -1;  // 더이상 Looping을 하지 않게 한다
-  ESP_LOGE("MODBUS","ready WriteHoldRegistor %ld ",millis());
+  ESP_LOGW("MODBUS","ready WriteHoldRegistor %ld ",millis());
   //waitDataReceive(30);
-  ESP_LOGE("MODBUS","send WriteHoldRegistor index %ld ,value %d ", index,value);
+  ESP_LOGW("MODBUS","send WriteHoldRegistor index %ld ,value %d ", index,value);
   //if(data_ready == false) vTaskDelay(300);
   data_ready = false;
 
-  //Error err = MB.addRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
-  // if (err!=SUCCESS) {
-  //   ModbusError e(err);
-  //   ESP_LOGE("MODBUS","Error creating request: %02X - %s\n", (int)e, (const char *)e);
-  // }
-  //ModbusMessage rc = MB.syncRequest(Token, 1, WRITE_HOLD_REGISTER, index, value);
   uint16_t address=1;
   uint8_t byteCount=2;
   uint16_t arrayWord[1];
@@ -793,19 +786,13 @@ int modbusEventSendLoop(int timeout)
   default:
     break;
   }
-  // Error err = MB.addRequest(requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
-  // if (err != SUCCESS)
-  // {
-  //   ModbusError e(err);
-  //   ESP_LOGE("MODBUS", "Error creating request: %02X - %s\n", (int)e, (const char *)e);
-  //   return 0;
-  // }
-  //int32_t Token= millis();
+
   ModbusMessage rc = MB.syncRequest (requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
   if(rc.getError() == 0){
     handleData(rc,requestToken[tokenLoopCount]);
     tokenLoopCount++;  // 전송이 제대로 됬다면 다음 루틴으로 간다
-    return requestToken[tokenLoopCount];
+    return requestToken[tokenLoopCount -1];
+    //return requestToken[tokenLoopCount];
   }
   else{
     modbusErrorCounter++;
@@ -840,7 +827,7 @@ void modbusSetup()
 {
   MB.onDataHandler(&handleData);
   MB.onErrorHandler(&handleError);
-  MB.setTimeout(1000);
+  MB.setTimeout(6000);
   MB.begin(Serial2,nvsSystemEEPRom.BAUDRATE,1);
 }
 

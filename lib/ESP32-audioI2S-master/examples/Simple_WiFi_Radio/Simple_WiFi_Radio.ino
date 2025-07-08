@@ -21,8 +21,8 @@ TFT tft;
 TP tp(TP_CS, TP_IRQ);
 Audio audio;
 
-String ssid =     "iftech";
-String password = "iftech0273";
+//String ssid =     "iftech";
+//String password = "iftech0273";
 
 String stations[] ={
         "0n-80s.radionetz.de:8000/0n-70s.mp3",

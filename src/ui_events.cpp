@@ -269,15 +269,11 @@ void TabEventSetupTimeClick(lv_event_t * e)
 
 void btnEventRunUps(lv_event_t * e)
 {
-	// upsModbusData.upsRun.upsRunCommandBit.UpsON =
-	// 	upsModbusData.upsRun.upsRunCommandBit.UpsON ? 0 : 1;
 	int token ;
 	if (upsModbusData.HWState.Bit.CONVERTER_RUN_STOP_STATE ||
 		upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE ||
 		upsModbusData.HWState.Bit.INVERTER_RUN_STOP_STATE)
 	{
-		// lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
-		// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
 	}
 	else  //off 상태 이므로 RUN Command를 보낸다.
 	{
@@ -287,23 +283,7 @@ void btnEventRunUps(lv_event_t * e)
 			showMessageLabel(_("Comm_Error"));
 		else
 			ESP_LOGI("MODUBS", "Received token %d..", token);
-		// lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-		// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
 	}
-
-	// if (upsModbusData.upsRun.upsRunCommandBit.UpsON)
-	// {
-	// 	// ON 활성화
-	// 	// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-	// 	//lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
-	// }
-	// else
-	// { // OFF활성화
-	// 	// lv_obj_set_style_bg_color(ui_btnStopUps1, lv_color_hex(0xF80D29), LV_PART_MAIN | LV_STATE_DEFAULT);
-	// 	//lv_obj_set_style_bg_color(ui_btnRunUps, lv_color_hex(0xCAC8C8), LV_PART_MAIN | LV_STATE_DEFAULT);
-	// }
-
-	// uint32_t token = waitDataReceive(100);
 }
 
 void btnEventStopUps(lv_event_t * e)
@@ -1121,7 +1101,7 @@ void btnAlarmRunStopAtLog(lv_event_t * e){
 	ESP_LOGI("MODUBS", "Received token %d..",token );
 }
 void btnAlarmRunStop(lv_event_t * e){
- 	ESP_LOGI("ANI","Animation start");
+ 	ESP_LOGI("UI","AlarmRunStop Animation start");
 	upslogAlarm.runBuzzStatus =upslogAlarm.runBuzzStatus  ? 0:1;
 	  //lv_anim_del_all();
 }
