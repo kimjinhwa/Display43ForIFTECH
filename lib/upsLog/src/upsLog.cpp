@@ -114,19 +114,42 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
         if (moduleStatusEvent == old_moduleStatusEvent 
             && HwStatusEvent == old_HwStatusEvent 
             && upsOperationFault == old_upsOperationFault){
+            // ESP_LOGW("EV", "---EV Not Changed now : 0x%04x 0x%04x 0x%04x %ld", moduleStatusEvent,HwStatusEvent,upsOperationFault,millis());
+            // ESP_LOGW("EV", "                  old : 0x%04x 0x%04x 0x%04x %ld", old_moduleStatusEvent,old_HwStatusEvent,old_upsOperationFault,millis());
             return  0;
         }
         //변화가 생겼다.
-        uint16_t result_1 = moduleStatusEvent ^ old_moduleStatusEvent;
-        uint16_t result_2 = HwStatusEvent ^ old_HwStatusEvent;
-        uint16_t result_3 = upsOperationFault ^ old_upsOperationFault;
+        uint16_t result_1 = moduleStatusEvent & (~old_moduleStatusEvent);
+        uint16_t result_2 = HwStatusEvent & (~old_HwStatusEvent);
+        uint16_t result_3 = upsOperationFault & (~old_upsOperationFault);
+
+        uint16_t not_result_1 = ~moduleStatusEvent & old_moduleStatusEvent;
+        uint16_t not_result_2 = ~HwStatusEvent & old_HwStatusEvent;
+        uint16_t not_result_3 = ~upsOperationFault & old_upsOperationFault;
+        // 이벤트가 1 -> 으로 release가 되면 아래를 수행한다.
+        if(not_result_1 != 0 || not_result_2 != 0 || not_result_3 != 0){
+            // ESP_LOGW("EV", "-----------EV Not Changed release ---------");
+            // ESP_LOGW("EV", "EV Not Changed now : 0x%04x 0x%04x 0x%04x %ld", moduleStatusEvent,HwStatusEvent,upsOperationFault,millis());
+            // ESP_LOGW("EV", "               old : 0x%04x 0x%04x 0x%04x %ld", old_moduleStatusEvent,old_HwStatusEvent,old_upsOperationFault,millis());
+            old_moduleStatusEvent = moduleStatusEvent;
+            old_HwStatusEvent = HwStatusEvent;
+            old_upsOperationFault = upsOperationFault;
+            // 여기서 리턴은 하면 안되겠다. 로그 처리를 아직 해야 하기 때문이다. 
+        }
+
+        // 이벤트가 1 ->0 으로 갔을 경우에만 처리한다> 
         if(result_1 == 0 && result_2 == 0 && result_3 == 0){
+            // ESP_LOGW("EV", "-----------EV Not Changed---------");
+            // ESP_LOGW("EV", "EV Not Changed now : 0x%04x 0x%04x 0x%04x %ld", moduleStatusEvent,HwStatusEvent,upsOperationFault,millis());
+            // ESP_LOGW("EV", "               old : 0x%04x 0x%04x 0x%04x %ld", old_moduleStatusEvent,old_HwStatusEvent,old_upsOperationFault,millis());
+            // 데이타가 Now 1이고 old가 0이면 의미가 있기 때문에 
+            // 아래의 3문장으로 old를 result_1으로 변경하여 준다.
             return 0;
         }
-        ESP_LOGW("EV", "-----------EV Changed---------");
-        ESP_LOGW("EV", "now_mo_st 0x%04x :old 0x%04x result 0x%04x %ld", moduleStatusEvent,old_moduleStatusEvent,result_1,millis());
-        ESP_LOGW("EV", "now_hw_st 0x%04x :old 0x%04x result 0x%04x %ld", HwStatusEvent,old_HwStatusEvent,result_2,millis());
-        ESP_LOGW("EV", "now_op_st 0x%04x :old 0x%04x result 0x%04x %ld", upsOperationFault,old_upsOperationFault,result_3,millis());
+        // ESP_LOGW("EV", "-----------EV Changed---------");
+        // ESP_LOGW("EV", "now_mo_st 0x%04x :old 0x%04x result 0x%04x %ld", moduleStatusEvent,old_moduleStatusEvent,result_1,millis());
+        // ESP_LOGW("EV", "now_hw_st 0x%04x :old 0x%04x result 0x%04x %ld", HwStatusEvent,old_HwStatusEvent,result_2,millis());
+        // ESP_LOGW("EV", "now_op_st 0x%04x :old 0x%04x result 0x%04x %ld", upsOperationFault,old_upsOperationFault,result_3,millis());
 
         old_moduleStatusEvent = moduleStatusEvent;
         old_HwStatusEvent = HwStatusEvent ;
@@ -160,9 +183,9 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
             runBuzzStatus =0;
         }
 
-        ESP_LOGW("FAULT", "-----------FAULT Changed---------");
-        ESP_LOGW("FAULT", "now_hw_st 0x%04x :old 0x%04x %ld", HwStatusEvent ,old_HwStatusEvent,millis());
-        ESP_LOGW("FAULT", "now_op_st 0x%04x :old 0x%04x %ld", upsOperationFault,old_upsOperationFault,millis());
+        // ESP_LOGW("FAULT", "-----------FAULT Changed---------");
+        // ESP_LOGW("FAULT", "now_hw_st 0x%04x :old 0x%04x %ld", HwStatusEvent ,old_HwStatusEvent,millis());
+        // ESP_LOGW("FAULT", "now_op_st 0x%04x :old 0x%04x %ld", upsOperationFault,old_upsOperationFault,millis());
         old_HwStatusEvent = HwStatusEvent;
         old_upsOperationFault = upsOperationFault;
         log.modulestatus = 0;

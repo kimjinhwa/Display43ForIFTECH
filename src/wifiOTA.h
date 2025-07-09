@@ -10,7 +10,7 @@
 
 extern const char* host;
 
-void wifiOTAsetup(void) ;
+void wifiOTAsetup(bool isUpdate) ;
 void wifiOtaloop(void) ;
 #endif
 

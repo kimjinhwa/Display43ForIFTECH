@@ -33,10 +33,22 @@
 // #define RTCEN 19
 // #define BUZZER 20
 /* Change Port */
+/* Rev 2.0*/
+#define BOARD_REV 2
+
+#if BOARD_REV == 2
+#define SERIAL_RX2 19 
+#define SERIAL_TX2 20 
+#define RTCEN 18
+#define BUZZER 17 
+#else
+/* Rev 1.0*/
 #define SERIAL_RX2 20 
 #define SERIAL_TX2 19 
 #define RTCEN 17
 #define BUZZER 18 
+#endif
+
 
 
 #define OFFSCR_COLOR 0xFFFFFF   /*DARK BLUE*/ 
@@ -453,6 +465,8 @@ void GetSetEventData()
   isAlarmLogChanged = upslogAlarm.setEventCode(upsModbusData.ModuleState.status,
                                                upsModbusData.HWState.status,
                                                upsModbusData.upsOperationFault.status);
+
+  //ESP_LOGI("MODBUS","Receive Event Data %d %d %d", isEventLogChanged, isAlarmLogChanged,millis());
 }
 
 void mainScrUpdata(){
@@ -679,6 +693,8 @@ void initialEEPROM()
 void setup()
 {
   Serial.begin(BAUDRATEDEF);
+  WiFi.mode(WIFI_OFF);
+  delay(100);
   initialEEPROM();
   pinMode(BUZZER, OUTPUT);
   pinMode(BUTTON_ERASE , INPUT);
@@ -710,15 +726,15 @@ void setup()
   // update를 할것인지 확인한다. 이것은 bluetooth에서 설정한다.
   if(nvsSystemEEPRom.isUpdate)
   {
-    Serial.println("Update....");
-    gfx->println("Update....");
-    //#ifdef USEWIFI
-    wifiOTAsetup();
-    //#endif
     nvsSystemEEPRom.isUpdate = false;
     EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
     EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
     EEPROM.commit();
+    Serial.println("Update....");
+    gfx->println("Update....");
+    //#ifdef USEWIFI
+    wifiOTAsetup(true);
+    //#endif
   }
   else
   {
@@ -954,6 +970,7 @@ void systemControllTask(void *parameter)
   {
     isReceiveEventData = modbusEventSendLoop(100);
     if(isReceiveEventData == 'E'){
+      // Main Thread 의 isGetSetEventData() 함수를 호출하여 이벤트 데이터를 처리한다.
       GetSetEventData();
     }
     vTaskDelay(300);

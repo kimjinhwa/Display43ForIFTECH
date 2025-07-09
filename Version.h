@@ -1,4 +1,6 @@
-#define VERSION "2.1.2"  // 이제 중복로그를 해결함. 
+#define VERSION "2.2.0"  // Board V2.0 추가 ,Rtc.SetDateTime(compiled)
+#define VERSION "2.1.3"  // 로그문제를 추가 해결함 
+//#define VERSION "2.1.2"  // 이제 중복로그를 해결함. 
 //#define VERSION "2.1.1"  // 중복 로그를 지우기 전 동작 버전 Backup 
 //#define VERSION "2.1.0"  // 큐를 사용하여 모드버스 통신을 하게 한다. 
 //#define VERSION "2.0.1"  // 잡다한 출력 로그를 없앤다. 

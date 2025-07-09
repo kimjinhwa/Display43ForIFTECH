@@ -28,11 +28,6 @@ extern "C" {
 #include "c/parser.h"    // parse_lines
 #include "c/cmd_error.h" // cmd_error_destroy
 }
-extern const char *ssid;
-extern const char *password;
-int makeRelayControllData(uint8_t *buf,uint8_t modbusId,uint8_t funcCode, uint16_t address, uint16_t len);
-int readResponseData(uint8_t modbusId,uint8_t funcCode, uint8_t *buf,uint8_t len,uint16_t timeout);
-void setRtcNewTime(RtcDateTime rtc);
 
 
 void ls_configCallback(cmd *cmdPtr){
@@ -52,10 +47,6 @@ void rm_configCallback(cmd *cmdPtr)
     return;
 
   lsFile.rm(argVal);
-  // if (!argVal.startsWith("*"))
-  // {
-  //   argVal = String("/spiffs/") + argVal;
-  // }
 };
 void df_configCallback(cmd *cmdPtr)
 {
@@ -74,34 +65,19 @@ extern nvsSystemSet_t nvsSystemEEPRom;
 void update()
 {
     mySerialBT.printf("\r\nUpdate를 시작합니다.");
-
-    //selfUploder.begin(ssid, password, "https://raw.githubusercontent.com/kimjinhwa/IP-Fineder-For-ESP32/main/dist/ups1p1p");
-    //Serial.printf("Free heap before SSL: %d\n", ESP.getFreeHeap());
-
-    //if (selfUploder.checkNewVersion(selfUploder.update_url))
-    {
-        mySerialBT.printf("Now System reboot for update!");
-        nvsSystemEEPRom.isUpdate = true;
-        EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
-        EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
-        EEPROM.commit();
-        ESP.restart();
-        // if (selfUploder.tryAutoUpdate(selfUploder.updateFile_url.c_str()))
-        // {
-        //     return;
-        // }
-    }
-    // else
-    // {
-    //     mySerialBT.printf("Already on latest version");
-    // }
+    mySerialBT.printf("\r\nNow System reboot for update!");
+    nvsSystemEEPRom.isUpdate = true;
+    EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+    EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
+    EEPROM.commit();
+    ESP.restart();
 }
-void wifiOTAsetup();
+void wifiOTAsetup(bool isUpdate=false);
 void update_configCallback(cmd *cmdPtr)
 {
   Command cmd(cmdPtr);
   // wifi에 연결되어 있지 않으면 연결을 시도 한다.
-  if(!WiFi.isConnected()) wifiOTAsetup();
+  if(!WiFi.isConnected()) wifiOTAsetup(false);
 
   if(WiFi.isConnected()){
     mySerialBT.printf( "\r\nNow System Update...");
@@ -111,8 +87,8 @@ void update_configCallback(cmd *cmdPtr)
     mySerialBT.printf( "\r\nNot connected to WiFi..." );
     mySerialBT.printf( "\r\nPlease connect to WiFi..." );
     mySerialBT.printf( "\r\nHotstop를 켜 주거나 무선WIFI를 연결 해 주세요." );
-    mySerialBT.printf( "\r\nSSID: %s", ssid );
-    mySerialBT.printf( "\r\nPASS: %s", password );
+    mySerialBT.printf( "\r\nSSID: %s", nvsSystemEEPRom.ssid );
+    mySerialBT.printf( "\r\nPASS: %s", nvsSystemEEPRom.password );
   }
 }
 void format_configCallback(cmd *cmdPtr)
@@ -177,6 +153,7 @@ void version_Callback(cmd *cmdPtr)
 {
     Command cmd(cmdPtr);
     mySerialBT.printf("\r\nVERSION : %s\r\n", VERSION);
+    //wifiOTAsetup();
 }
 void ssid_Callback(cmd *cmdPtr)
 {
@@ -185,7 +162,7 @@ void ssid_Callback(cmd *cmdPtr)
     String ssid_arg = arg.getValue();
     if(ssid_arg.length() > 0){
        mySerialBT.printf("\r\nSSID : %s\r\n", ssid_arg.c_str());
-       mySerialBT.printf("PASS : %s\r\n", password);
+       mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
        strncpy(nvsSystemEEPRom.ssid, ssid_arg.c_str(), 20);
        EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
        EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
@@ -216,14 +193,14 @@ void pass_Callback(cmd *cmdPtr)
     }
 }
 
-extern const char *host;
+//extern const char *host;
 void ip_Callback(cmd *cmdPtr){
     if(mySerialBT.deviceConnected){
         mySerialBT.printf("\nIPAddress: %s\n", WiFi.localIP().toString().c_str());
         mySerialBT.printf("Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
         mySerialBT.printf("SubnetMask: %s\n", WiFi.subnetMask().toString().c_str());
         mySerialBT.printf("Y can Update Firmware http://%s/serverIndex \n", WiFi.localIP().toString().c_str());
-        mySerialBT.printf("Y can Update Firmware http://%s/serverIndex \n", host);
+        //mySerialBT.printf("Y can Update Firmware http://%s/serverIndex \n", deviceName);
 
     }
     else{
@@ -234,7 +211,7 @@ SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStrea
 {
     this->inputStream = &Serial;
     Command cmd_config = addCommand("ls", ls_configCallback);
-    Command ssid, pass, ip,version;
+    Command cmd_ssid, cmd_pass, cmd_ip,cmd_version;
     cmd_config.setDescription(" File list \r\n ");
     cmd_config = addSingleArgCmd("cat", cat_configCallback);
     cmd_config = addSingleArgCmd("rm", rm_configCallback);
@@ -242,14 +219,14 @@ SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStrea
     cmd_config = addCommand("df", df_configCallback);
     cmd_config = addSingleArgCmd("reboot", reboot_configCallback);
     cmd_config = addSingleArgCmd("update", update_configCallback);
-    version = simpleCli.addSingleArgCmd("version", version_Callback); // VERSION
-    version.setDescription("Read the VERSION");
-    ssid = simpleCli.addSingleArgCmd("ssid", ssid_Callback); // SSID
-    ssid.setDescription("Set the SSID");
-    pass = simpleCli.addSingleArgCmd("pass", pass_Callback); // PASS
-    pass.setDescription("Set the PASS");
-    ip = simpleCli.addSingleArgCmd("ip", ip_Callback); // IP
-    ip.setDescription("Read the IPAddress,GW,SUBNETMASK");
+    cmd_version = simpleCli.addSingleArgCmd("ver/sion", version_Callback); // VERSION
+    cmd_version.setDescription("Read the VERSION");
+    cmd_ssid = simpleCli.addSingleArgCmd("ssid", ssid_Callback); // SSID
+    cmd_ssid.setDescription("Set the SSID");
+    cmd_pass = simpleCli.addSingleArgCmd("pass", pass_Callback); // PASS
+    cmd_pass.setDescription("Set the PASS");
+    cmd_ip = simpleCli.addSingleArgCmd("ip", ip_Callback); // IP
+    cmd_ip.setDescription("Read the IPAddress,GW,SUBNETMASK");
 
     simpleCli.setOnError(errorCallback);
     cmd_config = addCommand("help", help_Callback);
