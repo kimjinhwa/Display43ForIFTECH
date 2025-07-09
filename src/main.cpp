@@ -900,7 +900,10 @@ void loop()
   now = millis();
   #ifndef DONOTUSECOMM
   if(modbusErrorCounter>2)
+  {
+    ESP_LOGW("MODBUS", "%d Error %s count %d",millis(),_("Comm_Error"),modbusErrorCounter);
     showMessageLabel(_("Comm_Error"));
+  }
   #endif
   isGetSetEventData();
   if ((now - previous300mills > every300ms))

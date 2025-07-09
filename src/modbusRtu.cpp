@@ -597,7 +597,6 @@ void handleData(ModbusMessage response, uint32_t token)
   uint16_t *values;
   values = (uint16_t *)&upsModbusData;
   uint8_t func = response.getFunctionCode();
-  modbusErrorCounter=0;
   if (func == READ_INPUT_REGISTER)
   {
     offs = 3;
@@ -782,11 +781,15 @@ int modbusEventSendLoop(int timeout)
   ModbusCommand modbusCommand;
   if(xQueueReceive(modbusCmdQueue,&modbusCommand,0) == pdPASS){
     ESP_LOGW("MODBUS","modbusCommand received");
+
+    //UPS가동시간은 길게 걸린다.
+    MB.setTimeout(10000);
     int token = WriteHoldRegistor(modbusCommand.index,modbusCommand.value,modbusCommand.token);
     ESP_LOGW("MODBUS","modbusCommand received token %d",token);
 		if (token == 0)
 			showMessageLabel(_("Comm_Error"));
     tokenLoopCount=0;
+    MB.setTimeout(1000);
 		// else
 		// 	ESP_LOGI("MODUBS", "Received token %d..", token);
   }
@@ -812,13 +815,14 @@ int modbusEventSendLoop(int timeout)
   ModbusMessage rc = MB.syncRequest (requestToken[tokenLoopCount], 1, func, startAddress, dataCount );
   if(rc.getError() == 0){
     handleData(rc,requestToken[tokenLoopCount]);
+    modbusErrorCounter=0;
     tokenLoopCount++;  // 전송이 제대로 됬다면 다음 루틴으로 간다
     return requestToken[tokenLoopCount -1];
     //return requestToken[tokenLoopCount];
   }
   else{
     modbusErrorCounter++;
-    ESP_LOGE("MODBUS", "Comm Error");
+    ESP_LOGW("MODBUS", "Comm Error count %d",modbusErrorCounter);
     return 0;
   }
 
@@ -849,7 +853,7 @@ void modbusSetup()
 {
   MB.onDataHandler(&handleData);
   MB.onErrorHandler(&handleError);
-  MB.setTimeout(10000);
+  MB.setTimeout(1000);
   MB.begin(Serial2,nvsSystemEEPRom.BAUDRATE,1);
 }
 
