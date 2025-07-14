@@ -584,7 +584,6 @@ ModbusMessage FC06(ModbusMessage request)
 ModbusClientRTU MB(-1,100);
 static uint32_t request_response;
 static bool data_ready = false;
-int modbustimeout;
 char requestToken[12]={'E','E','E','A','E','E','E','A','E','E','E','A'};
 int tokenLoopCount=0;
 int modbusErrorCounter=0;
@@ -764,12 +763,12 @@ int WriteHoldRegistor(int index,int value,uint32_t Token){
 // }
 
 void showMessageLabel(const char *message);
-int modbusEventSendLoop(int timeout)
+int modbusEventSendLoop(int token)
 {
   if (tokenLoopCount == -1)
     return -1; // -1은 데이타 요청을 중지한다.
                // 나중에 데이타를 요청할 경우를 대비 하기 위하여
-  modbustimeout = timeout;
+  //tokenLoopCount = token;
   data_ready = false;
   
   if (tokenLoopCount >= 12)
@@ -825,13 +824,6 @@ int modbusEventSendLoop(int timeout)
     ESP_LOGW("MODBUS", "Comm Error count %d",modbusErrorCounter);
     return 0;
   }
-
-  // if(timeout>0)
-  // for(int i=0;i<timeout;i++){
-  //   vTaskDelay(1);
-  //   if(data_ready) 
-  //     break;
-  // }
 
   //return data_ready;
 }

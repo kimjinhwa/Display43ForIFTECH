@@ -641,7 +641,7 @@ void toggleBuzzer()
   }
 }
 
-int modbusEventSendLoop(int timeout);
+int modbusEventSendLoop(int token);
 void setTimeText()
 {
     timeval tmv;
@@ -977,15 +977,27 @@ void loop()
 
 int isReceiveEventData = 0;
 QueueHandle_t modbusCmdQueue;
+
+extern int tokenLoopCount;
 void systemControllTask(void *parameter)
 {
   modbusCmdQueue = xQueueCreate(10, sizeof(ModbusCommand));
   for (;;)
   {
-    isReceiveEventData = modbusEventSendLoop(100);
-    if(isReceiveEventData == 'E'){
-      // Main Thread 의 isGetSetEventData() 함수를 호출하여 이벤트 데이터를 처리한다.
-      GetSetEventData();
+    if( lv_scr_act() != ui_SettingScreen)
+    {
+      isReceiveEventData = modbusEventSendLoop(100);
+      if(isReceiveEventData == 'E'){
+        // Main Thread 의 isGetSetEventData() 함수를 호출하여 이벤트 데이터를 처리한다.
+        GetSetEventData();
+      }
+    }
+    else{
+      tokenLoopCount = 0;  // 이벤트를 0 부터 시작하기 위함이다. 
+                           // ui_SettingScreen에서는 Modbus 통신을 잠정 중단한다. 
+                           // 이렇게 해서 textbox에 사용자가 입력한 값이 훼손 되지 않게 한다.
+                           // 다시 시작을 할 때는 Event정보를 먼저 받기 때문에 화면 데이타는 유지되며
+                           // 즉시 queue에 있는 데이타가 처리된다.
     }
     vTaskDelay(300);
   };

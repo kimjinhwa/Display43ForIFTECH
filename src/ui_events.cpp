@@ -101,6 +101,7 @@ void ChangeLanguage(lv_event_t * e)
 	}
     EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
     EEPROM.commit();
+	esp_restart();
 	//showMessageLabel(_("REBOOT"));
   	lv_timer_handler(); 
 
