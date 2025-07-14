@@ -1,5 +1,6 @@
-#define VERSION "2.3.0"  // Display 패턴을 끊지 않고 RTC를 해결함.  
-#define VERSION "2.2.1"  // 통신 반응을 높이기 위해 modbusErrorCounter 를 수정한다.
+#define VERSION "2.3.1"  // xpt2046파일을 변경했으므로 이것을 remote git에 추가한다. 
+//#define VERSION "2.3.0"  // Display 패턴을 끊지 않고 RTC를 해결함.  
+//#define VERSION "2.2.1"  // 통신 반응을 높이기 위해 modbusErrorCounter 를 수정한다.
 //#define VERSION "2.2.0"  // Board V2.0 추가 ,Rtc.SetDateTime(compiled)
 //#define VERSION "2.1.3"  // 로그문제를 추가 해결함 
 //#define VERSION "2.1.2"  // 이제 중복로그를 해결함. 
