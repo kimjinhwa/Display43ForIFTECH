@@ -993,11 +993,13 @@ void systemControllTask(void *parameter)
       }
     }
     else{
-      tokenLoopCount = 0;  // 이벤트를 0 부터 시작하기 위함이다. 
-                           // ui_SettingScreen에서는 Modbus 통신을 잠정 중단한다. 
-                           // 이렇게 해서 textbox에 사용자가 입력한 값이 훼손 되지 않게 한다.
-                           // 다시 시작을 할 때는 Event정보를 먼저 받기 때문에 화면 데이타는 유지되며
-                           // 즉시 queue에 있는 데이타가 처리된다.
+      tokenLoopCount = 0;  
+      modbusEventSendLoop(100); // 이벤트를 0 즉 E 부터 시작하기 위함이다. 
+                                // ui_SettingScreen에서는 Modbus 통신을 잠정 중단한다. 
+                                // 이렇게 해서 textbox에 사용자가 입력한 값이 훼손 되지 않게 한다.
+                                // 다시 시작을 할 때는 Event정보를 먼저 받기 때문에 화면 데이타는 유지되며
+                                // 즉시 queue에 있는 데이타가 처리된다.
+      GetSetEventData();
     }
     vTaskDelay(300);
   };

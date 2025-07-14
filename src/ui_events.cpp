@@ -332,21 +332,21 @@ int checkValidation()
 		// if (String(lv_textarea_get_text(ui_txtInputArea)).length() > 0)
 		uint16_t inputData = String(lv_textarea_get_text(ui_txtInputArea)).toInt();
 		ESP_LOGW("EVENT", "User id %d value %d  %d - %d", inputTextId, inputData, lowValue, highValue);
-		if (inputData < lowValue || inputData > highValue)
-		{
-			String str;
-			str = "입력범위(";
-			str += lowValue;
-			str += "-";
-			str += highValue;
-			str += ")";
-			if (inputData < lowValue)
-				lv_textarea_set_text(ui_txtInputArea, String(lowValue).c_str());
-			if (inputData > highValue)
-				lv_textarea_set_text(ui_txtInputArea, String(highValue).c_str());
-			showMessageLabel(str.c_str());
-			return 0;
-		}
+		// if (inputData < lowValue || inputData > highValue)
+		// {
+		// 	String str;
+		// 	str = "입력범위(";
+		// 	str += lowValue;
+		// 	str += "-";
+		// 	str += highValue;
+		// 	str += ")";
+		// 	if (inputData < lowValue)
+		// 		lv_textarea_set_text(ui_txtInputArea, String(lowValue).c_str());
+		// 	if (inputData > highValue)
+		// 		lv_textarea_set_text(ui_txtInputArea, String(highValue).c_str());
+		// 	showMessageLabel(str.c_str());
+		// 	return 0;
+		// }
 		switch (inputTextId)
 		{
 		case BATCURR_REF:
@@ -362,6 +362,7 @@ int checkValidation()
 		case OUTPUT_CURRENT_GAIN:
 		case HFMODE:
 			enqueueModbusCommand(inputTextId,inputData ,inputTextId);
+			ESP_LOGI("SET","enqueueModbusCommand %d %d",inputTextId,inputData);
 			// token = WriteHoldRegistor(inputTextId,inputData ,inputTextId);
 			// if(token==0) showMessageLabel(_("Comm_Error"));
 			// else ESP_LOGI("MODUBS", "Received token %d..",token );
@@ -412,6 +413,7 @@ int checkValidation()
 void bntEnterEvent(lv_event_t *e)
 {
 	// lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
+	ESP_LOGI("DEBUG","bntEnterEvent ");
 	checkValidation();
 	lv_obj_add_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
 	if (ui_txtTempory != nullptr)
@@ -428,7 +430,7 @@ void keyBoardValueChangedEvent(lv_event_t * e)
 	uint32_t btn_id = lv_keyboard_get_selected_btn(kb);
 	const char *txt = lv_keyboard_get_btn_text(kb,btn_id);
  	int16_t    keyValue= String(lv_textarea_get_text(ui_txtInputArea)).toInt();
-  	ESP_LOGI("DEBUG","ui_txtInputArea %d",keyValue);
+  	ESP_LOGI("DEBUG","ui_txtInputArea %d (%d)",keyValue,btn_id);
 	if(btn_id  ==  3)  //최소키가 눌리면..
 	{
 		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
@@ -440,6 +442,7 @@ void keyBoardValueChangedEvent(lv_event_t * e)
 	}
 	if(btn_id  ==  11 || btn_id  ==  15)  //확인 키가 눌리면...
 	{
+		ESP_LOGI("DEBUG","bntEnterEvent %d",btn_id);
 		checkValidation();
 		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
 		if(ui_txtTempory != nullptr){
