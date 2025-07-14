@@ -332,7 +332,9 @@ void touchCalibrationInit()
 }
 void setRtc()
 {
+  SPI.end();
   Rtc.Begin();
+  myWire.begin();
   RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
   printf("\r\ncompiled time is %d/%d/%d %d:%d:%d\r\n", compiled.Year(), compiled.Month(), compiled.Day(), compiled.Hour(), compiled.Minute(), compiled.Second());
   if (!Rtc.IsDateTimeValid() )
@@ -390,12 +392,16 @@ void setRtc()
   printf("\r\nset and reread time is %d/%d/%d %d:%d:%d\r\n", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second());
 
   myWire.end();
+  touch_init();
 }
 void setRtcNewTime(RtcDateTime rtc)
 {
   // digitalWrite(RTCEN , HIGH);
   //  SPI.end();
   //  Rtc.Begin();
+
+  ts.penirqControl(0x93);
+
   digitalWrite(TOUCH_XPT2046_CS, HIGH);
   SPI.end();
   myWire.begin();
@@ -409,8 +415,6 @@ void setRtcNewTime(RtcDateTime rtc)
     printf("RTC was actively status running \r\n");
   Rtc.SetDateTime(rtc);
   digitalWrite(TOUCH_XPT2046_CS, LOW);
-  myWire.end();
-  touch_init();
 
   struct timeval tmv;
   tmv.tv_sec = rtc.TotalSeconds();
@@ -421,6 +425,9 @@ void setRtcNewTime(RtcDateTime rtc)
   gettimeofday(&tmv, NULL);
   // myWire.end();
   // SPI.begin(SCK,MISO,MOSI,RTCEN );
+  myWire.end();
+  touch_init();
+  ts.penirqControl(0xD0);
 }
 
 int16_t isEventLogChanged = 0;
@@ -754,7 +761,11 @@ void setup()
   Serial2.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, SERIAL_RX2  /* RX */, SERIAL_TX2  /* TX*/);
   Serial2.println("Serial 1 started");
   bleSetup();
+  touch_init();
+  ts.penirqControl(0x93);
   setRtc();
+  touch_init();
+  ts.penirqControl(0xD0);
   modbusSetup();
   // GFXfont *f;
   // f->bitmap = (uint8_t *)&FreeSansBold12pt7bBitmaps;
