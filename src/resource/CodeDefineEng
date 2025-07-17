@@ -42,7 +42,7 @@ Vdc_link_UV_limit_fault : Vdc_link UV limit fault
 input_under_voltage_fault : input under voltage fault
 input_over_voltage_fault : input over voltage fault
 Input_Frequency_fault : Input Frequency fault
-Inverter_Frequency_fault : Inverter Frequency fault
+Battery_UV_Primary_Fault : Inverter Frequency fault
 utility_line_failure : utility line failure
 battery_current_limit_fault : battery current limit fault
 Battery_OV_limit_fault : Battery OV limit fault

@@ -41,7 +41,7 @@ Vdc_link_UV_limit_fault : 직류링크 저전압 제한이상
 input_under_voltage_fault : 입력 저전압 이상
 input_over_voltage_fault : 입력 고전압 이상
 Input_Frequency_fault : 입력 주파수 이상
-Inverter_Frequency_fault : 인버터 주파수 이상
+Battery_UV_Primary_Fault : 인버터 주파수 이상
 utility_line_failure : 정전
 battery_current_limit_fault : 배터리 전류제한 이상
 Battery_OV_limit_fault : 배터리 과전압 제한이상

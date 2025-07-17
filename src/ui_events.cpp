@@ -623,18 +623,18 @@ void scrMeasureLoad()
 	lv_label_set_text(ui_lblOutputCurrRms, tempstr);
 	// String(upsModbusData.output_current_rms).c_str()); //
 
-	sprintf(tempstr, "%2.1fHz", upsModbusData.bypass_Frequency/10.0);
+	sprintf(tempstr, "%2.1fHz", upsModbusData.conv_Frequency/10.0);
 	lv_label_set_text(ui_lblInputFreq, tempstr);
-	// String(upsModbusData.bypass_Frequency).c_str()); //
+	// String(upsModbusData.output_Frequency).c_str()); //
 
 	sprintf(tempstr, "%2.1fHz", upsModbusData.inv_Frequency/10.0);
 	lv_label_set_text(ui_lblInvFreq, tempstr);
-	lv_label_set_text(ui_lblOutputFreq, tempstr);
+	//lv_label_set_text(ui_lblOutputFreq, tempstr);
 	// String(upsModbusData.inv_Frequency).c_str()); //
 
-	sprintf(tempstr, "%2.1fHz", upsModbusData.bypass_Frequency/10.0);
-	lv_label_set_text(ui_lblBypassFreq, tempstr);
-	// String(upsModbusData.bypass_Frequency).c_str()); //
+	sprintf(tempstr, "%2.1fHz", upsModbusData.output_Frequency/10.0);
+	lv_label_set_text(ui_lblOutputFreq, tempstr);
+	// String(upsModbusData.output_Frequency).c_str()); //
 
 	sprintf(tempstr, "%d%", upsModbusData.battery_capacity);
 	lv_label_set_text(ui_lblBattCapacity, tempstr);

@@ -80,7 +80,7 @@ typedef struct
   uint16_t input_under_voltage_fault : 1;     // 17.3	input under voltage fault(입력 저전압 이상)	1: fault, 0: Normal	충전기 정지
   uint16_t input_over_voltage_fault : 1;      // 17.4	input over voltage fault(입력 고 전압 이상)	1: fault, 0: Normal	충전기 정지
   uint16_t Input_Frequency_fault : 1;         // 17.5	Input Frequency fault(입력 주파수 이상)	1: fault, 0: Normal	충전기 정지
-  uint16_t Inverter_Frequency_fault : 1;      // 17.6	Inverter Frequency fault(인버터 주파수 이상)	1: fault, 0: Normal
+  uint16_t Battery_UV_Primary_Fault : 1;      // 17.6	Inverter Frequency fault(인버터 주파수 이상)	1: fault, 0: Normal
   uint16_t utility_line_failure : 1;          // 17.7	utility line failure(정전)	1: fault, 0: Normal	충전기 정지
   uint16_t battery_current_limit : 1;         // 17.8	battery current limit(배터리 전류제한 이상)	1: fault, 0: Normal	DC/DC 정지
   uint16_t Battery_OV_limit_fault : 1;        // 17.9	Battery OV limit fault(배터리 과전압제한 이상)	1: fault, 0: Normal	DC/DC 정지
@@ -164,9 +164,9 @@ typedef struct
   uint16_t inverter_current_rms;         // 26
   uint16_t output_volt_rms;              // 27
   uint16_t output_current_rms;           // 28
-  uint16_t conv_Frequency;               // 29
+  uint16_t conv_Frequency;               // 29  입력주파수 
   uint16_t inv_Frequency;                // 30
-  uint16_t bypass_Frequency;             // 31
+  uint16_t output_Frequency;             // 31  출력주파수
   uint16_t battery_capacity;             // 32
   uint16_t load_percentage;              // 33
   uint16_t inv_internal_Temperature;     // 34

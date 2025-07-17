@@ -142,7 +142,7 @@ public:
         "input_under_voltage_fault",     /* 3 */
         "input_over_voltage_fault",      /* 4 */
         "Input_Frequency_fault",         /* 5 */
-        "Inverter_Frequency_fault",      /* 6 */
+        "Battery_UV_Primary_Fault",      /* 6 */
         "utility_line_failure",          /* 7 */
         "battery_current_limit_fault",   /* 8 */
         "Battery_OV_limit_fault",        /* 9 */
@@ -259,7 +259,7 @@ public:
 //         _("input_under_voltage_fault"),     /* 3 */
 //         _("input_over_voltage_fault"),      /* 4 */
 //         _("Input_Frequency_fault"),         /* 5 */
-//         _("Inverter_Frequency_fault"),      /* 6 */
+//         _("Battery_UV_Primary_Fault"),      /* 6 */
 //         _("utility_line_failure"),          /* 7 */
 //         _("battery_current_limit_fault"),   /* 8 */
 //         _("Battery_OV_limit_fault"),        /* 9 */

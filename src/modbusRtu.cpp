@@ -40,7 +40,7 @@ ups_modbus_data_t upsModbusData = {
   .output_current_rms=0,           // 28
   .conv_Frequency=0,               // 29
   .inv_Frequency=0,                // 30
-  .bypass_Frequency=0,             // 31
+  .output_Frequency=0,             // 31
   .battery_capacity=0,             // 32
   .load_percentage=0,              // 33
   .inv_internal_Temperature=0,     // 34
@@ -138,7 +138,7 @@ void syncUpsCoilStatusToUpsdata()
   upsModbusData.upsOperationFault.Bit.input_under_voltage_fault = _CoilData[index++] ? 1 : 0;
   upsModbusData.upsOperationFault.Bit.input_over_voltage_fault = _CoilData[index++] ? 1 : 0;
   upsModbusData.upsOperationFault.Bit.Input_Frequency_fault = _CoilData[index++] ? 1 : 0;
-  upsModbusData.upsOperationFault.Bit.Inverter_Frequency_fault = _CoilData[index++] ? 1 : 0;
+  upsModbusData.upsOperationFault.Bit.Battery_UV_Primary_Fault = _CoilData[index++] ? 1 : 0;
   upsModbusData.upsOperationFault.Bit.utility_line_failure = _CoilData[index++] ? 1 : 0;
   upsModbusData.upsOperationFault.Bit.battery_current_limit = _CoilData[index++] ? 1 : 0;
   upsModbusData.upsOperationFault.Bit.Battery_OV_limit_fault = _CoilData[index++] ? 1 : 0;
@@ -200,7 +200,7 @@ void UpsdataTosyncUpsCoilStatus()
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.input_under_voltage_fault;
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.input_over_voltage_fault;
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.Input_Frequency_fault;
-  _CoilData[index++] = upsModbusData.upsOperationFault.Bit.Inverter_Frequency_fault;
+  _CoilData[index++] = upsModbusData.upsOperationFault.Bit.Battery_UV_Primary_Fault;
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.utility_line_failure;
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.battery_current_limit;
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.Battery_OV_limit_fault;
