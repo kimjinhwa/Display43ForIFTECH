@@ -375,7 +375,9 @@ int checkValidation()
   			//EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemEEPRom));
 			break;
 		case BRIGHTNESSCONSTRAIN_:
-			nvsSystemEEPRom.lcdBright = inputData ; 
+			if(inputData < 80) inputData = 80;
+			if(inputData > 255) inputData = 255;
+			nvsSystemEEPRom.lcdBright = inputData ; // 최소값 80을 적용
 			EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
 			EEPROM.commit();
 			break;

@@ -1,4 +1,5 @@
-#define VERSION "2.3.5"  // bypass frequency -> output frequency 로 변경 
+#define VERSION "2.3.6"  // lcd 밝기 최소값을 80으로 변경 
+//#define VERSION "2.3.5"  // bypass frequency -> output frequency 로 변경 
 //#define VERSION "2.3.4"  // 입력값 즉시 반영하게 함  
 //#define VERSION "2.3.3"  // ui_SettingScreen 에서 통신을 중단하고 화면 데이타를 유지하도록 한다. 
 //#define VERSION "2.3.2"  // change language -> always restart

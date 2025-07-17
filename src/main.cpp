@@ -196,8 +196,8 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
         touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
         data->point.x = touch_last_x;
         data->point.y = touch_last_y;
-        long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
-        ledcWrite(0, brightness < 80 ? 80 : brightness);
+        // long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
+        // ledcWrite(0, brightness < 80 ? 80 : brightness);
         lcdOntime = 0;
         //ESP_LOGI("TOUCH", "Data (x,y,z)(%d,%d,%d)", data->point.x, data->point.y, p.z);
       }
@@ -721,7 +721,8 @@ void setup()
 
   ledcSetup(0, 300, 8);
   ledcAttachPin(TFT_BL, 0);
-
+  if(nvsSystemEEPRom.lcdBright < 80) nvsSystemEEPRom.lcdBright = 80;
+  if(nvsSystemEEPRom.lcdBright > 255) nvsSystemEEPRom.lcdBright = 255;
   uint16_t brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
   ledcWrite(0, brightness);
 
