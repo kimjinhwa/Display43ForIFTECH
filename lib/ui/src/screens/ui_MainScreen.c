@@ -499,7 +499,7 @@ void ui_MainScreen_screen_init(void)
 
     ui_Panel22 = lv_obj_create(ui_Container1);
     lv_obj_set_height(ui_Panel22, lv_pct(100));
-    lv_obj_set_flex_grow(ui_Panel22, 4);
+    lv_obj_set_flex_grow(ui_Panel22, 1);
     lv_obj_set_x(ui_Panel22, -181);
     lv_obj_set_y(ui_Panel22, 97);
     lv_obj_set_align(ui_Panel22, LV_ALIGN_CENTER);
@@ -554,7 +554,7 @@ void ui_MainScreen_screen_init(void)
 
     ui_Panel23 = lv_obj_create(ui_Container1);
     lv_obj_set_height(ui_Panel23, lv_pct(100));
-    lv_obj_set_flex_grow(ui_Panel23, 4);
+    lv_obj_set_flex_grow(ui_Panel23, 1);
     lv_obj_set_x(ui_Panel23, -63);
     lv_obj_set_y(ui_Panel23, 98);
     lv_obj_set_align(ui_Panel23, LV_ALIGN_CENTER);
@@ -604,7 +604,7 @@ void ui_MainScreen_screen_init(void)
 
     ui_Panel24 = lv_obj_create(ui_Container1);
     lv_obj_set_height(ui_Panel24, lv_pct(100));
-    lv_obj_set_flex_grow(ui_Panel24, 4);
+    lv_obj_set_flex_grow(ui_Panel24, 1);
     lv_obj_set_x(ui_Panel24, 56);
     lv_obj_set_y(ui_Panel24, 97);
     lv_obj_set_align(ui_Panel24, LV_ALIGN_CENTER);
@@ -664,7 +664,7 @@ void ui_MainScreen_screen_init(void)
 
     ui_Panel4 = lv_obj_create(ui_Container1);
     lv_obj_set_height(ui_Panel4, lv_pct(100));
-    lv_obj_set_flex_grow(ui_Panel4, 4);
+    lv_obj_set_flex_grow(ui_Panel4, 1);
     lv_obj_set_x(ui_Panel4, 175);
     lv_obj_set_y(ui_Panel4, 97);
     lv_obj_set_align(ui_Panel4, LV_ALIGN_CENTER);

@@ -24,13 +24,13 @@ Inverter_Stop_by_Fault_Event : 이상발생 인버터 정지
 Transfer_to_Inverter_Event : 인버터로 절환
 Transfer_to_Bypass_by_Com_Event : 바이패스 절환
 Transfer_to_Bypass_by_fault_Event : 이상발생 바이패스 절환
-Input_OC : 입력 과전류       
+Input_OC : 입력 과전류 이상       
 Inverter_Over_Current_fault : 인버터 과전류 이상
 DC_Link_OV_fault : 직류링크 과전압 이상    
 Converter_GDU_fault : 충전기 GDU 이상
 Inverter_GDU_fault : 인버터 GDU 이상
 DC_DC_GDU_fault : DC/DC GDU 이상
-Common_GDU_fault : N상 게이트 이상          
+Common_GDU_fault : N상 GDU 이상          
 Battery_Fuse_fault : 배터리 퓨즈 이상
 Module_OT : 모듈 과온
 EEPROM_ERR : 메모리 이상
