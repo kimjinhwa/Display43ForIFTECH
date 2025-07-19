@@ -1,4 +1,5 @@
-#define VERSION "2.4.0"  // 터치 캘리브레이션 기능 추가 
+#define VERSION "2.4.1"  // 터치 캘리브레이션 기능 추가 .....
+//#define VERSION "2.4.0"  // 터치 캘리브레이션 기능 추가 
 //#define VERSION "2.3.7"  // 입력 과전류 -> 입력 과전류 이상, N상 게이트 -> N상 게이트 이상 
 //#define VERSION "2.3.6"  // lcd 밝기 최소값을 80으로 변경 
 //#define VERSION "2.3.5"  // bypass frequency -> output frequency 로 변경 
