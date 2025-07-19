@@ -192,14 +192,14 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
         //     /*Set the coordinates*/
         // ts.readData(&x, &y, &z);
         TS_Point p = ts.getPoint();
-        touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, gfx->width() - 1);
-        touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
-        data->point.x = touch_last_x;
-        data->point.y = touch_last_y;
+        //touch_last_x = map(p.x, TOUCH_MAP_X1, TOUCH_MAP_X2, 0, gfx->width() - 1);
+        //touch_last_y = map(p.y, TOUCH_MAP_Y1, TOUCH_MAP_Y2, 0, gfx->height() - 1);
+        data->point.x = touch_last_x = p.x;
+        data->point.y = touch_last_y = p.y;
         // long brightness = map(nvsSystemEEPRom.lcdBright, 0, 255, 0, 255);
         // ledcWrite(0, brightness < 80 ? 80 : brightness);
         lcdOntime = 0;
-        //ESP_LOGI("TOUCH", "Data (x,y,z)(%d,%d,%d)", data->point.x, data->point.y, p.z);
+        ESP_LOGI("TOUCH", "Data (x,y,z)(%d,%d,%d)", data->point.x, data->point.y, p.z);
       }
     }
     else if (touch_released())
@@ -697,6 +697,48 @@ void initialEEPROM()
   }
   EEPROM.readBytes(1, (byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
 }
+#include "lv_tc.h"
+#include "lv_tc_screen.h"
+#include "esp_nvs_tc.h"
+void calibrationTouchFinish_cb(lv_event_t *e)
+{
+  //lv_obj_t *tCScreen = lv_event_get_target(e);
+  //lv_tc_coeff_t *coeff = lv_tc_get_coeff();
+  lv_disp_load_scr(ui_MainScreen);
+  ESP_LOGI("TOUCH", "calibrationTouchFinish_cb");
+}
+void calibrationTouchInit()
+{
+  bool is_initNvs = esp_nvs_tc_coeff_init();
+  ESP_LOGI("TOUCH", "esp_nvs_tc_coeff_init %d", is_initNvs);
+  static lv_indev_drv_t indev_drv;
+  indev_drv.type = LV_INDEV_TYPE_POINTER;
+  indev_drv.read_cb = my_touchpad_read;
+  ESP_LOGI("TOUCH", "calib  Init");
+  lv_tc_indev_drv_init(&indev_drv, my_touchpad_read);
+  ESP_LOGI("TOUCH", "lv_tc_indev_drv_init");
+  lv_indev_drv_register(&indev_drv);
+  ESP_LOGI("TOUCH", "lv_indev_drv_register");
+  bool is_valid = esp_nvs_tc_is_valid_cb();
+  ESP_LOGI("TOUCH", "esp_nvs_tc_is_valid_cb %d", is_valid);
+
+  ESP_LOGI("TOUCH", "esp_nvs_tc_coeff_init");
+  lv_tc_register_coeff_save_cb(esp_nvs_tc_coeff_save_cb);
+  ESP_LOGI("TOUCH", "lv_tc_register_coeff_save_cb");
+  lv_obj_t *tCScreen = lv_tc_screen_create();
+  ESP_LOGI("TOUCH", "lv_tc_screen_create");
+  lv_obj_add_event_cb(tCScreen, calibrationTouchFinish_cb, LV_EVENT_READY, NULL);
+  if(esp_nvs_tc_is_valid_cb())
+  {
+    ESP_LOGI("TOUCH", "esp_nvs_tc_is_valid_cb");
+    return;
+    //lv_disp_load_scr(ui_MainScreen);
+  }
+  ESP_LOGI("TOUCH", "lv_disp_load_scr");
+  lv_disp_load_scr(tCScreen);
+  ESP_LOGI("TOUCH", "lv_tc_screen_start");
+  lv_tc_screen_start(tCScreen);
+}
 void setup()
 {
   Serial.begin(BAUDRATEDEF);
@@ -842,6 +884,8 @@ void setup()
     indev_drv.read_cb = my_touchpad_read;
 
     lv_indev_drv_register(&indev_drv);
+    // 터치 캘리브레이션을 위한 드라이버 초기화
+
 
     // lv_i18n_set_locale("ko-KR");
     // lv_i18n_set_locale("en-GB");
@@ -869,7 +913,7 @@ void setup()
 
     /* System setting screen*/
     setTimeText();
-
+    calibrationTouchInit();
   }
   // Modbus는 내부적으로 task를 사용하고 있다.
   xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask, 0);  
@@ -913,10 +957,14 @@ void loop()
   #ifndef DONOTUSECOMM
   if(modbusErrorCounter>2)
   {
-    ESP_LOGW("MODBUS", "%d Error %s count %d",millis(),_("Comm_Error"),modbusErrorCounter);
-    showMessageLabel(_("Comm_Error"));
+    if (modbusErrorCounter % 5 == 0)
+    {
+      ESP_LOGW("MODBUS", "%d Error %s count %d", millis(), _("Comm_Error"), modbusErrorCounter);
+      showMessageLabel(_("Comm_Error"));
+      vTaskDelay(10);
+    }
   }
-  #endif
+#endif
   isGetSetEventData();
   if ((now - previous300mills > every300ms))
   {
@@ -958,6 +1006,8 @@ void loop()
           ui_init();
           pressedResetButton =0;
           ESP_LOGI("IO","Now On file format...Do not Turn Off system");
+          esp_nvs_tc_reset_cb();
+          esp_restart();
         }
       }
     }
