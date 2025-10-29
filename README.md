@@ -1,4 +1,11 @@
 # 아이에프텍 UPS용 4.3" 펌웨어 
+## 펌웨어를 업그레이드 하기 위한 순서. 
+  * VSCODE를 이영하여 폴더를 연다. 
+  C:\DevWork\pythonWork\udpBroadCast 
+  * 이곳에 버전이 업그레드된 내용을 수정하고 version.json과 
+    bin 파일을 복사해 넣는다. 
+    C:\DevWork\pythonWork\udpBroadCast\dist\ups1p1p 
+  * 이곳에서 git commit -am " .... 을 실행한다.
 ## Board V2.0
 - P2의 IO19번은 라인컷팅을 한다.
 ## 쪽 보드 디버깅

@@ -313,6 +313,14 @@ void btnEventStopUps(lv_event_t * e)
 }
 
 
+/*
+	SYSTEMYEAR= 60,
+	SYSTEMMONTH= 61,
+	SYSTEMDAY= 62,
+	SYSTEMHOUR= 63,
+	SYSTEMMINUTE= 64,
+	SYSTEMSECOND =65 
+*/
 int checkValidation()
 {
 	uint32_t *p; 
@@ -332,21 +340,24 @@ int checkValidation()
 		// if (String(lv_textarea_get_text(ui_txtInputArea)).length() > 0)
 		uint16_t inputData = String(lv_textarea_get_text(ui_txtInputArea)).toInt();
 		ESP_LOGW("EVENT", "User id %d value %d  %d - %d", inputTextId, inputData, lowValue, highValue);
-		// if (inputData < lowValue || inputData > highValue)
-		// {
-		// 	String str;
-		// 	str = "입력범위(";
-		// 	str += lowValue;
-		// 	str += "-";
-		// 	str += highValue;
-		// 	str += ")";
-		// 	if (inputData < lowValue)
-		// 		lv_textarea_set_text(ui_txtInputArea, String(lowValue).c_str());
-		// 	if (inputData > highValue)
-		// 		lv_textarea_set_text(ui_txtInputArea, String(highValue).c_str());
-		// 	showMessageLabel(str.c_str());
-		// 	return 0;
-		// }
+		if(inputTextId == SYSTEMYEAR || inputTextId == SYSTEMMONTH || inputTextId == SYSTEMDAY || inputTextId == SYSTEMHOUR || inputTextId == SYSTEMMINUTE || inputTextId == SYSTEMSECOND)
+		{
+			if (inputData < lowValue || inputData > highValue)
+			{
+				String str;
+				str = "입력범위(";
+				str += lowValue;
+				str += "-";
+				str += highValue;
+				str += ")";
+				if (inputData < lowValue)
+					lv_textarea_set_text(ui_txtInputArea, String(lowValue).c_str());
+				if (inputData > highValue)
+					lv_textarea_set_text(ui_txtInputArea, String(highValue).c_str());
+				showMessageLabel(str.c_str());
+				return 0;
+			}
+		}
 		switch (inputTextId)
 		{
 		case BATCURR_REF:
