@@ -8,6 +8,8 @@
 #include "lv_i18n.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#include "myBlueTooth.h"
 #ifdef MODBUSSERVER
 #include <ModbusServerRTU.h>
 #else
@@ -785,6 +787,7 @@ int modbusEventSendLoop(int token)
     MB.setTimeout(10000);
     int token = WriteHoldRegistor(modbusCommand.index,modbusCommand.value,modbusCommand.token);
     ESP_LOGW("MODBUS","modbusCommand received token %d",token);
+    mySerialBT.printf("\r\nF10 Done %d %d \r\n",modbusCommand.index,modbusCommand.value);
 		if (token == 0)
 			showMessageLabel(_("Comm_Error"));
     tokenLoopCount=0;

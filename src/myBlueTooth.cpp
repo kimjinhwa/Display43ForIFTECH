@@ -11,6 +11,9 @@ BLECharacteristic * pTxCharacteristic;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint8_t txValue = 0;
+
+myBlueToothStream mySerialBT;
+
 void MyServerCallbacks::onConnect(BLEServer* pServer) {
       deviceConnected = true;
 };
@@ -150,7 +153,7 @@ void bleSetup(){
   pServer->getAdvertising()->start();
   Serial.println("Waiting a client connection to notify...");
 }
-myBlueToothStream mySerialBT;
+
 void bleCheck()
 {
   String cmd;

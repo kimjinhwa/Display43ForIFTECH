@@ -17,7 +17,6 @@ IPAddress subnetmask(255, 255, 255, 0);
 IPAddress dns1(164, 124, 101, 2);
 IPAddress dns2(8, 8, 8, 8);
 extern Arduino_RPi_DPI_RGBPanel *gfx ;
-extern myBlueToothStream mySerialBT;
 void wifiOTAsetup(bool isUpdate)
 {
   WiFi.mode(WIFI_STA);

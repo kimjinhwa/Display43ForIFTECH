@@ -19,7 +19,6 @@
 #include "../../../src/myBlueTooth.h"
 #include "../../../src/esp32SelfUploder.h"
 
-extern myBlueToothStream mySerialBT;
 LittleFileSystem lsFile;
 SimpleCLI simpleCli;
 static char TAG[] ="CLI" ;

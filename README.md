@@ -6,6 +6,9 @@
     bin 파일을 복사해 넣는다. 
     C:\DevWork\pythonWork\udpBroadCast\dist\ups1p1p 
   * 이곳에서 git commit -am " .... 을 실행한다.
+  * 혹은 setAutoUpdateVersion.ps 스크립트파일을 이용한다.
+## debuging Monitering tool
+   C:\DevWork\pythonWork\modBusRtuMaster\RtuForCellModule\dist
 ## Board V2.0
 - P2의 IO19번은 라인컷팅을 한다.
 ## 쪽 보드 디버깅

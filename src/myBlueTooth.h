@@ -36,4 +36,5 @@ class myBlueToothStream : public Stream {
     String readString();
     size_t printf(const char *format, ...);
 };
+extern myBlueToothStream mySerialBT;
 #endif

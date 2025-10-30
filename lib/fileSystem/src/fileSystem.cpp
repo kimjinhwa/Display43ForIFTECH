@@ -21,7 +21,6 @@
 #define EOS '\0'
 
 
-extern myBlueToothStream mySerialBT;
 LittleFileSystem::LittleFileSystem(){
         outputStream = &Serial;
 }
