@@ -25,17 +25,16 @@ void wifiOTAsetup(bool isUpdate)
 
   WiFi.begin(nvsSystemEEPRom.ssid, nvsSystemEEPRom.password);
   Serial.println("");
-  mySerialBT.println("");
   // Wait for connection
   //Loop count
-  int loopCount=5;
-  gfx->fillScreen(BLACK); delay(100);
+  int loopCount=20;
+  gfx->fillScreen(BLACK); 
+  delay(100);
   gfx->setCursor(0, 10);
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
-    mySerialBT.print(".");
     gfx->println(".");
     loopCount--;
     if(loopCount <= 0)break;
@@ -44,26 +43,20 @@ void wifiOTAsetup(bool isUpdate)
   Serial.println("");
   gfx->println("");
   Serial.print("Connected to ");
-  mySerialBT.print("Connected to ");
   gfx->println("Connected to ");
   Serial.println(nvsSystemEEPRom.ssid);
-  mySerialBT.println(nvsSystemEEPRom.ssid);
   gfx->println(nvsSystemEEPRom.ssid);
   Serial.print("IP address: ");
-  mySerialBT.print("IP address: ");
   gfx->println("IP address: ");
   Serial.println(WiFi.localIP());
-  mySerialBT.println(WiFi.localIP());
   gfx->println(WiFi.localIP());
   if(!isUpdate) return;
   selfUploder.begin(nvsSystemEEPRom.ssid, nvsSystemEEPRom.password, "https://raw.githubusercontent.com/kimjinhwa/IP-Fineder-For-ESP32/main/dist/ups1p1p");
   Serial.printf("Free heap before SSL: %d\n", ESP.getFreeHeap());
-  mySerialBT.printf("Free heap before SSL: %d\n", ESP.getFreeHeap());
   if(selfUploder.checkNewVersion(selfUploder.update_url)){
     if (selfUploder.tryAutoUpdate(selfUploder.updateFile_url.c_str()))
     {
       Serial.println("Update success");
-      mySerialBT.println("Update success");
       gfx->println("Update success");
       delay(2000);
       ESP.restart();
@@ -71,7 +64,6 @@ void wifiOTAsetup(bool isUpdate)
     else
     {
       Serial.println("Update failed");
-      mySerialBT.println("Update failed");
       gfx->println("Update failed");
       delay(2000);
     }
@@ -79,7 +71,6 @@ void wifiOTAsetup(bool isUpdate)
   else
   {
     Serial.println("Already on latest version");
-    mySerialBT.println("Already on latest version");
     gfx->println("Already on latest version");
   }
 }

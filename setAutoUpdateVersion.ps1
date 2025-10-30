@@ -22,7 +22,10 @@ if ($content -match '#define VERSION "(.*?)"\s*//\s*(.*)')
         
         # Update version
         $jsonContent.latest = $version
-        $jsonContent | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding utf8
+        
+        # Create properly formatted JSON (without extra spaces after colons)
+        $jsonString = "{`n    `"latest`": `"$version`",`n    `"filename`": `"$($jsonContent.filename)`"`n}"
+        $jsonString | Set-Content $jsonPath -Encoding utf8 -NoNewline
         
         Write-Host "version.json updated to: $version" -ForegroundColor Green
     } else {

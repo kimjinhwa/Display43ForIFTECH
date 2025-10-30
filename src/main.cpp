@@ -61,7 +61,6 @@
 //#define ONLINE_COLOR 0xFF00000 /* RED */
 //#define OFFLINE_COLOR 0xFFFFFF  // WHITE
 // #define BRIGHT 80
-// SimpleBLE mySerialBT;
 TaskHandle_t *h_pxsystemControllTask;
 
 ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
@@ -746,9 +745,6 @@ void setup()
   pinMode(BUZZER, OUTPUT);
   pinMode(BUTTON_ERASE , INPUT);
   digitalWrite(BUZZER, LOW);
-  // mySerialBT.begin("UPS1P1P_BLE");
-  // nvsSystemEEPRom.BAUDRATE = 9600;
-  //  while (!Serial);
   nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
 
   // Init Display

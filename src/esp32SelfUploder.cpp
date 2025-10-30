@@ -268,9 +268,45 @@ bool ESP32SelfUploder::checkNewVersion(const char* update_url) {
 
         Serial.println("Received JSON:");
         Serial.println(payload);
+        Serial.printf("Payload length: %d\n", payload.length());
+        
+        // 모든 바이트를 16진수로 출력 (디버깅)
+        Serial.print("Hex dump: ");
+        int dumpLength = (payload.length() < 100) ? payload.length() : 100;
+        for (int i = 0; i < dumpLength; i++) {
+            Serial.printf("%02X ", (uint8_t)payload[i]);
+        }
+        Serial.println();
+        
+        // BOM 체크 (첫 3바이트를 16진수로 출력)
+        if (payload.length() >= 3) {
+            Serial.printf("First 3 bytes (hex): %02X %02X %02X\n", 
+                         (uint8_t)payload[0], (uint8_t)payload[1], (uint8_t)payload[2]);
+        }
+        
+        // BOM 제거 (UTF-8 BOM: EF BB BF)
+        if (payload.length() >= 3 && 
+            (uint8_t)payload[0] == 0xEF && 
+            (uint8_t)payload[1] == 0xBB && 
+            (uint8_t)payload[2] == 0xBF) {
+            Serial.println("BOM detected, removing...");
+            payload = payload.substring(3);
+        }
+        
+        // 앞뒤 공백 제거
+        payload.trim();
+        
+        Serial.printf("After trim, length: %d\n", payload.length());
  
-        DynamicJsonDocument doc(1024);
+        // 더 큰 메모리 할당 시도
+        DynamicJsonDocument doc(2048);
+        
+        // 메모리 할당 확인
+        Serial.printf("Free heap before deserialize: %d\n", ESP.getFreeHeap());
+        
         DeserializationError error = deserializeJson(doc, payload);
+        
+        Serial.printf("DeserializationError code: %d\n", error.code());
         
         if (!error) {
             const char* latest_version = doc["latest"];
