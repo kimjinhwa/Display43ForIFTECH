@@ -1,4 +1,5 @@
-#define VERSION "2.4.4"  // PREV 버튼 한글 변경 
+#define VERSION "2.4.5"  // Touch Calibration 초기화 기능 추가 
+//#define VERSION "2.4.4"  // PREV 버튼 한글 변경 
 //#define VERSION "2.4.3"  // PREV 버튼 한글 변경 
 //#define VERSION "2.4.2"  // 년.월.일 정보 입력에 제한을 준다. 
 //#define VERSION "2.4.1"  // 터치 캘리브레이션 기능 추가 .....

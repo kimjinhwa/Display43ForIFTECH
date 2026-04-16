@@ -789,8 +789,8 @@ void setup()
   lsFile.setOutputStream(&Serial);
 
   upslogEvent.getFileSize();
-
-  //모드버스를 위한 serial2 포트를 초기화 한다
+//모드버스를 위한 serial2 포트를 초기화 한다
+  Serial.println("Setup done");
   Serial.println("Setup done");
   pinMode(SERIAL_TX2 , OUTPUT);
   pinMode(SERIAL_RX2 , INPUT);
@@ -997,6 +997,7 @@ void loop()
           //upsLog upslogEvent("/spiffs/eventLog.hex", EVENT_TYPE);
           upslogEvent.init();
           ui_init();
+          esp_nvs_tc_reset_cb();
           pressedResetButton =0;
           ESP_LOGI("IO","Now On file format...Do not Turn Off system");
           esp_nvs_tc_reset_cb();
