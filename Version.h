@@ -1,4 +1,7 @@
-#define VERSION "2.4.5"  // Touch Calibration 초기화 기능 추가 
+#define VERSION "2.4.6"  // 시간설정에 오류가 있었다. 
+// outmode를 설정해 놓았어야 했는데 , 터치에서 이것이 터치 초기화에서 input로 바뀐다. 
+// main에서 이것을 찾아주고, 티치에서 인터럽트 부분을 삭제한다. 
+//#define VERSION "2.4.5"  // Touch Calibration 초기화 기능 추가 
 //#define VERSION "2.4.4"  // PREV 버튼 한글 변경 
 //#define VERSION "2.4.3"  // PREV 버튼 한글 변경 
 //#define VERSION "2.4.2"  // 년.월.일 정보 입력에 제한을 준다. 

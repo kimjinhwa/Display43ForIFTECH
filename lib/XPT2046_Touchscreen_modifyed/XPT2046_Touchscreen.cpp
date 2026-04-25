@@ -48,11 +48,11 @@ bool XPT2046_Touchscreen::begin(SPIClass &wspi)
 	_pspi->begin();
 	pinMode(csPin, OUTPUT);
 	digitalWrite(csPin, HIGH);
-	if (255 != tirqPin) {
-		pinMode( tirqPin, INPUT );
-		attachInterrupt(digitalPinToInterrupt(tirqPin), isrPin, FALLING);
-		isrPinptr = this;
-	}
+	// if (255 != tirqPin) {
+	// 	pinMode( tirqPin, INPUT );
+	// 	attachInterrupt(digitalPinToInterrupt(tirqPin), isrPin, FALLING);
+	// 	isrPinptr = this;
+	// }
 	return true;
 }
 

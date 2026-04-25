@@ -926,6 +926,8 @@ void setup()
   //     delay(200);
   //     Serial.println("buzzer test");
   // }
+  pinMode(RTCEN,OUTPUT);
+  digitalWrite(RTCEN,LOW);
 };
 static int interval = 1000;
 static unsigned long previous300mills = 0;

@@ -20,3 +20,4 @@ SquareLine/SquareLine_Project/libraries/lvgl/
 SquareLine/SquareLine_Project/libraries/TFT_eSPI/
 .gitignore
 doc/~$*
+doc/Display(4.3inch)/
