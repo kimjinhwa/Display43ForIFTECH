@@ -332,12 +332,9 @@ void setRtc()
   SPI.end();
   Rtc.Begin();
   myWire.begin();
-  RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
-  printf("\r\ncompiled time is %d/%d/%d %d:%d:%d\r\n", compiled.Year(), compiled.Month(), compiled.Day(), compiled.Hour(), compiled.Minute(), compiled.Second());
-  if (!Rtc.IsDateTimeValid() )
+  if (!Rtc.IsDateTimeValid())
   {
     printf("RTC lost confidence in the DateTime!\r\n");
-    Rtc.SetDateTime(compiled);
   }
   if (Rtc.GetIsWriteProtected())
   {
@@ -353,46 +350,29 @@ void setRtc()
   }
   else
     printf("RTC was actively status running \r\n");
-  if (!Rtc.GetIsRunning())
-  {
-    printf("RTC was not actively running, starting now\r\n");
-    Rtc.SetIsRunning(true);
-  }
-  else
-    printf("RTC was actively status running \r\n");
 
+  digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  vTaskDelay(50);
   RtcDateTime now = Rtc.GetDateTime();
   printf("\r\nnow time is %d/%d/%d %d:%d:%d\r\n", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second());
-  if (now < compiled)
-  {
-    printf("\r\nSet data with compiled time");
-    Rtc.SetDateTime(compiled);
-  }
-  else if (now > compiled)
-  {
-        Serial.println("RTC is newer than compile time. (this is expected)");
-  }
-  else if (now == compiled) 
-  {
-        Serial.println("RTC is the same as compile time! (not expected but all is fine)");
-  }
+  vTaskDelay(50);
+  digitalWrite(TOUCH_XPT2046_CS, LOW);
 
   struct timeval tmv;
   tmv.tv_sec = now.TotalSeconds();
   tmv.tv_usec = 0;
-  // time_t toUnixTime = now.Unix32Time();
-  // 시스템의 시간도 같이 맞추어 준다.
+  // RTC 시간을 시스템 시간으로 맞춘다.
   settimeofday(&tmv, NULL);
-  gettimeofday(&tmv, NULL);
-  now = RtcDateTime(tmv.tv_sec);
-  // now = tmv.tv_sec;
-  printf("\r\nset and reread time is %d/%d/%d %d:%d:%d\r\n", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second());
+  printf("\r\nset system time from RTC (%u)\r\n", (uint32_t)tmv.tv_sec);
 
   myWire.end();
   touch_init();
 }
 void setRtcNewTime(RtcDateTime rtc)
 {
+  constexpr uint8_t kRtcMaxRetries = 3;
+  constexpr uint32_t kRtcVerifyToleranceSec = 1;
+  const uint32_t requestedRtcSeconds = rtc.TotalSeconds();
   // digitalWrite(RTCEN , HIGH);
   //  SPI.end();
   //  Rtc.Begin();
@@ -400,9 +380,16 @@ void setRtcNewTime(RtcDateTime rtc)
   ts.penirqControl(0x93);
 
   digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  vTaskDelay(50);
   SPI.end();
+  vTaskDelay(10);
   myWire.begin();
   vTaskDelay(1);
+  if (Rtc.GetIsWriteProtected())
+  {
+    printf("RTC was write protected, enabling writing now\r\n");
+    Rtc.SetIsWriteProtected(false);
+  }
   if (!Rtc.GetIsRunning())
   {
     printf("RTC was not actively running, starting now\r\n");
@@ -410,8 +397,40 @@ void setRtcNewTime(RtcDateTime rtc)
   }
   else
     printf("RTC was actively status running \r\n");
-  Rtc.SetDateTime(rtc);
+  bool isRtcWriteVerified = false;
+  uint32_t readBackRtcSeconds = 0;
+  for (uint8_t attempt = 1; attempt <= kRtcMaxRetries; ++attempt)
+  {
+    Rtc.SetDateTime(rtc);
+    vTaskDelay(50);
+    rtc = Rtc.GetDateTime();
+    vTaskDelay(50);
+    readBackRtcSeconds = rtc.TotalSeconds();
+
+    uint32_t diffSec = (readBackRtcSeconds > requestedRtcSeconds)
+                           ? (readBackRtcSeconds - requestedRtcSeconds)
+                           : (requestedRtcSeconds - readBackRtcSeconds);
+
+    if (diffSec <= kRtcVerifyToleranceSec)
+    {
+      isRtcWriteVerified = true;
+      printf("\r\n[RTC][OK] write/read verified on try %u (requested=%u, readback=%u, diff=%u)\r\n",
+             attempt, requestedRtcSeconds, readBackRtcSeconds, diffSec);
+      break;
+    }
+
+    printf("\r\n[RTC][WARN] try %u mismatch (requested=%u, readback=%u, diff=%u)\r\n",
+           attempt, requestedRtcSeconds, readBackRtcSeconds, diffSec);
+  }
+
+  if (!isRtcWriteVerified)
+  {
+    printf("\r\n[RTC][WARN] write/read mismatch after %u tries. requested=%u, readback=%u\r\n",
+           kRtcMaxRetries, requestedRtcSeconds, readBackRtcSeconds);
+  }
   digitalWrite(TOUCH_XPT2046_CS, LOW);
+  // 다시 읽어 본다.
+  printf("\r\nnow time is %d/%d/%d %d:%d:%d\r\n", rtc.Year(), rtc.Month(), rtc.Day(), rtc.Hour(), rtc.Minute(), rtc.Second());
 
   struct timeval tmv;
   tmv.tv_sec = rtc.TotalSeconds();
@@ -954,7 +973,7 @@ void loop()
   {
     if (modbusErrorCounter % 5 == 0)
     {
-      ESP_LOGW("MODBUS", "%d Error %s count %d", millis(), _("Comm_Error"), modbusErrorCounter);
+      //ESP_LOGW("MODBUS", "%d Error %s count %d", millis(), _("Comm_Error"), modbusErrorCounter);
       showMessageLabel(_("Comm_Error"));
       vTaskDelay(10);
     }
