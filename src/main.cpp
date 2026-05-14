@@ -356,24 +356,23 @@ void my_touchpad_read_None(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 }
 void stopSpi(void)
 {
-  SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
-  SPI.endTransaction();
+  // SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
+  //SPI.endTransaction();
   SPI.end();
 
-  static lv_indev_drv_t indev_drv;
-  lv_indev_drv_init(&indev_drv);
-  indev_drv.type = LV_INDEV_TYPE_POINTER;
-  indev_drv.read_cb = my_touchpad_read_None;
-  lv_indev_drv_register(&indev_drv);
+  // static lv_indev_drv_t indev_drv;
+  // lv_indev_drv_init(&indev_drv);
+  // indev_drv.type = LV_INDEV_TYPE_POINTER;
+  // indev_drv.read_cb = my_touchpad_read_None;
+  // lv_indev_drv_register(&indev_drv);
   //lv_indev_drv_update(&indev_drv, &indev_drv);
   lv_indev_enable(NULL, false); 
   //lv_indev_enable(NULL, false);
 
-  digitalWrite(TOUCH_XPT2046_CS, HIGH); // 터치 칩 OFF
-  pinMode(TOUCH_XPT2046_SCK, INPUT);
-  //pinMode(TOUCH_XPT2046_CS, INPUT);
-  pinMode(TOUCH_XPT2046_MISO, INPUT);
-  pinMode(TOUCH_XPT2046_MOSI, INPUT);
+  // digitalWrite(TOUCH_XPT2046_CS, HIGH); // 터치 칩 OFF
+  // pinMode(TOUCH_XPT2046_SCK, INPUT);
+  // pinMode(TOUCH_XPT2046_MISO, INPUT);
+  // pinMode(TOUCH_XPT2046_MOSI, INPUT);
 }
 
 void setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
@@ -440,11 +439,11 @@ void setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
   vTaskDelay(5); /* RTC 3-wire 직후 SPI 재개 전 버스 안정 */
   digitalWrite(TOUCH_XPT2046_CS, LOW);
   
-  stopSpi();
-  static lv_indev_drv_t indev_drv;
-  lv_indev_drv_init(&indev_drv);
-  indev_drv.type = LV_INDEV_TYPE_POINTER;
-  indev_drv.read_cb = my_touchpad_read;
+  // stopSpi();
+  // static lv_indev_drv_t indev_drv;
+  // lv_indev_drv_init(&indev_drv);
+  // indev_drv.type = LV_INDEV_TYPE_POINTER;
+  // indev_drv.read_cb = my_touchpad_read;
   //lv_indev_drv_register(&indev_drv);
   //lv_indev_drv_update(&indev_drv, my_touchpad_read_None);
  lv_indev_enable(NULL, true); 
