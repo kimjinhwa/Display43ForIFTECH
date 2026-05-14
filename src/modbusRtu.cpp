@@ -86,7 +86,6 @@ ups_modbus_data_t upsModbusData = {
 
 };
 uint8_t _CoilData[16*4]; // converter status 16개, inverter fault status 16개
-void setRtcNewTime(RtcDateTime rtc);
 void scrMeasureLoad();
 void scrSettingScreen();
 
@@ -461,7 +460,7 @@ ModbusMessage FC06(ModbusMessage request)
     // tmv.tv_sec = now.TotalSeconds();
     // tmv.tv_usec = 0;
     // settimeofday(&tmv, NULL);
-    // setRtcNewTime(now);
+    // setRtc(true, &now);
   }
   if (writeAddress >= 66 && writeAddress < 84)  //Reserved
   {
@@ -824,6 +823,7 @@ int modbusEventSendLoop(int token)
   }
   else{
     modbusErrorCounter++;
+    if(modbusErrorCounter % 10 == 1)
     ESP_LOGW("MODBUS", "Comm Error count %d",modbusErrorCounter);
     return 0;
   }

@@ -1,4 +1,5 @@
-#define VERSION "2.4.7"  // Modbus에서 RTC 시간을 설정하는 부분을 주석처리한다.
+#define VERSION "2.4.8"  // RTC 시간을 설정 ..드디어 잡음.
+//#define VERSION "2.4.7"  // Modbus에서 RTC 시간을 설정하는 부분을 주석처리한다.
 //#define VERSION "2.4.6"  // 시간설정에 오류가 있었다. 
 // outmode를 설정해 놓았어야 했는데 , 터치에서 이것이 터치 초기화에서 input로 바뀐다. 
 // main에서 이것을 찾아주고, 티치에서 인터럽트 부분을 삭제한다. 

@@ -3,6 +3,7 @@
 #include <Arduino_GFX_Library.h>
 #include <TFT_eSPI.h>
 #include <RtcDS1302.h>
+#include "esp32-hal-gpio.h"
 #include "mainGrobal.h"
 #include "myBlueTooth.h"
 #include "fileSystem.h"
@@ -22,6 +23,7 @@
 #include "main.h"
 #include "wifiOTA.h"
 #include "lv_i18n.h"
+#include "freertos/semphr.h"
 #define WDT_TIMEOUT 60 
 #define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
 #define TFT_BL 2
@@ -63,8 +65,6 @@
 // #define BRIGHT 80
 TaskHandle_t *h_pxsystemControllTask;
 
-ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
-RtcDS1302<ThreeWire> Rtc(myWire);
 // LittleFileSystem lsFile;
 
 nvsSystemSet_t nvsSystemEEPRom;
@@ -81,6 +81,17 @@ uint16_t lcdOntime = 0;
 int16_t minDisMessageTime = 1;
 // #define DISPLAY_7
 static char TAG[] = "main";
+
+/** DS1302(ThreeWire)와 XPT2046(SPI)가 GPIO 11·12 등을 공유 — RTC 구간에서는 터치 읽기 금지 */
+static SemaphoreHandle_t s_rtcTouchSpiMux;
+
+static void rtcTouchSpiMuxEnsureInit(void)
+{
+  if (s_rtcTouchSpiMux == nullptr)
+  {
+    s_rtcTouchSpiMux = xSemaphoreCreateMutex();
+  }
+}
 
 extern LittleFileSystem lsFile;
 extern jobCommant_t systemControllJob;
@@ -177,6 +188,13 @@ void touchTest(int loopCount)
 }
 void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 {
+  rtcTouchSpiMuxEnsureInit();
+  if (xSemaphoreTake(s_rtcTouchSpiMux, 0) != pdTRUE)
+  {
+    data->state = LV_INDEV_STATE_REL;
+    return;
+  }
+
   uint16_t x, y;
   uint8_t z;
   if (touch_has_signal())
@@ -209,7 +227,9 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
   {
     data->state = LV_INDEV_STATE_REL;
   }
-};
+
+  xSemaphoreGive(s_rtcTouchSpiMux);
+}
 
 void setMemoryDataToLCD()
 {
@@ -327,123 +347,111 @@ void touchCalibrationInit()
   gfx->setTextSize(2);
   gfx->setRotation(0);
 }
-void setRtc()
+
+/* 터치 FSPI: begin 한 뒤 end로 드라이버를 내리고, CS/SCK/MISO/MOSI를 INPUT으로 두어
+ * SPI 하드가 꺼진 상태(다시 통신하려면 touch_init 등에서 SPI.begin 필요)로 만든다. */
+void my_touchpad_read_None(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 {
+  return ;
+}
+void stopSpi(void)
+{
+  SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
+  SPI.endTransaction();
   SPI.end();
-  Rtc.Begin();
-  myWire.begin();
-  if (!Rtc.IsDateTimeValid())
+
+  static lv_indev_drv_t indev_drv;
+  lv_indev_drv_init(&indev_drv);
+  indev_drv.type = LV_INDEV_TYPE_POINTER;
+  indev_drv.read_cb = my_touchpad_read_None;
+  lv_indev_drv_register(&indev_drv);
+  //lv_indev_drv_update(&indev_drv, &indev_drv);
+  lv_indev_enable(NULL, false); 
+  //lv_indev_enable(NULL, false);
+
+  digitalWrite(TOUCH_XPT2046_CS, HIGH); // 터치 칩 OFF
+  pinMode(TOUCH_XPT2046_SCK, INPUT);
+  //pinMode(TOUCH_XPT2046_CS, INPUT);
+  pinMode(TOUCH_XPT2046_MISO, INPUT);
+  pinMode(TOUCH_XPT2046_MOSI, INPUT);
+}
+
+void setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
+{
+  rtcTouchSpiMuxEnsureInit();
+  if (xSemaphoreTake(s_rtcTouchSpiMux, portMAX_DELAY) != pdTRUE)
   {
+    return;
+  }
+
+  ts.penirqControl(0x93);               // 무력화
+  digitalWrite(RTCEN, LOW);             // RTC HIGH ENABLE
+  stopSpi();
+  //lv_indev_enable(NULL, false);
+
+  ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
+  RtcDS1302<ThreeWire> Rtc(myWire);
+
+  digitalWrite(RTCEN, HIGH); // RTC HIGH ENABLE
+  vTaskDelay(100);
+  myWire.begin(); // 3wire 시작
+  Rtc.Begin();
+  if (!Rtc.IsDateTimeValid()) {
     printf("RTC lost confidence in the DateTime!\r\n");
   }
   if (Rtc.GetIsWriteProtected())
-  {
-    printf("RTC was write protected, enabling writing now\r\n");
-    Rtc.SetIsWriteProtected(false);
-  }
-  else
-    printf("RTC enabling writing \r\n");
-  if (!Rtc.GetIsRunning())
-  {
+    printf("RTC is write protected\r\n");
+  if (!Rtc.GetIsRunning()) {
     printf("RTC was not actively running, starting now\r\n");
     Rtc.SetIsRunning(true);
   }
-  else
-    printf("RTC was actively status running \r\n");
+  if (write) {
+    Rtc.SetDateTime(*newTime);
+  }
 
-  digitalWrite(TOUCH_XPT2046_CS, HIGH);
-  vTaskDelay(50);
   RtcDateTime now = Rtc.GetDateTime();
-  printf("\r\nnow time is %d/%d/%d %d:%d:%d\r\n", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second());
-  vTaskDelay(50);
-  digitalWrite(TOUCH_XPT2046_CS, LOW);
+  if (now.IsValid()) {
+    printf("\r\nnow RTC Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
+           (unsigned)now.Year(), (unsigned)now.Month(), (unsigned)now.Day(),
+           (unsigned)now.Hour(), (unsigned)now.Minute(), (unsigned)now.Second(),
+           (unsigned)now.TotalSeconds());
 
-  struct timeval tmv;
-  tmv.tv_sec = now.TotalSeconds();
-  tmv.tv_usec = 0;
-  // RTC 시간을 시스템 시간으로 맞춘다.
-  settimeofday(&tmv, NULL);
-  printf("\r\nset system time from RTC (%u)\r\n", (uint32_t)tmv.tv_sec);
-
-  myWire.end();
-  touch_init();
-}
-void setRtcNewTime(RtcDateTime rtc)
-{
-  constexpr uint8_t kRtcMaxRetries = 3;
-  constexpr uint32_t kRtcVerifyToleranceSec = 1;
-  const uint32_t requestedRtcSeconds = rtc.TotalSeconds();
-  // digitalWrite(RTCEN , HIGH);
-  //  SPI.end();
-  //  Rtc.Begin();
-
-  ts.penirqControl(0x93);
-
-  digitalWrite(TOUCH_XPT2046_CS, HIGH);
-  vTaskDelay(50);
-  SPI.end();
-  vTaskDelay(10);
-  myWire.begin();
-  vTaskDelay(1);
-  if (Rtc.GetIsWriteProtected())
-  {
-    printf("RTC was write protected, enabling writing now\r\n");
-    Rtc.SetIsWriteProtected(false);
-  }
-  if (!Rtc.GetIsRunning())
-  {
-    printf("RTC was not actively running, starting now\r\n");
-    Rtc.SetIsRunning(true);
-  }
-  else
-    printf("RTC was actively status running \r\n");
-  bool isRtcWriteVerified = false;
-  uint32_t readBackRtcSeconds = 0;
-  for (uint8_t attempt = 1; attempt <= kRtcMaxRetries; ++attempt)
-  {
-    Rtc.SetDateTime(rtc);
+    struct timeval tmv;
+    tmv.tv_sec = now.TotalSeconds();
+    tmv.tv_usec = 0;
+    settimeofday(&tmv, NULL);
+    gettimeofday(&tmv, NULL);
+    RtcDateTime systemRtc(tmv.tv_sec);
+    printf("\r\nnow sys Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
+           (unsigned)systemRtc.Year(), (unsigned)systemRtc.Month(),
+           (unsigned)systemRtc.Day(), (unsigned)systemRtc.Hour(),
+           (unsigned)systemRtc.Minute(), (unsigned)systemRtc.Second(),
+           (unsigned)systemRtc.TotalSeconds());
+  } else {
+    printf("\r\nnow RTC Time INVALID (raw %04u-%02u-%02u %02u:%02u:%02u "
+           "tot=%u) — skip settimeofday\r\n",
+           (unsigned)now.Year(), (unsigned)now.Month(), (unsigned)now.Day(),
+           (unsigned)now.Hour(), (unsigned)now.Minute(), (unsigned)now.Second(),
+           (unsigned)now.TotalSeconds());
     vTaskDelay(50);
-    rtc = Rtc.GetDateTime();
-    vTaskDelay(50);
-    readBackRtcSeconds = rtc.TotalSeconds();
-
-    uint32_t diffSec = (readBackRtcSeconds > requestedRtcSeconds)
-                           ? (readBackRtcSeconds - requestedRtcSeconds)
-                           : (requestedRtcSeconds - readBackRtcSeconds);
-
-    if (diffSec <= kRtcVerifyToleranceSec)
-    {
-      isRtcWriteVerified = true;
-      printf("\r\n[RTC][OK] write/read verified on try %u (requested=%u, readback=%u, diff=%u)\r\n",
-             attempt, requestedRtcSeconds, readBackRtcSeconds, diffSec);
-      break;
-    }
-
-    printf("\r\n[RTC][WARN] try %u mismatch (requested=%u, readback=%u, diff=%u)\r\n",
-           attempt, requestedRtcSeconds, readBackRtcSeconds, diffSec);
   }
-
-  if (!isRtcWriteVerified)
-  {
-    printf("\r\n[RTC][WARN] write/read mismatch after %u tries. requested=%u, readback=%u\r\n",
-           kRtcMaxRetries, requestedRtcSeconds, readBackRtcSeconds);
-  }
-  digitalWrite(TOUCH_XPT2046_CS, LOW);
-  // 다시 읽어 본다.
-  printf("\r\nnow time is %d/%d/%d %d:%d:%d\r\n", rtc.Year(), rtc.Month(), rtc.Day(), rtc.Hour(), rtc.Minute(), rtc.Second());
-
-  struct timeval tmv;
-  tmv.tv_sec = rtc.TotalSeconds();
-  tmv.tv_usec = 0;
-  // time_t toUnixTime = now.Unix32Time();
-  // 시스템의 시간도 같이 맞추어 준다.
-  settimeofday(&tmv, NULL);
-  gettimeofday(&tmv, NULL);
-  // myWire.end();
-  // SPI.begin(SCK,MISO,MOSI,RTCEN );
+  digitalWrite(RTCEN, LOW);
   myWire.end();
-  touch_init();
-  ts.penirqControl(0xD0);
+  vTaskDelay(5); /* RTC 3-wire 직후 SPI 재개 전 버스 안정 */
+  digitalWrite(TOUCH_XPT2046_CS, LOW);
+  
+  stopSpi();
+  static lv_indev_drv_t indev_drv;
+  lv_indev_drv_init(&indev_drv);
+  indev_drv.type = LV_INDEV_TYPE_POINTER;
+  indev_drv.read_cb = my_touchpad_read;
+  //lv_indev_drv_register(&indev_drv);
+  //lv_indev_drv_update(&indev_drv, my_touchpad_read_None);
+ lv_indev_enable(NULL, true); 
+ SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
+  //touch_init();
+  //lv_indev_enable(NULL, true);
+  xSemaphoreGive(s_rtcTouchSpiMux);
 }
 
 int16_t isEventLogChanged = 0;
@@ -726,23 +734,23 @@ void calibrationTouchFinish_cb(lv_event_t *e)
 void calibrationTouchInit()
 {
   bool is_initNvs = esp_nvs_tc_coeff_init();
-  ESP_LOGI("TOUCH", "esp_nvs_tc_coeff_init %d", is_initNvs);
+  //P_LOGI("TOUCH", "esp_nvs_tc_coeff_init %d", is_initNvs);
   static lv_indev_drv_t indev_drv;
   indev_drv.type = LV_INDEV_TYPE_POINTER;
   indev_drv.read_cb = my_touchpad_read;
-  ESP_LOGI("TOUCH", "calib  Init");
+  //P_LOGI("TOUCH", "calib  Init");
   lv_tc_indev_drv_init(&indev_drv, my_touchpad_read);
-  ESP_LOGI("TOUCH", "lv_tc_indev_drv_init");
+  //P_LOGI("TOUCH", "lv_tc_indev_drv_init");
   lv_indev_drv_register(&indev_drv);
-  ESP_LOGI("TOUCH", "lv_indev_drv_register");
+  //P_LOGI("TOUCH", "lv_indev_drv_register");
   bool is_valid = esp_nvs_tc_is_valid_cb();
-  ESP_LOGI("TOUCH", "esp_nvs_tc_is_valid_cb %d", is_valid);
+  //P_LOGI("TOUCH", "esp_nvs_tc_is_valid_cb %d", is_valid);
 
-  ESP_LOGI("TOUCH", "esp_nvs_tc_coeff_init");
+  //P_LOGI("TOUCH", "esp_nvs_tc_coeff_init");
   lv_tc_register_coeff_save_cb(esp_nvs_tc_coeff_save_cb);
-  ESP_LOGI("TOUCH", "lv_tc_register_coeff_save_cb");
+  //P_LOGI("TOUCH", "lv_tc_register_coeff_save_cb");
   lv_obj_t *tCScreen = lv_tc_screen_create();
-  ESP_LOGI("TOUCH", "lv_tc_screen_create");
+  //P_LOGI("TOUCH", "lv_tc_screen_create");
   lv_obj_add_event_cb(tCScreen, calibrationTouchFinish_cb, LV_EVENT_READY, NULL);
   if(esp_nvs_tc_is_valid_cb())
   {
@@ -750,7 +758,7 @@ void calibrationTouchInit()
     return;
     //lv_disp_load_scr(ui_MainScreen);
   }
-  ESP_LOGI("TOUCH", "lv_disp_load_scr");
+  //P_LOGI("TOUCH", "lv_disp_load_scr");
   lv_disp_load_scr(tCScreen);
   ESP_LOGI("TOUCH", "lv_tc_screen_start");
   lv_tc_screen_start(tCScreen);
@@ -817,10 +825,8 @@ void setup()
   Serial2.println("Serial 1 started");
   bleSetup();
   touch_init();
-  ts.penirqControl(0x93);
-  setRtc();
-  touch_init();
-  ts.penirqControl(0xD0);
+  setRtc(false, nullptr);
+  //ts.penirqControl(0xD0);
   modbusSetup();
   // GFXfont *f;
   // f->bitmap = (uint8_t *)&FreeSansBold12pt7bBitmaps;
@@ -951,6 +957,7 @@ void setup()
 static int interval = 1000;
 static unsigned long previous300mills = 0;
 static unsigned long previous1000mills = 0;
+static unsigned long previous10000mills = 0;
 static int everySecondInterval = 1000;
 static int every300ms = 300;
 
@@ -1035,6 +1042,15 @@ void loop()
       //_ui_screen_change(&ui_InitScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_InitScreen_screen_init); // lv_disp_load_scr( ui_InitScreen);
       _ui_screen_change(&ui_MainScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_MainScreen_screen_init);
       ledcWrite(0, 0);
+    }
+  }
+  if(now - previous10000mills > 3000)
+  {
+    previous10000mills = now;
+    /* 설정 화면: LVGL/터치가 SPI를 쓰는 동안 setRtc가 SPI.end·RTC 3-wire를 하면 칩 읽기·통신이 깨지기 쉬움 */
+    //if (lv_scr_act() != ui_SettingScreen)
+    {
+      setRtc(false, nullptr);
     }
   }
   lv_timer_handler(); /* let the GUI do its work */

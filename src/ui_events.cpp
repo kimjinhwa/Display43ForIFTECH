@@ -174,7 +174,26 @@ void evtMessageLblClick(lv_event_t * e){
 	lv_obj_add_flag(ui_lblMessage,LV_OBJ_FLAG_HIDDEN);
 	//_ui_flag_modify( ui_lblMessage, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 }
-void setRtcNewTime(RtcDateTime rtc);
+const char *timeSaveTypeName(TIMESAVE tType)
+{
+	switch (tType)
+	{
+	case S_YEAR:
+		return "YEAR";
+	case S_MONTH:
+		return "MONTH";
+	case S_DAY:
+		return "DAY";
+	case S_HOUR:
+		return "HOUR";
+	case S_MIN:
+		return "MINUTE";
+	case S_SEC:
+		return "SECOND";
+	default:
+		return "UNKNOWN";
+	}
+}
 void timeSave(TIMESAVE tType,int16_t value){
 	// timeval tmv;
 	tm nowTime;
@@ -208,10 +227,21 @@ void timeSave(TIMESAVE tType,int16_t value){
 		break;
 	}
 	RtcDateTime nowRtc = RtcDateTime(nowTime.tm_year,nowTime.tm_mon,nowTime.tm_mday,nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
+	if (!nowRtc.IsValid())
+	{
+		ESP_LOGE("Set Rtc", "UI time invalid (range/leap): %d-%d-%d %d:%d:%d — abort write",
+		         (int)nowTime.tm_year, (int)nowTime.tm_mon, (int)nowTime.tm_mday,
+		         (int)nowTime.tm_hour, (int)nowTime.tm_min, (int)nowTime.tm_sec);
+		return;
+	}
+	ESP_LOGI("Set Rtc","Field %s value %d -> UI %d-%d-%d %d:%d:%d",
+			timeSaveTypeName(tType), value,
+			nowTime.tm_year,nowTime.tm_mon,nowTime.tm_mday,
+			nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
  	ESP_LOGI("Set Rtc","Set Rtc %d-%d-%d %d:%d:%d",
 			nowTime.tm_year,nowTime.tm_mon,nowTime.tm_mday,
 			nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
-	setRtcNewTime(nowRtc );
+	setRtc(true, &nowRtc);
 }
 
 
