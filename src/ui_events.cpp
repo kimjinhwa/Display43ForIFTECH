@@ -244,6 +244,15 @@ void timeSave(TIMESAVE tType,int16_t value){
 	for(int i=0;i<10;i++){
 		RtcDateTime  newRtc = setRtc(true, &nowRtc);
 		newRtc = setRtc(false, &nowRtc);
+		uint32_t want = nowRtc.TotalSeconds();
+		uint32_t got  = newRtc.TotalSeconds();
+		int32_t diff = (int32_t)got - (int32_t)want;
+		ESP_LOGI("SET RTC","diff %d",diff);
+		if(diff == 0 || diff == 1 || diff == -1) {
+			ESP_LOGI("SET RTC","SET RTC SUCCESS diff %d",diff);
+			break;
+		}
+
 		ESP_LOGI("SET RTC","\r\nnewRtc RTC Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
 			(unsigned)newRtc.Year(), (unsigned)newRtc.Month(), (unsigned)newRtc.Day(),
 			(unsigned)newRtc.Hour(), (unsigned)newRtc.Minute(), (unsigned)newRtc.Second(),

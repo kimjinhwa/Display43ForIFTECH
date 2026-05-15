@@ -189,7 +189,7 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
     return;
   } 
   else{
-    Serial.print("*");
+    //Serial.print("*");
   }
   if (touch_has_signal())
   {
@@ -378,6 +378,42 @@ void startTouchSpi(void) {
   touch_init();
 }
 
+/** Burst read @p samples times; true if all valid and TotalSeconds span <= @p maxSpreadSec. */
+static bool readRtcBurstConsistent(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
+                                   int samples = 3, uint32_t maxSpreadSec = 1)
+{
+  if (samples < 2)
+    samples = 2;
+
+  RtcDateTime readings[5];
+  if (samples > (int)(sizeof(readings) / sizeof(readings[0])))
+    samples = (int)(sizeof(readings) / sizeof(readings[0]));
+
+  uint32_t minTot = UINT32_MAX;
+  uint32_t maxTot = 0;
+
+  for (int i = 0; i < samples; i++) {
+    readings[i] = rtc.GetDateTime();
+    if (!readings[i].IsValid())
+      return false;
+
+    uint32_t tot = readings[i].TotalSeconds();
+    if (tot < minTot)
+      minTot = tot;
+    if (tot > maxTot)
+      maxTot = tot;
+
+    if (i + 1 < samples)
+      vTaskDelay(pdMS_TO_TICKS(50));
+  }
+
+  if (maxTot - minTot > maxSpreadSec)
+    return false;
+
+  out = readings[samples - 1];
+  return true;
+}
+
 void initSetRtc(){
 
   ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
@@ -388,10 +424,7 @@ void initSetRtc(){
   myWire.begin(); // 3wire 시작
   Rtc.Begin();
   myWire.begin(); // 3wire 시작
-  RtcDateTime now = Rtc.GetDateTime();
-  if (!Rtc.IsDateTimeValid()) {
-    printf("RTC lost confidence in the DateTime!\r\n");
-  }
+
   if (Rtc.GetIsWriteProtected())
     printf("RTC is write protected\r\n");
   if (!Rtc.GetIsRunning()) {
@@ -399,7 +432,31 @@ void initSetRtc(){
     Rtc.SetIsRunning(true);
   }
 
+  RtcDateTime now;
+  bool rtcOk = false;
+  for (int attempt = 0; attempt < 5; attempt++) {
+    if (readRtcBurstConsistent(Rtc, now, 3, 1)) {
+      rtcOk = true;
+      break;
+    }
+    printf("RTC boot read inconsistent (attempt %d)\r\n", attempt);
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+
+  if (!rtcOk) {
+    now = Rtc.GetDateTime();
+    printf("RTC boot read fallback, IsValid=%d\r\n", (int)now.IsValid());
+  }
+
+  if (!Rtc.IsDateTimeValid())
+    printf("RTC lost confidence in the DateTime!\r\n");
+
   if (now.IsValid()) {
+    printf("\r\nnow RTC Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
+           (unsigned)now.Year(), (unsigned)now.Month(), (unsigned)now.Day(),
+           (unsigned)now.Hour(), (unsigned)now.Minute(), (unsigned)now.Second(),
+           (unsigned)now.TotalSeconds());
+
     struct timeval tmv;
     tmv.tv_sec = now.TotalSeconds();
     tmv.tv_usec = 0;
@@ -445,7 +502,14 @@ RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
     Rtc.SetIsRunning(true);
   }
   if (write) {
+    bool wasProtected = Rtc.GetIsWriteProtected();
+    if (wasProtected) {
+      printf("RTC write protect on — clearing for SetDateTime\r\n");
+      Rtc.SetIsWriteProtected(false);
+    }
     Rtc.SetDateTime(*newTime);
+    if (wasProtected)
+      Rtc.SetIsWriteProtected(true);
   }
 
   RtcDateTime now = Rtc.GetDateTime();
