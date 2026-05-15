@@ -1,4 +1,7 @@
-#define VERSION "2.4.8"  // RTC 시간을 설정 ..드디어 잡음.
+#define VERSION "2.4.9"  // RTC 시간을 설정 ..드디어 잡음.
+//#define VERSION "2.4.8"  // RTC 시간을 설정 ..드디어 잡음.
+//RTC설정에서 delay(500) 및 300을 줬을때 시간을 제대로 유지했다. 
+//이것이 중요한 줄은 처음 알았아.
 //#define VERSION "2.4.7"  // Modbus에서 RTC 시간을 설정하는 부분을 주석처리한다.
 //#define VERSION "2.4.6"  // 시간설정에 오류가 있었다. 
 // outmode를 설정해 놓았어야 했는데 , 터치에서 이것이 터치 초기화에서 input로 바뀐다. 
