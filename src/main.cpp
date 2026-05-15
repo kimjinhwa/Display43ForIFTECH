@@ -365,7 +365,7 @@ void stopTouchSpi(void)
 void startTouchSpi(void) {
 
   enalbeTouchEdit=0;
-  delay(500);
+  delay(300);
   digitalWrite(TOUCH_XPT2046_CS, LOW);
   // static lv_indev_drv_t indev_drv;
   // lv_indev_drv_init(&indev_drv);
@@ -377,6 +377,8 @@ void startTouchSpi(void) {
   lv_indev_enable(NULL, true);
   touch_init();
 }
+
+static bool g_rtcBootSynced = false;
 
 /** Burst read @p samples times; true if all valid and TotalSeconds span <= @p maxSpreadSec. */
 static bool readRtcBurstConsistent(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
@@ -414,7 +416,77 @@ static bool readRtcBurstConsistent(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
   return true;
 }
 
+/** RAM stamp + burst consistency + seconds register cross-check (SPI glitch filter). */
+static bool readRtcTrusted(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
+                           int maxAttempts = 5, int burstSamples = 3,
+                           uint32_t maxSpreadSec = 1)
+{
+  if (maxAttempts < 1)
+    maxAttempts = 1;
+
+  for (int attempt = 0; attempt < maxAttempts; attempt++) {
+    const uint8_t seq = (uint8_t)(millis() & 0xFF);
+    const uint8_t stamp[4] = {0xA5, 0x5A, seq, (uint8_t)~seq};
+    bool wasProtected = rtc.GetIsWriteProtected();
+    if (wasProtected)
+      rtc.SetIsWriteProtected(false);
+
+    bool ramWriteOk = (rtc.SetMemory(stamp, 4) == 4);
+    if (!ramWriteOk) {
+      if (wasProtected)
+        rtc.SetIsWriteProtected(true);
+      continue;
+    }
+
+    if (!readRtcBurstConsistent(rtc, out, burstSamples, maxSpreadSec)) {
+      if (wasProtected)
+        rtc.SetIsWriteProtected(true);
+      continue;
+    }
+
+    const uint8_t secReg = rtc.GetSecondsRegister();
+    if (!RtcDS1302<ThreeWire>::IsBcdSecondsByteValid(secReg)) {
+      if (wasProtected)
+        rtc.SetIsWriteProtected(true);
+      continue;
+    }
+
+    const uint8_t secDirect = BcdToUint8(secReg & 0x7F);
+    int secDiff = (int)secDirect - (int)out.Second();
+    if (secDiff > 30)
+      secDiff -= 60;
+    else if (secDiff < -30)
+      secDiff += 60;
+    if (secDiff < 0)
+      secDiff = -secDiff;
+    if (secDiff > 1) {
+      printf("RTC sec mismatch burst=%u reg=%u raw=0x%02X\r\n",
+             (unsigned)out.Second(), (unsigned)secDirect, (unsigned)secReg);
+      if (wasProtected)
+        rtc.SetIsWriteProtected(true);
+      continue;
+    }
+
+    uint8_t check[4] = {0};
+    if (rtc.GetMemory(check, 4) != 4 ||
+        check[0] != stamp[0] || check[1] != stamp[1] || check[2] != stamp[2] ||
+        check[3] != stamp[3]) {
+      if (wasProtected)
+        rtc.SetIsWriteProtected(true);
+      continue;
+    }
+
+    if (wasProtected)
+      rtc.SetIsWriteProtected(true);
+    return true;
+  }
+  return false;
+}
+
 void initSetRtc(){
+
+  /* Cold power: DS1302 / bus need a short settle before first CE access */
+  vTaskDelay(pdMS_TO_TICKS(80));
 
   ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
   RtcDS1302<ThreeWire> Rtc(myWire);
@@ -434,24 +506,29 @@ void initSetRtc(){
 
   RtcDateTime now;
   bool rtcOk = false;
-  for (int attempt = 0; attempt < 5; attempt++) {
-    if (readRtcBurstConsistent(Rtc, now, 3, 1)) {
-      rtcOk = true;
-      break;
+  const int kBootOuterRounds = 4;
+  const int kTrustedAttempts = 20;
+  const int kBurstSamples = 5;
+
+  for (int round = 0; round < kBootOuterRounds && !rtcOk; round++) {
+    if (round > 0) {
+      printf("RTC boot read round %d/%d\r\n", round + 1, kBootOuterRounds);
+      vTaskDelay(pdMS_TO_TICKS(120));
     }
-    printf("RTC boot read inconsistent (attempt %d)\r\n", attempt);
-    vTaskDelay(pdMS_TO_TICKS(50));
+    rtcOk = readRtcTrusted(Rtc, now, kTrustedAttempts, kBurstSamples, 1);
   }
 
   if (!rtcOk) {
-    now = Rtc.GetDateTime();
-    printf("RTC boot read fallback, IsValid=%d\r\n", (int)now.IsValid());
+    g_rtcBootSynced = false;
+    printf("RTC boot read failed after %d rounds — keep ESP time, no settimeofday\r\n",
+           kBootOuterRounds);
+    digitalWrite(RTCEN, LOW);
+    myWire.end();
+    return;
   }
 
-  if (!Rtc.IsDateTimeValid())
-    printf("RTC lost confidence in the DateTime!\r\n");
-
   if (now.IsValid()) {
+    g_rtcBootSynced = true;
     printf("\r\nnow RTC Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
            (unsigned)now.Year(), (unsigned)now.Month(), (unsigned)now.Day(),
            (unsigned)now.Hour(), (unsigned)now.Minute(), (unsigned)now.Second(),
@@ -469,11 +546,8 @@ void initSetRtc(){
            (unsigned)systemRtc.Minute(), (unsigned)systemRtc.Second(),
            (unsigned)systemRtc.TotalSeconds());
   } else {
-    printf("\r\nnow RTC Time INVALID (raw %04u-%02u-%02u %02u:%02u:%02u "
-           "tot=%u) — skip settimeofday\r\n",
-           (unsigned)now.Year(), (unsigned)now.Month(), (unsigned)now.Day(),
-           (unsigned)now.Hour(), (unsigned)now.Minute(), (unsigned)now.Second(),
-           (unsigned)now.TotalSeconds());
+    g_rtcBootSynced = false;
+    printf("\r\nnow RTC Time INVALID after trusted read — skip settimeofday\r\n");
     vTaskDelay(50);
   }
   digitalWrite(RTCEN, LOW);
@@ -488,13 +562,10 @@ RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
   ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
   RtcDS1302<ThreeWire> Rtc(myWire);
 
-  digitalWrite(RTCEN, HIGH); // RTC HIGH ENABLE
+  digitalWrite(RTCEN, LOW); // same as initSetRtc / gpioInit (CE driven by ThreeWire per xfer)
   myWire.begin(); // 3wire 시작
   Rtc.Begin();
-  vTaskDelay(100);
-  if (!Rtc.IsDateTimeValid()) {
-    printf("RTC lost confidence in the DateTime!\r\n");
-  }
+  vTaskDelay(10);
   if (Rtc.GetIsWriteProtected())
     printf("RTC is write protected\r\n");
   if (!Rtc.GetIsRunning()) {
@@ -512,7 +583,12 @@ RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
       Rtc.SetIsWriteProtected(true);
   }
 
-  RtcDateTime now = Rtc.GetDateTime();
+  RtcDateTime now;
+  if (!readRtcTrusted(Rtc, now)) {
+    printf("\r\nRTC read rejected — keep system time (no settimeofday)\r\n");
+    now = RtcDateTime(0);
+  }
+
   if (now.IsValid()) {
     printf("\r\nnow RTC Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
            (unsigned)now.Year(), (unsigned)now.Month(), (unsigned)now.Day(),
@@ -530,12 +606,8 @@ RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
            (unsigned)systemRtc.Day(), (unsigned)systemRtc.Hour(),
            (unsigned)systemRtc.Minute(), (unsigned)systemRtc.Second(),
            (unsigned)systemRtc.TotalSeconds());
-  } else {
-    printf("\r\nnow RTC Time INVALID (raw %04u-%02u-%02u %02u:%02u:%02u "
-           "tot=%u) — skip settimeofday\r\n",
-           (unsigned)now.Year(), (unsigned)now.Month(), (unsigned)now.Day(),
-           (unsigned)now.Hour(), (unsigned)now.Minute(), (unsigned)now.Second(),
-           (unsigned)now.TotalSeconds());
+  } else if (write) {
+    printf("\r\nnow RTC Time INVALID after write — skip settimeofday\r\n");
     vTaskDelay(50);
   }
   digitalWrite(RTCEN, LOW);
@@ -902,6 +974,14 @@ void setup()
 
 
   touch_init();
+
+  /* Cold power: first initSetRtc may fail while pins settle; soft reset often OK */
+  if (!g_rtcBootSynced) {
+    printf("RTC late resync (after touch_init)\r\n");
+    vTaskDelay(pdMS_TO_TICKS(100));
+    initSetRtc();
+  }
+
   //setRtc(false, nullptr);
 
   // update를 할것인지 확인한다. 이것은 bluetooth에서 설정한다.

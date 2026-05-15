@@ -51,6 +51,9 @@ size_t myBlueToothStream::write(uint8_t c){
  return write(&c, 1);
 };
 size_t myBlueToothStream::write(const uint8_t *buffer, size_t size){
+    if (pTxCharacteristic == nullptr) {
+        return Serial.write(buffer, size);
+    }
     pTxCharacteristic->setValue((uint8_t *)buffer, size);
     return size; 
 };       
@@ -111,7 +114,9 @@ size_t myBlueToothStream::printf(const char *format, ...)
     }
     va_end(arg);
     len = write((uint8_t*)temp, len);
-    pTxCharacteristic->notify(true);
+    if (pTxCharacteristic != nullptr) {
+        pTxCharacteristic->notify(true);
+    }
     if(temp != loc_buf){
         free(temp);
     }

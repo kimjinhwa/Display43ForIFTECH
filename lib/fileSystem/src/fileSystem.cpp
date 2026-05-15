@@ -277,12 +277,13 @@ void LittleFileSystem::setOutputStream(Print* stream){
 int LittleFileSystem::rm(String fileName)
 {
     String unLinkfilename = String("/spiffs/") + fileName;
+    Print *out = outputStream ? outputStream : &Serial;
     if (unlink(unLinkfilename.c_str()) == -1){
-      mySerialBT.printf("Faild to delete %s\r\n", unLinkfilename.c_str());
+      out->printf("Faild to delete %s\r\n", unLinkfilename.c_str());
       return -1 ;
     }
     else{
-      mySerialBT.printf("File deleted %s\r\n", unLinkfilename.c_str());
+      out->printf("File deleted %s\r\n", unLinkfilename.c_str());
       return 1 ;
     }
 

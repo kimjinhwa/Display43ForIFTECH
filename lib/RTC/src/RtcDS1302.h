@@ -117,6 +117,24 @@ public:
         return GetDateTime().IsValid();
     }
 
+    /** Seconds register BCD (CH bit masked); false if SPI garbage (e.g. 0x7A). */
+    static bool IsBcdSecondsByteValid(uint8_t secReg)
+    {
+        secReg &= 0x7F;
+        const uint8_t lo = secReg & 0x0F;
+        const uint8_t hi = secReg >> 4;
+        if (lo > 9 || hi > 5)
+            return false;
+        if (hi == 5 && lo > 9)
+            return false;
+        return true;
+    }
+
+    uint8_t GetSecondsRegister()
+    {
+        return getReg(DS1302_REG_TIMEDATE);
+    }
+
     bool GetIsRunning()
     {
         uint8_t ch = getReg(DS1302_REG_CH);
@@ -170,7 +188,7 @@ public:
         // set the date time
         _wire.beginTransmission(DS1302_REG_TIMEDATE_BURST);
 
-        _wire.write(Uint8ToBcd(dt.Second()));
+        _wire.write(Uint8ToBcd(dt.Second()) & 0x7F); // keep CH=0 (clock run)
         _wire.write(Uint8ToBcd(dt.Minute()));
         _wire.write(Uint8ToBcd(dt.Hour())); // 24 hour mode only
         _wire.write(Uint8ToBcd(dt.Day()));
@@ -191,7 +209,13 @@ public:
     {
         _wire.beginTransmission(DS1302_REG_TIMEDATE_BURST | THREEWIRE_READFLAG);
 
-        uint8_t second = BcdToUint8(_wire.read() & 0x7F);
+        uint8_t secRaw = _wire.read();
+        if (!IsBcdSecondsByteValid(secRaw))
+        {
+            _wire.endTransmission();
+            return RtcDateTime(0);
+        }
+        uint8_t second = BcdToUint8(secRaw & 0x7F);
         uint8_t minute = BcdToUint8(_wire.read());
         uint8_t hour = BcdToBin24Hour(_wire.read());
         uint8_t dayOfMonth = BcdToUint8(_wire.read());
