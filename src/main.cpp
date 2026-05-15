@@ -1197,12 +1197,12 @@ void loop()
       pressedResetButton++;
       if(pressedResetButton>3){
         {
-          //showMessageLabel(_("Log_Init"));
+          showMessageLabel(_("Log_Init"));
           esp_nvs_tc_reset_cb();
           ESP_LOGI("IO","Now On file format...Do not Turn Off system");
           lsFile.rm("eventLog.hex");
-          // upslogEvent.getFileSize();
-          // upslogEvent.readCurrentLogExt(CURRENTLOG,true);
+          upslogEvent.getFileSize();
+          upslogEvent.readCurrentLogExt(CURRENTLOG,true);
           nvsSystemEEPRom.systemLedOffTime = 10;
           nvsSystemEEPRom.lcdBright= 255;
           EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
