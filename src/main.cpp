@@ -356,7 +356,7 @@ void stopTouchSpi(void)
   SPI.bus();
   SPI.end();
   Serial.println("SPI.end");
-  delay(500);
+  delay(100);
   // static lv_indev_drv_t indev_drv;
   // lv_indev_drv_init(&indev_drv);
   // indev_drv.type = LV_INDEV_TYPE_POINTER;
@@ -365,7 +365,7 @@ void stopTouchSpi(void)
 void startTouchSpi(void) {
 
   enalbeTouchEdit=0;
-  delay(300);
+  delay(100);
   digitalWrite(TOUCH_XPT2046_CS, LOW);
   // static lv_indev_drv_t indev_drv;
   // lv_indev_drv_init(&indev_drv);
