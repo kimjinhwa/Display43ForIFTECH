@@ -243,11 +243,13 @@ void timeSave(TIMESAVE tType,int16_t value){
 			nowTime.tm_hour,nowTime.tm_min,nowTime.tm_sec);
 	for(int i=0;i<10;i++){
 		RtcDateTime  newRtc = setRtc(true, &nowRtc);
-		printf("\r\nnewRtc RTC Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
+		newRtc = setRtc(false, &nowRtc);
+		ESP_LOGI("SET RTC","\r\nnewRtc RTC Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
 			(unsigned)newRtc.Year(), (unsigned)newRtc.Month(), (unsigned)newRtc.Day(),
 			(unsigned)newRtc.Hour(), (unsigned)newRtc.Minute(), (unsigned)newRtc.Second(),
 			(unsigned)newRtc.TotalSeconds());
-		if(newRtc == nowRtc) break;
+		if(newRtc.TotalSeconds() == nowRtc.TotalSeconds() || 
+		   newRtc.TotalSeconds()+1 == nowRtc.TotalSeconds() ) break;
 		ESP_LOGI("ERR RTC","Retry set %d",i);
 		delay(200);
 	}

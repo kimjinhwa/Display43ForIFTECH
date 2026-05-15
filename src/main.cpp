@@ -378,6 +378,51 @@ void startTouchSpi(void) {
   touch_init();
 }
 
+void initSetRtc(){
+
+  ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
+  RtcDS1302<ThreeWire> Rtc(myWire);
+
+  digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  digitalWrite(RTCEN, LOW); // RTC HIGH ENABLE
+  myWire.begin(); // 3wire 시작
+  Rtc.Begin();
+  myWire.begin(); // 3wire 시작
+  RtcDateTime now = Rtc.GetDateTime();
+  if (!Rtc.IsDateTimeValid()) {
+    printf("RTC lost confidence in the DateTime!\r\n");
+  }
+  if (Rtc.GetIsWriteProtected())
+    printf("RTC is write protected\r\n");
+  if (!Rtc.GetIsRunning()) {
+    printf("RTC was not actively running, starting now\r\n");
+    Rtc.SetIsRunning(true);
+  }
+
+  if (now.IsValid()) {
+    struct timeval tmv;
+    tmv.tv_sec = now.TotalSeconds();
+    tmv.tv_usec = 0;
+    settimeofday(&tmv, NULL);
+    gettimeofday(&tmv, NULL);
+    RtcDateTime systemRtc(tmv.tv_sec);
+    printf("\r\nnow sys Time is %04u-%02u-%02u %02u:%02u:%02u (tot=%u)\r\n",
+           (unsigned)systemRtc.Year(), (unsigned)systemRtc.Month(),
+           (unsigned)systemRtc.Day(), (unsigned)systemRtc.Hour(),
+           (unsigned)systemRtc.Minute(), (unsigned)systemRtc.Second(),
+           (unsigned)systemRtc.TotalSeconds());
+  } else {
+    printf("\r\nnow RTC Time INVALID (raw %04u-%02u-%02u %02u:%02u:%02u "
+           "tot=%u) — skip settimeofday\r\n",
+           (unsigned)now.Year(), (unsigned)now.Month(), (unsigned)now.Day(),
+           (unsigned)now.Hour(), (unsigned)now.Minute(), (unsigned)now.Second(),
+           (unsigned)now.TotalSeconds());
+    vTaskDelay(50);
+  }
+  digitalWrite(RTCEN, LOW);
+  myWire.end();
+
+}
 RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
 //void setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
 {
@@ -769,6 +814,7 @@ void setup()
   gpioInit();
   WiFi.mode(WIFI_OFF);
   delay(100);
+  initSetRtc();  //가장 먼저 실행하면, 터치와는 관계 없음. 아직 SPI통신을 시작하기 전이라서. 
   initialEEPROM();
   nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
 
@@ -792,7 +838,7 @@ void setup()
 
 
   touch_init();
-  setRtc(false, nullptr);
+  //setRtc(false, nullptr);
 
   // update를 할것인지 확인한다. 이것은 bluetooth에서 설정한다.
   if(nvsSystemEEPRom.isUpdate)
