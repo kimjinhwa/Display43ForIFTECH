@@ -83,15 +83,7 @@ int16_t minDisMessageTime = 1;
 static char TAG[] = "main";
 
 /** DS1302(ThreeWire)와 XPT2046(SPI)가 GPIO 11·12 등을 공유 — RTC 구간에서는 터치 읽기 금지 */
-static SemaphoreHandle_t s_rtcTouchSpiMux;
 
-static void rtcTouchSpiMuxEnsureInit(void)
-{
-  if (s_rtcTouchSpiMux == nullptr)
-  {
-    s_rtcTouchSpiMux = xSemaphoreCreateMutex();
-  }
-}
 
 extern LittleFileSystem lsFile;
 extern jobCommant_t systemControllJob;
@@ -99,6 +91,7 @@ extern jobCommant_t systemControllJob;
 upsLog upslogEvent("/spiffs/eventLog.hex", EVENT_TYPE);
 upsLog upslogAlarm(FAULT_TYPE); //
 
+int enalbeTouchEdit=0;
 void mainScrUpdata();
 void GetSetEventData();
 void systemControllTask(void *parameter);
@@ -188,17 +181,19 @@ void touchTest(int loopCount)
 }
 void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 {
-  rtcTouchSpiMuxEnsureInit();
-  if (xSemaphoreTake(s_rtcTouchSpiMux, 0) != pdTRUE)
-  {
-    data->state = LV_INDEV_STATE_REL;
-    return;
-  }
 
   uint16_t x, y;
   uint8_t z;
+  if (enalbeTouchEdit){
+    Serial.print(".");
+    return;
+  } 
+  else{
+    Serial.print("*");
+  }
   if (touch_has_signal())
   {
+    //Serial.print(".");
     if (ts.touched())
     {
       //ESP_LOGI("TOUCH", "Touch wait ");
@@ -227,8 +222,6 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
   {
     data->state = LV_INDEV_STATE_REL;
   }
-
-  xSemaphoreGive(s_rtcTouchSpiMux);
 }
 
 void setMemoryDataToLCD()
@@ -348,53 +341,55 @@ void touchCalibrationInit()
   gfx->setRotation(0);
 }
 
-/* 터치 FSPI: begin 한 뒤 end로 드라이버를 내리고, CS/SCK/MISO/MOSI를 INPUT으로 두어
- * SPI 하드가 꺼진 상태(다시 통신하려면 touch_init 등에서 SPI.begin 필요)로 만든다. */
-void my_touchpad_read_None(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
+void stopTouchSpi(void)
 {
-  return ;
-}
-void stopSpi(void)
-{
-  // SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
-  //SPI.endTransaction();
+  ts.penirqControl(0x93);               // 무력화
+  digitalWrite(RTCEN, LOW);             // RTC HIGH ENABLE
+  enalbeTouchEdit=1;
+  lv_indev_enable(NULL, false); 
+  digitalWrite(TOUCH_XPT2046_CS, LOW);
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  SPI.transfer (0x00);
+  SPI.transfer (0x00);
+  SPI.endTransaction();
+  digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  SPI.bus();
   SPI.end();
-
+  Serial.println("SPI.end");
+  delay(500);
   // static lv_indev_drv_t indev_drv;
   // lv_indev_drv_init(&indev_drv);
   // indev_drv.type = LV_INDEV_TYPE_POINTER;
-  // indev_drv.read_cb = my_touchpad_read_None;
   // lv_indev_drv_register(&indev_drv);
-  //lv_indev_drv_update(&indev_drv, &indev_drv);
-  lv_indev_enable(NULL, false); 
-  //lv_indev_enable(NULL, false);
+}
+void startTouchSpi(void) {
 
-  // digitalWrite(TOUCH_XPT2046_CS, HIGH); // 터치 칩 OFF
-  // pinMode(TOUCH_XPT2046_SCK, INPUT);
-  // pinMode(TOUCH_XPT2046_MISO, INPUT);
-  // pinMode(TOUCH_XPT2046_MOSI, INPUT);
+  enalbeTouchEdit=0;
+  delay(500);
+  digitalWrite(TOUCH_XPT2046_CS, LOW);
+  // static lv_indev_drv_t indev_drv;
+  // lv_indev_drv_init(&indev_drv);
+  // indev_drv.type = LV_INDEV_TYPE_POINTER;
+  // indev_drv.read_cb = my_touchpad_read;
+  // lv_indev_drv_register(&indev_drv);
+  // enalbeTouchEdit = 0;
+  // Serial.println("SPI.begin");
+  lv_indev_enable(NULL, true);
+  touch_init();
 }
 
-void setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
+RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
+//void setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
 {
-  rtcTouchSpiMuxEnsureInit();
-  if (xSemaphoreTake(s_rtcTouchSpiMux, portMAX_DELAY) != pdTRUE)
-  {
-    return;
-  }
-
-  ts.penirqControl(0x93);               // 무력화
-  digitalWrite(RTCEN, LOW);             // RTC HIGH ENABLE
-  stopSpi();
-  //lv_indev_enable(NULL, false);
+  stopTouchSpi();
 
   ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
   RtcDS1302<ThreeWire> Rtc(myWire);
 
   digitalWrite(RTCEN, HIGH); // RTC HIGH ENABLE
-  vTaskDelay(100);
   myWire.begin(); // 3wire 시작
   Rtc.Begin();
+  vTaskDelay(100);
   if (!Rtc.IsDateTimeValid()) {
     printf("RTC lost confidence in the DateTime!\r\n");
   }
@@ -436,21 +431,8 @@ void setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
   }
   digitalWrite(RTCEN, LOW);
   myWire.end();
-  vTaskDelay(5); /* RTC 3-wire 직후 SPI 재개 전 버스 안정 */
-  digitalWrite(TOUCH_XPT2046_CS, LOW);
-  
-  // stopSpi();
-  // static lv_indev_drv_t indev_drv;
-  // lv_indev_drv_init(&indev_drv);
-  // indev_drv.type = LV_INDEV_TYPE_POINTER;
-  // indev_drv.read_cb = my_touchpad_read;
-  //lv_indev_drv_register(&indev_drv);
-  //lv_indev_drv_update(&indev_drv, my_touchpad_read_None);
- lv_indev_enable(NULL, true); 
- SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
-  //touch_init();
-  //lv_indev_enable(NULL, true);
-  xSemaphoreGive(s_rtcTouchSpiMux);
+  startTouchSpi();
+  return now;
 }
 
 int16_t isEventLogChanged = 0;
@@ -762,15 +744,32 @@ void calibrationTouchInit()
   ESP_LOGI("TOUCH", "lv_tc_screen_start");
   lv_tc_screen_start(tCScreen);
 }
-void setup()
-{
-  Serial.begin(BAUDRATEDEF);
-  WiFi.mode(WIFI_OFF);
-  delay(100);
-  initialEEPROM();
+void gpioInit(){
   pinMode(BUZZER, OUTPUT);
   pinMode(BUTTON_ERASE , INPUT);
   digitalWrite(BUZZER, LOW);
+  pinMode(TFT_BL, OUTPUT);
+  digitalWrite(TFT_BL, HIGH);
+
+  pinMode(TOUCH_XPT2046_SCK, OUTPUT);
+  pinMode(TOUCH_XPT2046_MISO, INPUT);
+  pinMode(TOUCH_XPT2046_MOSI, OUTPUT);
+  pinMode(TOUCH_XPT2046_CS, OUTPUT);
+  pinMode(RTCEN, OUTPUT);
+  digitalWrite(RTCEN, LOW);
+
+  pinMode(SERIAL_TX2 , OUTPUT);
+  pinMode(SERIAL_RX2 , INPUT);
+  pinMode(RTCEN,OUTPUT);
+  digitalWrite(RTCEN,LOW);
+}
+void setup()
+{
+  Serial.begin(BAUDRATEDEF);
+  gpioInit();
+  WiFi.mode(WIFI_OFF);
+  delay(100);
+  initialEEPROM();
   nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
 
   // Init Display
@@ -778,8 +777,6 @@ void setup()
   gfx->begin();
   gfx->fillScreen(BLACK);
 
-  pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, HIGH);
 
   ledcSetup(0, 300, 8);
   ledcAttachPin(TFT_BL, 0);
@@ -792,6 +789,11 @@ void setup()
   gfx->fillScreen(BLUE); delay(100);
   gfx->fillScreen(BLACK); delay(100);
   gfx->setCursor(0, 10);
+
+
+  touch_init();
+  setRtc(false, nullptr);
+
   // update를 할것인지 확인한다. 이것은 bluetooth에서 설정한다.
   if(nvsSystemEEPRom.isUpdate)
   {
@@ -817,14 +819,9 @@ void setup()
   upslogEvent.getFileSize();
 //모드버스를 위한 serial2 포트를 초기화 한다
   Serial.println("Setup done");
-  Serial.println("Setup done");
-  pinMode(SERIAL_TX2 , OUTPUT);
-  pinMode(SERIAL_RX2 , INPUT);
   Serial2.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, SERIAL_RX2  /* RX */, SERIAL_TX2  /* TX*/);
   Serial2.println("Serial 1 started");
-  bleSetup();
-  touch_init();
-  setRtc(false, nullptr);
+  //bleSetup();
   //ts.penirqControl(0xD0);
   modbusSetup();
   // GFXfont *f;
@@ -869,7 +866,7 @@ void setup()
   // delay(10);
   // digitalWrite(TOUCH_GT911_RST, HIGH);
   // delay(10);
-  touch_init();
+  //touch_init();
 
   screenWidth = gfx->width();
   screenHeight = gfx->height();
@@ -950,8 +947,6 @@ void setup()
   //     delay(200);
   //     Serial.println("buzzer test");
   // }
-  pinMode(RTCEN,OUTPUT);
-  digitalWrite(RTCEN,LOW);
 };
 static int interval = 1000;
 static unsigned long previous300mills = 0;
@@ -1012,22 +1007,22 @@ void loop()
       pressedResetButton++;
       if(pressedResetButton>3){
         {
-          showMessageLabel(_("Log_Init"));
+          //showMessageLabel(_("Log_Init"));
+          esp_nvs_tc_reset_cb();
+          ESP_LOGI("IO","Now On file format...Do not Turn Off system");
           lsFile.rm("eventLog.hex");
-          upslogEvent.getFileSize();
-          upslogEvent.readCurrentLogExt(CURRENTLOG,true);
-
+          // upslogEvent.getFileSize();
+          // upslogEvent.readCurrentLogExt(CURRENTLOG,true);
           nvsSystemEEPRom.systemLedOffTime = 10;
           nvsSystemEEPRom.lcdBright= 255;
           EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
           EEPROM.commit();
           //upsLog upslogEvent("/spiffs/eventLog.hex", EVENT_TYPE);
-          upslogEvent.init();
-          ui_init();
-          esp_nvs_tc_reset_cb();
+          // upslogEvent.init();
+          // ui_init();
           pressedResetButton =0;
-          ESP_LOGI("IO","Now On file format...Do not Turn Off system");
-          esp_nvs_tc_reset_cb();
+          ESP_LOGI("IO","Turn Off system in 3 seconds");
+          delay(3000);
           esp_restart();
         }
       }
@@ -1047,9 +1042,9 @@ void loop()
   {
     previous10000mills = now;
     /* 설정 화면: LVGL/터치가 SPI를 쓰는 동안 setRtc가 SPI.end·RTC 3-wire를 하면 칩 읽기·통신이 깨지기 쉬움 */
-    //if (lv_scr_act() != ui_SettingScreen)
+    if (lv_scr_act() != ui_SettingScreen)
     {
-      setRtc(false, nullptr);
+      //setRtc(false, nullptr);
     }
   }
   lv_timer_handler(); /* let the GUI do its work */

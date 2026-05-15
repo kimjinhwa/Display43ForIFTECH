@@ -152,7 +152,8 @@ void XPT2046_Touchscreen::update()
 			data[3] = _pspi->transfer16(0x91 /* X */) >> 3;
 		}
 		else data[0] = data[1] = data[2] = data[3] = 0;	// Compiler warns these values may be used unset on early exit.
-		data[4] = _pspi->transfer16(0xD0 /* Y */) >> 3;	// Last Y touch power down
+		//data[4] = _pspi->transfer16(0xD0 /* Y */) >> 3;	// Last Y touch power down
+		data[4] = _pspi->transfer16(0xD3 /* Y */) >> 3;	// Last Y touch power down
 		data[5] = _pspi->transfer16(0) >> 3;
 		digitalWrite(csPin, HIGH);
 		_pspi->endTransaction();

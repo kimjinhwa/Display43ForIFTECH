@@ -32,6 +32,7 @@ void touch_init()
   SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
   ts.begin();
   ts.setRotation(TOUCH_XPT2046_ROTATION);
+  ts.penirqControl(0x93);               // 무력화
 }
 
 bool touch_has_signal()

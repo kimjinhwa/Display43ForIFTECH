@@ -4,7 +4,8 @@
 
 class RtcDateTime;
 void stopSpi(void);
-void setRtc(bool write, const RtcDateTime *newTime);
+RtcDateTime setRtc(bool write, const RtcDateTime *newTime);
+//void setRtc(bool write, const RtcDateTime *newTime);
 
 typedef struct {
     int index;
