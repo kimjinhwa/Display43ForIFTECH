@@ -1,4 +1,5 @@
-#define VERSION "2.4.9"  // 새로운 보드에서 RTC를 완료 하였다.
+#define VERSION "3.0.0"  // 새로운 보드에서 RTC를 완료 하였다. First Release
+//efine VERSION "2.4.9"  // 새로운 보드에서 RTC를 완료 하였다.
 //efine VERSION "2.4.9"  // RTC 시간을 설정 ..드디어 잡음.
 //#define VERSION "2.4.8"  // RTC 시간을 설정 ..드디어 잡음.
 //RTC설정에서 delay(500) 및 300을 줬을때 시간을 제대로 유지했다. 
