@@ -24,34 +24,20 @@
 #include "wifiOTA.h"
 #include "lv_i18n.h"
 #include "freertos/semphr.h"
+
+/* Board rev 2 — MCP23S08: GP0=RTC CE, GP1=buzzer; CS=GPIO17 */
+#define SERIAL_RX2 19
+#define SERIAL_TX2 20
+#define A23S08_CS 17
+
+#include <Mcp23s08.h>
+#include <McpRtcThreeWire.h>
+
 #define WDT_TIMEOUT 60 
 #define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
 #define TFT_BL 2
 
 #define BUTTON_ERASE 0 
-
-// #define SERIAL_RX2 18
-// #define SERIAL_TX2 17
-// #define RTCEN 19
-// #define BUZZER 20
-/* Change Port */
-/* Rev 2.0*/
-#define BOARD_REV 2
-
-#if BOARD_REV == 2
-#define SERIAL_RX2 19 
-#define SERIAL_TX2 20 
-#define RTCEN 18
-#define BUZZER 17 
-#else
-/* Rev 1.0*/
-#define SERIAL_RX2 20 
-#define SERIAL_TX2 19 
-#define RTCEN 17
-#define BUZZER 18 
-#endif
-
-
 
 #define OFFSCR_COLOR 0xFFFFFF   /*DARK BLUE*/ 
 #define ONSCR_COLOR 0xFF0000   /* YELLOW*/
@@ -82,7 +68,7 @@ int16_t minDisMessageTime = 1;
 // #define DISPLAY_7
 static char TAG[] = "main";
 
-/** DS1302(ThreeWire)와 XPT2046(SPI)가 GPIO 11·12 등을 공유 — RTC 구간에서는 터치 읽기 금지 */
+/** DS1302(McpRtcThreeWire)와 XPT2046(SPI)가 GPIO 11·12 공유 — RTC 구간에서는 터치 읽기 금지 */
 
 
 extern LittleFileSystem lsFile;
@@ -344,7 +330,7 @@ void touchCalibrationInit()
 void stopTouchSpi(void)
 {
   ts.penirqControl(0x93);               // 무력화
-  digitalWrite(RTCEN, LOW);             // RTC HIGH ENABLE
+  Mcp23s08_RtcCe(false);
   enalbeTouchEdit=1;
   lv_indev_enable(NULL, false); 
   digitalWrite(TOUCH_XPT2046_CS, LOW);
@@ -381,7 +367,8 @@ void startTouchSpi(void) {
 static bool g_rtcBootSynced = false;
 
 /** Burst read @p samples times; true if all valid and TotalSeconds span <= @p maxSpreadSec. */
-static bool readRtcBurstConsistent(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
+template<typename TWire>
+static bool readRtcBurstConsistent(RtcDS1302<TWire> &rtc, RtcDateTime &out,
                                    int samples = 3, uint32_t maxSpreadSec = 1)
 {
   if (samples < 2)
@@ -417,7 +404,8 @@ static bool readRtcBurstConsistent(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
 }
 
 /** RAM stamp + burst consistency + seconds register cross-check (SPI glitch filter). */
-static bool readRtcTrusted(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
+template<typename TWire>
+static bool readRtcTrusted(RtcDS1302<TWire> &rtc, RtcDateTime &out,
                            int maxAttempts = 5, int burstSamples = 3,
                            uint32_t maxSpreadSec = 1)
 {
@@ -445,7 +433,7 @@ static bool readRtcTrusted(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
     }
 
     const uint8_t secReg = rtc.GetSecondsRegister();
-    if (!RtcDS1302<ThreeWire>::IsBcdSecondsByteValid(secReg)) {
+    if (!RtcDS1302<TWire>::IsBcdSecondsByteValid(secReg)) {
       if (wasProtected)
         rtc.SetIsWriteProtected(true);
       continue;
@@ -483,19 +471,25 @@ static bool readRtcTrusted(RtcDS1302<ThreeWire> &rtc, RtcDateTime &out,
   return false;
 }
 
+static void initMcpRtcWire(McpRtcThreeWire &wire)
+{
+  wire.configureSpiBus(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI,
+                         TOUCH_XPT2046_CS);
+}
+
 void initSetRtc(){
 
   /* Cold power: DS1302 / bus need a short settle before first CE access */
   vTaskDelay(pdMS_TO_TICKS(80));
 
-  ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
-  RtcDS1302<ThreeWire> Rtc(myWire);
-
   digitalWrite(TOUCH_XPT2046_CS, HIGH);
-  digitalWrite(RTCEN, LOW); // RTC HIGH ENABLE
-  myWire.begin(); // 3wire 시작
+  Mcp23s08_RtcCe(false);
+  McpRtcThreeWire myWire(TOUCH_XPT2046_MOSI, TOUCH_XPT2046_SCK);
+  initMcpRtcWire(myWire);
+  RtcDS1302<McpRtcThreeWire> Rtc(myWire);
+  myWire.begin();
   Rtc.Begin();
-  myWire.begin(); // 3wire 시작
+  myWire.begin();
 
   if (Rtc.GetIsWriteProtected())
     printf("RTC is write protected\r\n");
@@ -522,7 +516,6 @@ void initSetRtc(){
     g_rtcBootSynced = false;
     printf("RTC boot read failed after %d rounds — keep ESP time, no settimeofday\r\n",
            kBootOuterRounds);
-    digitalWrite(RTCEN, LOW);
     myWire.end();
     return;
   }
@@ -550,7 +543,6 @@ void initSetRtc(){
     printf("\r\nnow RTC Time INVALID after trusted read — skip settimeofday\r\n");
     vTaskDelay(50);
   }
-  digitalWrite(RTCEN, LOW);
   myWire.end();
 
 }
@@ -559,11 +551,10 @@ RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
 {
   stopTouchSpi();
 
-  ThreeWire myWire(MOSI /*11*/, SCK /*12*/, RTCEN /*19*/); // IO, SCLK, CE
-  RtcDS1302<ThreeWire> Rtc(myWire);
-
-  digitalWrite(RTCEN, LOW); // same as initSetRtc / gpioInit (CE driven by ThreeWire per xfer)
-  myWire.begin(); // 3wire 시작
+  McpRtcThreeWire myWire(TOUCH_XPT2046_MOSI, TOUCH_XPT2046_SCK);
+  initMcpRtcWire(myWire);
+  RtcDS1302<McpRtcThreeWire> Rtc(myWire);
+  myWire.begin();
   Rtc.Begin();
   vTaskDelay(10);
   if (Rtc.GetIsWriteProtected())
@@ -610,7 +601,6 @@ RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
     printf("\r\nnow RTC Time INVALID after write — skip settimeofday\r\n");
     vTaskDelay(50);
   }
-  digitalWrite(RTCEN, LOW);
   myWire.end();
   startTouchSpi();
   return now;
@@ -809,10 +799,10 @@ void toggleBuzzer()
   {
     if (upslogAlarm.runBuzzStatus) // 이 값은 서버에서 값에 의해서도 변경된다.
     {
-      digitalWrite(BUZZER, !digitalRead(BUZZER));
+      Mcp23s08_BuzzerToggle();
     }
-    else 
-      digitalWrite(BUZZER, LOW);
+    else
+      Mcp23s08_BuzzerControl(false);
 
     lv_opa_t current_opa = lv_obj_get_style_bg_img_opa(ui_btnAlarm, LV_PART_MAIN);
     if (current_opa == 0)
@@ -822,7 +812,7 @@ void toggleBuzzer()
   }
   else  //알람상태가 아니다 
   {
-    digitalWrite(BUZZER, LOW);
+    Mcp23s08_BuzzerControl(false);
     lv_obj_set_style_bg_img_opa(ui_btnAlarm, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
   }
 }
@@ -926,9 +916,7 @@ void calibrationTouchInit()
   lv_tc_screen_start(tCScreen);
 }
 void gpioInit(){
-  pinMode(BUZZER, OUTPUT);
   pinMode(BUTTON_ERASE , INPUT);
-  digitalWrite(BUZZER, LOW);
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
 
@@ -936,13 +924,10 @@ void gpioInit(){
   pinMode(TOUCH_XPT2046_MISO, INPUT);
   pinMode(TOUCH_XPT2046_MOSI, OUTPUT);
   pinMode(TOUCH_XPT2046_CS, OUTPUT);
-  pinMode(RTCEN, OUTPUT);
-  digitalWrite(RTCEN, LOW);
+  digitalWrite(TOUCH_XPT2046_CS, HIGH);
 
   pinMode(SERIAL_TX2 , OUTPUT);
   pinMode(SERIAL_RX2 , INPUT);
-  pinMode(RTCEN,OUTPUT);
-  digitalWrite(RTCEN,LOW);
 }
 void setup()
 {
@@ -950,7 +935,21 @@ void setup()
   gpioInit();
   WiFi.mode(WIFI_OFF);
   delay(100);
-  initSetRtc();  //가장 먼저 실행하면, 터치와는 관계 없음. 아직 SPI통신을 시작하기 전이라서. 
+
+  SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
+  digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  Mcp23s08_begin(A23S08_CS, 1000000);
+  Mcp23s08_initOutputsAll();
+  Mcp23s08_RtcCe(false);
+  Mcp23s08_BuzzerControl(false);
+
+  initSetRtc();
+  if (!g_rtcBootSynced) {
+    printf("RTC late resync (before touch_init)\r\n");
+    vTaskDelay(pdMS_TO_TICKS(100));
+    initSetRtc();
+  }
+
   initialEEPROM();
   nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
 
@@ -974,15 +973,6 @@ void setup()
 
 
   touch_init();
-
-  /* Cold power: first initSetRtc may fail while pins settle; soft reset often OK */
-  if (!g_rtcBootSynced) {
-    printf("RTC late resync (after touch_init)\r\n");
-    vTaskDelay(pdMS_TO_TICKS(100));
-    initSetRtc();
-  }
-
-  //setRtc(false, nullptr);
 
   // update를 할것인지 확인한다. 이것은 bluetooth에서 설정한다.
   if(nvsSystemEEPRom.isUpdate)
@@ -1133,7 +1123,6 @@ void setup()
   // esp_task_wdt_init(WDT_TIMEOUT,true);
   // esp_task_wdt_add(NULL);
   // while(1){
-  //     digitalWrite(BUZZER, !digitalRead(BUZZER));
   //     delay(200);
   //     Serial.println("buzzer test");
   // }

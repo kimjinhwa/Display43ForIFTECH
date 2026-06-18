@@ -1,8 +1,15 @@
 #ifndef _MODBUSRTU_H
 #define _MODBUSRTU_H
-#include "ModbusServerRTU.h" 
+
+#ifdef MODBUSSERVER
+#include "ModbusServerRTU.h"
+#else
+#include "ModbusClientRTU.h"
+#endif
 
 void modbusSetup();
+void enqueueModbusCommand(int index, int value, uint32_t token);
+int modbusEventSendLoop(int token);
 ModbusMessage FC01(ModbusMessage request) ;
 ModbusMessage FC03(ModbusMessage request) ;
 ModbusMessage FC04(ModbusMessage request) ;
