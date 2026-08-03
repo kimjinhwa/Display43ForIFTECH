@@ -69,26 +69,23 @@ void update()
     EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
     EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
     EEPROM.commit();
+    delay(1000);
     ESP.restart();
 }
 void wifiOTAsetup(bool isUpdate=false);
 void update_configCallback(cmd *cmdPtr)
 {
   Command cmd(cmdPtr);
-  // wifi에 연결되어 있지 않으면 연결을 시도 한다.
-  if(!WiFi.isConnected()) wifiOTAsetup(false);
-
-  if(WiFi.isConnected()){
-    mySerialBT.printf( "\r\nNow System Update...");
-    update();
-  }
-  else{
-    mySerialBT.printf( "\r\nNot connected to WiFi..." );
-    mySerialBT.printf( "\r\nPlease connect to WiFi..." );
-    mySerialBT.printf( "\r\nHotstop를 켜 주거나 무선WIFI를 연결 해 주세요." );
-    mySerialBT.printf( "\r\nSSID: %s", nvsSystemEEPRom.ssid );
-    mySerialBT.printf( "\r\nPASS: %s", nvsSystemEEPRom.password );
-  }
+  /* BLE 동작 중 WiFi.begin()하면 coexistence abort 가능.
+   * 연결은 재부팅 후 setup()의 isUpdate 경로(BLE 이전)에서 수행한다. */
+  mySerialBT.printf("\r\nSSID: %s", nvsSystemEEPRom.ssid);
+  mySerialBT.printf("\r\nOLD VERSION: %s", VERSION);
+#ifndef FW_UPDATE_BASE
+#define FW_UPDATE_BASE "http://ift.iptime.org:81/Esp32UploadFirmware"
+#endif
+  mySerialBT.printf("\r\n%s", FW_UPDATE_BASE);
+  mySerialBT.printf("\r\nWiFi는 재부팅 후 연결합니다. Update 시작합니다...");
+  update();
 }
 void format_configCallback(cmd *cmdPtr)
 {
@@ -161,8 +158,12 @@ void ssid_Callback(cmd *cmdPtr)
     String ssid_arg = arg.getValue();
     if(ssid_arg.length() > 0){
        mySerialBT.printf("\r\nSSID : %s\r\n", ssid_arg.c_str());
-       mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
-       strncpy(nvsSystemEEPRom.ssid, ssid_arg.c_str(), 20);
+       if (nvsSystemEEPRom.password[0] == '\0')
+           mySerialBT.printf("PASS : (open)\r\n");
+       else
+           mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
+       strncpy(nvsSystemEEPRom.ssid, ssid_arg.c_str(), sizeof(nvsSystemEEPRom.ssid) - 1);
+       nvsSystemEEPRom.ssid[sizeof(nvsSystemEEPRom.ssid) - 1] = '\0';
        EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
        EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
        EEPROM.commit();
@@ -170,7 +171,10 @@ void ssid_Callback(cmd *cmdPtr)
     else
     {
         mySerialBT.printf("\r\nSSID : %s\r\n", nvsSystemEEPRom.ssid);
-        mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
+        if (nvsSystemEEPRom.password[0] == '\0')
+            mySerialBT.printf("PASS : (open)\r\n");
+        else
+            mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
     }
 }
 void pass_Callback(cmd *cmdPtr)
@@ -178,17 +182,26 @@ void pass_Callback(cmd *cmdPtr)
     Command cmd(cmdPtr);
     Argument arg = cmd.getArgument(0);
     String pass_arg = arg.getValue();
-    if(pass_arg.length() > 0){
-       mySerialBT.printf("\r\nPASS : %s\r\n", pass_arg.c_str());
-       strncpy(nvsSystemEEPRom.password, pass_arg.c_str(), 20);
-       EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
-       EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
-       EEPROM.commit();
-    }
-    else
-    {
+    pass_arg.trim();
+    if (pass_arg.length() > 0) {
+        if (pass_arg.equalsIgnoreCase("none") || pass_arg.equalsIgnoreCase("clear") ||
+            pass_arg.equalsIgnoreCase("open")) {
+            nvsSystemEEPRom.password[0] = '\0';
+            mySerialBT.printf("\r\nPASS : (open)\r\n");
+        } else {
+            mySerialBT.printf("\r\nPASS : %s\r\n", pass_arg.c_str());
+            strncpy(nvsSystemEEPRom.password, pass_arg.c_str(), sizeof(nvsSystemEEPRom.password) - 1);
+            nvsSystemEEPRom.password[sizeof(nvsSystemEEPRom.password) - 1] = '\0';
+        }
+        EEPROM.writeBytes(1, (const byte *)&nvsSystemEEPRom, sizeof(nvsSystemSet_t));
+        EEPROM.writeByte(sizeof(nvsSystemSet_t) + 1, 0x55);
+        EEPROM.commit();
+    } else {
         mySerialBT.printf("\r\nSSID : %s\r\n", nvsSystemEEPRom.ssid);
-        mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
+        if (nvsSystemEEPRom.password[0] == '\0')
+            mySerialBT.printf("PASS : (open)\r\n");
+        else
+            mySerialBT.printf("PASS : %s\r\n", nvsSystemEEPRom.password);
     }
 }
 
@@ -223,7 +236,7 @@ SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStrea
     cmd_ssid = simpleCli.addSingleArgCmd("ssid", ssid_Callback); // SSID
     cmd_ssid.setDescription("Set the SSID");
     cmd_pass = simpleCli.addSingleArgCmd("pass", pass_Callback); // PASS
-    cmd_pass.setDescription("Set the PASS");
+    cmd_pass.setDescription("Set the PASS (pass none = open AP)");
     cmd_ip = simpleCli.addSingleArgCmd("ip", ip_Callback); // IP
     cmd_ip.setDescription("Read the IPAddress,GW,SUBNETMASK");
 

@@ -1,0 +1,26 @@
+(ExpressProject ""
+  (ProjectVersion "19981106")
+  (ProjectType "PCB")
+  (Folder "Design Resources"
+    (Folder "Library")
+    (File ".\1ph_disp4in_int_v1.dsn"
+      (Type "Schematic Design"))
+    (BuildFileAddedOrDeleted "x")
+    (CompileFileAddedOrDeleted "x")
+    (NoModify))
+  (Folder "Outputs")
+  (Folder "Referenced Projects")
+  (PartMRUSelector)
+  (GlobalState
+    (FileView
+      (Path "Design Resources")
+      (Path "Design Resources" ".\1ph_disp4in_int_v1.dsn")
+      (Path "Design Resources" ".\1ph_disp4in_int_v1.dsn" "SCHEMATIC1")
+      (Select "Design Resources" ".\1ph_disp4in_int_v1.dsn" "SCHEMATIC1"
+         "Display"))
+    (HierarchyView)
+    (Doc
+      (Type "COrCapturePMDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -1 -1 3 203 165 772"))
+      (Tab 0))))

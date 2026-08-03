@@ -1001,7 +1001,7 @@ void setup()
   Serial.println("Setup done");
   Serial2.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, SERIAL_RX2  /* RX */, SERIAL_TX2  /* TX*/);
   Serial2.println("Serial 1 started");
-  //bleSetup();
+  bleSetup();
   //ts.penirqControl(0xD0);
   modbusSetup();
   // GFXfont *f;

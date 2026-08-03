@@ -4,11 +4,9 @@
 #include "mainGrobal.h"
 #include "myBlueTooth.h"
 
-// const char *host= "ups1p1p";
-// const char *ssid = "iptime_mbhong";
-//const char *ssid = "iftech";
-//const char *password = "iftech0273";
-//const char *password = "";
+#ifndef FW_UPDATE_BASE
+#define FW_UPDATE_BASE "http://ift.iptime.org:81/Esp32UploadFirmware"
+#endif
 
 extern ESP32SelfUploder selfUploder;
 IPAddress ipaddress(192, 168, 0, 202);
@@ -17,27 +15,52 @@ IPAddress subnetmask(255, 255, 255, 0);
 IPAddress dns1(164, 124, 101, 2);
 IPAddress dns2(8, 8, 8, 8);
 extern Arduino_RPi_DPI_RGBPanel *gfx ;
+
+void wifiPrepareBeforeBle(void)
+{
+  WiFi.persistent(false);
+  wifi_mode_t mode = WiFi.getMode();
+  if (mode == WIFI_OFF) {
+    WiFi.mode(WIFI_STA);
+    delay(100);
+  }
+  /* BLE+WiFi 공존 시 WIFI_PS_NONE이면 abort 됨 → modem sleep 필수 */
+  WiFi.setSleep(WIFI_PS_MIN_MODEM);
+}
+
 void wifiOTAsetup(bool isUpdate)
 {
-  WiFi.mode(WIFI_STA);
-  delay(500);
-  Serial.begin(BAUDRATEDEF);
+  wifiPrepareBeforeBle();
 
-  WiFi.begin(nvsSystemEEPRom.ssid, nvsSystemEEPRom.password);
-  Serial.println("");
-  // Wait for connection
-  //Loop count
-  int loopCount=20;
-  gfx->fillScreen(BLACK); 
-  delay(100);
-  gfx->setCursor(0, 10);
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-    gfx->println(".");
-    loopCount--;
-    if(loopCount <= 0)break;
+  if (WiFi.status() != WL_CONNECTED) {
+    if (nvsSystemEEPRom.password[0] == '\0')
+      WiFi.begin(nvsSystemEEPRom.ssid);
+    else
+      WiFi.begin(nvsSystemEEPRom.ssid, nvsSystemEEPRom.password);
+    Serial.println("");
+    Serial.printf("WiFi connect %s ...\n", nvsSystemEEPRom.ssid);
+    int loopCount = 40;
+    gfx->fillScreen(BLACK);
+    delay(100);
+    gfx->setCursor(0, 10);
+    gfx->println("Connecting to WiFi..");
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+      gfx->print(".");
+      loopCount--;
+      if(loopCount <= 0) break;
+    }
+  } else {
+    Serial.printf("WiFi already connected: %s\n", WiFi.localIP().toString().c_str());
+  }
+
+  if(WiFi.status() != WL_CONNECTED){
+    Serial.println("Failed to connect to WiFi");
+    gfx->println("Failed to connect to WiFi");
+    delay(2000);
+    return;
   }
 
   Serial.println("");
@@ -51,8 +74,9 @@ void wifiOTAsetup(bool isUpdate)
   Serial.println(WiFi.localIP());
   gfx->println(WiFi.localIP());
   if(!isUpdate) return;
-  selfUploder.begin(nvsSystemEEPRom.ssid, nvsSystemEEPRom.password, "https://raw.githubusercontent.com/kimjinhwa/IP-Fineder-For-ESP32/main/dist/ups1p1p");
-  Serial.printf("Free heap before SSL: %d\n", ESP.getFreeHeap());
+
+  selfUploder.begin(nvsSystemEEPRom.ssid, nvsSystemEEPRom.password, FW_UPDATE_BASE);
+  Serial.printf("Free heap before HTTP: %d\n", ESP.getFreeHeap());
   if(selfUploder.checkNewVersion(selfUploder.update_url)){
     if (selfUploder.tryAutoUpdate(selfUploder.updateFile_url.c_str()))
     {
@@ -65,12 +89,13 @@ void wifiOTAsetup(bool isUpdate)
     {
       Serial.println("Update failed");
       gfx->println("Update failed");
-      delay(2000);
+      delay(3000);
     }
   }
   else
   {
     Serial.println("Already on latest version");
     gfx->println("Already on latest version");
+    delay(2000);
   }
 }
