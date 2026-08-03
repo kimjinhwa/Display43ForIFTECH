@@ -123,7 +123,7 @@ size_t myBlueToothStream::printf(const char *format, ...)
     return len;
 }
 void bleSetup(){
-    String bleName = "IFTECH_UPS_"+WiFi.macAddress();
+    String bleName = "IFT_UPS43_"+WiFi.macAddress();
  BLEDevice::init(bleName.c_str());
  //lsFile.littleFsInit(1);// 
 

@@ -1,4 +1,4 @@
-#define VERSION "3.0.0"  // 새로운 보드에서 RTC를 완료 하였다. First Release
+#define VERSION "3.0.1"  // 새로운 보드에서 RTC를 완료 하였다. First Release
 //efine VERSION "2.4.9"  // 새로운 보드에서 RTC를 완료 하였다.
 //efine VERSION "2.4.9"  // RTC 시간을 설정 ..드디어 잡음.
 //#define VERSION "2.4.8"  // RTC 시간을 설정 ..드디어 잡음.
