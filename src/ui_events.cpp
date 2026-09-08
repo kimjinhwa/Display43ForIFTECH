@@ -12,6 +12,9 @@
 #include "upsLog.h"
 #include <sstream>
 #include <Arduino_GFX_Library.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <cstring>
 //#include "string.h"
 //#include <cstring>
 extern upsLog  upslogEvent;
@@ -54,7 +57,46 @@ void enqueueModbusCommand(int index, int value, uint32_t token) ;
 void showMessageLabel(const char *message);
 void timeSave(TIMESAVE tType,int16_t value);
 void scrSettingScreen();
+void scrMeasureLoad();
 void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction);
+
+static TaskHandle_t s_uiTask = NULL;
+static char s_queuedMsg[32];
+static volatile bool s_haveQueuedMsg = false;
+static volatile bool s_measureDirty = false;
+static volatile bool s_settingDirty = false;
+static lv_obj_t *s_kbClose = NULL;
+
+void uiBindLoopTask(void)
+{
+	s_uiTask = xTaskGetCurrentTaskHandle();
+}
+
+void requestMeasureRefresh(void)
+{
+	s_measureDirty = true;
+}
+
+void requestSettingRefresh(void)
+{
+	s_settingDirty = true;
+}
+
+void drainPendingUiUpdates(void)
+{
+	if (s_haveQueuedMsg) {
+		s_haveQueuedMsg = false;
+		showMessageLabel(s_queuedMsg);
+	}
+	if (s_measureDirty) {
+		s_measureDirty = false;
+		scrMeasureLoad();
+	}
+	if (s_settingDirty) {
+		s_settingDirty = false;
+		scrSettingScreen();
+	}
+}
 
 uint32_t waitDataReceive(int wCount);
 uint32_t getReceiveToken();
@@ -87,7 +129,7 @@ void parseStringByLine(lv_obj_t *obj, const char *source /*,std::vector<std::str
 	lv_textarea_set_text(obj, retStr.c_str());
 }
 void mainScrUpdata();
-extern Arduino_RPi_DPI_RGBPanel *gfx ;
+extern Arduino_GFX *gfx ;
 void ChangeLanguage(lv_event_t * e)
 {
 	if(strcmp("ko-KR", lv_i18n_get_current_locale()) == 0 ){
@@ -164,6 +206,12 @@ void evtSystemTabClicked(lv_event_t *e)
 }
 void showMessageLabel(const char *message)
 {
+	if (s_uiTask != NULL && xTaskGetCurrentTaskHandle() != s_uiTask) {
+		strncpy(s_queuedMsg, message ? message : "", sizeof(s_queuedMsg) - 1);
+		s_queuedMsg[sizeof(s_queuedMsg) - 1] = 0;
+		s_haveQueuedMsg = true;
+		return;
+	}
 	lv_obj_t * current_screen = lv_scr_act();
     lv_obj_set_parent( ui_lblMessage,current_screen );
 
@@ -489,79 +537,133 @@ void bntEnterEvent(lv_event_t *e)
 }
 void keyBoardValueChangedEvent(lv_event_t * e)
 {
-	lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED); 
+	lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED);
 	lv_obj_t *kb = lv_event_get_target(e);
 	uint32_t btn_id = lv_keyboard_get_selected_btn(kb);
-	const char *txt = lv_keyboard_get_btn_text(kb,btn_id);
- 	int16_t    keyValue= String(lv_textarea_get_text(ui_txtInputArea)).toInt();
-  	ESP_LOGI("DEBUG","ui_txtInputArea %d (%d)",keyValue,btn_id);
-	if(btn_id  ==  3)  //최소키가 눌리면..
-	{
-		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
-		// if(ui_txtTempory != nullptr){
-		// 	//ui_txtTempory 이것은 해당 Text이다.
-		// 	lv_textarea_set_text(ui_txtTempory ,lv_textarea_get_text( ui_txtInputArea)) ; 
-		// }
+	const char *txt = lv_keyboard_get_btn_text(kb, btn_id);
+	if (txt == NULL || txt[0] == '\0') {
 		return;
 	}
-	if(btn_id  ==  11 || btn_id  ==  15)  //확인 키가 눌리면...
-	{
-		ESP_LOGI("DEBUG","bntEnterEvent %d",btn_id);
-		checkValidation();
-		lv_obj_add_flag(ui_pnlKeyBoard,LV_OBJ_FLAG_HIDDEN);
-		if(ui_txtTempory != nullptr){
-			//ui_txtTempory 이것은 해당 Text이다.
-			lv_textarea_set_text(ui_txtTempory ,lv_textarea_get_text( ui_txtInputArea)) ; 
-			//ui_txtTempory.get
-		}
+	if (strcmp(txt, "Del") == 0) {
+		lv_textarea_del_char(ui_txtInputArea);
+		lv_obj_scroll_to(ui_txtInputArea, 0, 0, LV_ANIM_OFF);
+		return;
+	}
+	if (txt[0] >= '0' && txt[0] <= '9') {
+		lv_textarea_add_text(ui_txtInputArea, txt);
+		lv_obj_scroll_to(ui_txtInputArea, 0, 0, LV_ANIM_OFF);
+	}
+}
+
+static void onKeyboardCloseClicked(lv_event_t *e)
+{
+	if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
+		lv_obj_add_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
 	}
 }
 
 void changeKeyboardText()
 {
-	//ui_Keyboard1;
-//   static const char * kb_map[] = {
-// 	"1", "2", "3", _("CANCEL")/*LV_SYMBOL_CLOSE*/,"\n",
-// 	"4", "5", "6", _("SAVE")/*LV_SYMBOL_OK*/ ,"\n",
-// 	"7", "8", "9", _("BACKSPACE")/*LV_SYMBOL_BACKSPACE*/,"\n",
-// 	"<"/*LV_SYMBOL_LEFT*/, "0", ">"/*LV_SYMBOL_RIGHT*/,"",  NULL
-//      };		
-  static const char * kb_map[] = {
-	"1", "2", "3", LV_SYMBOL_CLOSE,"\n",
-	"4", "5", "6", LV_SYMBOL_BACKSPACE,"\n",
-	"7", "8", "9", LV_SYMBOL_OK ,"\n",
-	LV_SYMBOL_LEFT, "0", LV_SYMBOL_RIGHT,LV_SYMBOL_OK ,  NULL
-     };		
-	
-  static const lv_btnmatrix_ctrl_t kb_ctrl[] = 
-  {
-	4, 4, 4, 6, 
- 	4, 4, 4, 6, 
-   	4, 4, 4, 6, 
-    4, 4, 4, /* LV_BTNMATRIX_CTRL_HIDDEN |*/ 6, 
-  };
-	//ui_Keyboard1 = lv_keyboard_create(ui_pnlKeyBoard);
+	/* SquareLine pnlKeyBoard 는 FLEX_ROW 라서 입력창이 폭을 다 먹는다.
+	 * 생성 파일은 유지하고, 여기서 COLUMN + 키 행으로 다시 잡는다. */
+	static lv_obj_t *s_kbKeysRow = NULL;
+	static const char *kb_map[] = {
+		"1", "2", "3", "\n",
+		"4", "5", "6", "\n",
+		"7", "8", "9", "\n",
+		"Del", "0", NULL
+	};
+	static const lv_btnmatrix_ctrl_t kb_ctrl[] = {
+		1, 1, 1,
+		1, 1, 1,
+		1, 1, 1,
+		1, 2,
+	};
 
-	lv_keyboard_set_map(ui_Keyboard1,LV_KEYBOARD_MODE_USER_1,kb_map,kb_ctrl);
+	lv_obj_set_flex_flow(ui_pnlKeyBoard, LV_FLEX_FLOW_COLUMN);
+	lv_obj_set_flex_align(ui_pnlKeyBoard, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+	lv_obj_set_style_bg_color(ui_pnlKeyBoard, lv_color_hex(0x0B1E4A), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_opa(ui_pnlKeyBoard, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_pad_all(ui_pnlKeyBoard, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_pad_row(ui_pnlKeyBoard, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_clear_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_SCROLLABLE);
+
+	lv_obj_set_layout(ui_txtInputArea, 0);
+	lv_obj_clear_flag(ui_txtInputArea, LV_OBJ_FLAG_IGNORE_LAYOUT | LV_OBJ_FLAG_FLOATING);
+	lv_obj_set_width(ui_txtInputArea, lv_pct(100));
+	/* montserrat_38 line_height=41. 테마 pad(~10)면 높이 50에서 커서가 스크롤되어 글자가 위아래로 튄다. */
+	lv_obj_set_height(ui_txtInputArea, 56);
+	lv_obj_set_style_pad_top(ui_txtInputArea, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_pad_bottom(ui_txtInputArea, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_pad_left(ui_txtInputArea, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_pad_right(ui_txtInputArea, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_border_width(ui_txtInputArea, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_color(ui_txtInputArea, lv_color_hex(0xF2F2F2), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_align(ui_txtInputArea, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_clear_flag(ui_txtInputArea, LV_OBJ_FLAG_SCROLLABLE);
+	lv_obj_set_scrollbar_mode(ui_txtInputArea, LV_SCROLLBAR_MODE_OFF);
+	lv_obj_scroll_to(ui_txtInputArea, 0, 0, LV_ANIM_OFF);
+
+	if (s_kbKeysRow == NULL) {
+		s_kbKeysRow = lv_obj_create(ui_pnlKeyBoard);
+		lv_obj_remove_style_all(s_kbKeysRow);
+		lv_obj_set_width(s_kbKeysRow, lv_pct(100));
+		lv_obj_set_flex_grow(s_kbKeysRow, 1);
+		lv_obj_set_flex_flow(s_kbKeysRow, LV_FLEX_FLOW_ROW);
+		lv_obj_set_style_pad_column(s_kbKeysRow, 6, LV_PART_MAIN);
+		lv_obj_clear_flag(s_kbKeysRow, LV_OBJ_FLAG_SCROLLABLE);
+	}
+
+	if (ui_Keyboard1 == NULL) {
+		ui_Keyboard1 = lv_keyboard_create(s_kbKeysRow);
+		lv_obj_remove_event_cb(ui_Keyboard1, lv_keyboard_def_event_cb);
+		lv_keyboard_set_textarea(ui_Keyboard1, ui_txtInputArea);
+		lv_obj_add_event_cb(ui_Keyboard1, ui_event_Keyboard1, LV_EVENT_ALL, NULL);
+	} else if (lv_obj_get_parent(ui_Keyboard1) != s_kbKeysRow) {
+		lv_obj_set_parent(ui_Keyboard1, s_kbKeysRow);
+	}
+
+	if (ui_Button28 != NULL && lv_obj_get_parent(ui_Button28) != s_kbKeysRow) {
+		lv_obj_clear_flag(ui_Button28, LV_OBJ_FLAG_FLOATING | LV_OBJ_FLAG_IGNORE_LAYOUT);
+		lv_obj_set_parent(ui_Button28, s_kbKeysRow);
+	}
+
+	lv_keyboard_set_map(ui_Keyboard1, LV_KEYBOARD_MODE_USER_1, kb_map, kb_ctrl);
 	lv_keyboard_set_mode(ui_Keyboard1, LV_KEYBOARD_MODE_USER_1);
-
-	//lv_keyboard_set_mode(ui_Keyboard1, LV_KEYBOARD_MODE_NUMBER);
-	lv_obj_set_width(ui_Keyboard1, lv_pct(100));
-	lv_obj_set_height(ui_Keyboard1, lv_pct(80));
-	lv_obj_set_x(ui_Keyboard1, -9);
-	lv_obj_set_y(ui_Keyboard1, 29);
-	lv_obj_set_align(ui_Keyboard1, LV_ALIGN_CENTER);
-	lv_obj_set_flex_flow(ui_Keyboard1, LV_FLEX_FLOW_ROW);
-	lv_obj_set_flex_align(ui_Keyboard1, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-	lv_obj_add_flag(ui_Keyboard1, LV_OBJ_FLAG_IGNORE_LAYOUT); /// Flags
-	lv_obj_set_style_radius(ui_Keyboard1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-	lv_obj_set_style_bg_color(ui_Keyboard1, lv_color_hex(0xCECACA), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_flex_grow(ui_Keyboard1, 1);
+	lv_obj_set_height(ui_Keyboard1, lv_pct(100));
+	lv_obj_set_style_radius(ui_Keyboard1, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_color(ui_Keyboard1, lv_color_hex(0x0B1E4A), LV_PART_MAIN | LV_STATE_DEFAULT);
 	lv_obj_set_style_bg_opa(ui_Keyboard1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-	lv_obj_set_style_text_color(ui_Keyboard1, lv_color_hex(0x090808), LV_PART_ITEMS | LV_STATE_DEFAULT);
+	lv_obj_set_style_pad_row(ui_Keyboard1, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_pad_column(ui_Keyboard1, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_color(ui_Keyboard1, lv_color_hex(0x1A3A6A), LV_PART_ITEMS | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_opa(ui_Keyboard1, 255, LV_PART_ITEMS | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(ui_Keyboard1, lv_color_hex(0xFFFFFF), LV_PART_ITEMS | LV_STATE_DEFAULT);
 	lv_obj_set_style_text_opa(ui_Keyboard1, 255, LV_PART_ITEMS | LV_STATE_DEFAULT);
-	//lv_obj_set_style_text_font(ui_Keyboard1, &ui_font_malgun26, LV_PART_ITEMS| LV_STATE_DEFAULT);
-	lv_obj_set_style_text_font(ui_Keyboard1, &lv_font_montserrat_26, LV_PART_ITEMS| LV_STATE_DEFAULT);
+	lv_obj_set_style_text_font(ui_Keyboard1, &lv_font_montserrat_26, LV_PART_ITEMS | LV_STATE_DEFAULT);
+
+	lv_obj_set_width(ui_Button28, 100);
+	lv_obj_set_height(ui_Button28, lv_pct(100));
+	lv_obj_set_style_bg_color(ui_Button28, lv_color_hex(0x1B7A3A), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_radius(ui_Button28, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(ui_Label64, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_font(ui_Label64, &ui_font_malgun26, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+	if (s_kbClose == NULL) {
+		s_kbClose = lv_btn_create(ui_pnlKeyBoard);
+		lv_obj_add_flag(s_kbClose, LV_OBJ_FLAG_FLOATING | LV_OBJ_FLAG_IGNORE_LAYOUT);
+		lv_obj_set_size(s_kbClose, 56, 32);
+		lv_obj_align(s_kbClose, LV_ALIGN_TOP_RIGHT, -6, 6);
+		lv_obj_set_style_radius(s_kbClose, 4, LV_PART_MAIN);
+		lv_obj_set_style_bg_color(s_kbClose, lv_color_hex(0x8B1A1A), LV_PART_MAIN);
+		lv_obj_add_event_cb(s_kbClose, onKeyboardCloseClicked, LV_EVENT_CLICKED, NULL);
+		lv_obj_t *lblClose = lv_label_create(s_kbClose);
+		lv_label_set_text(lblClose, "X");
+		lv_obj_set_style_text_font(lblClose, &lv_font_montserrat_26, LV_PART_MAIN);
+		lv_obj_set_style_text_color(lblClose, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+		lv_obj_center(lblClose);
+	}
 }
 
     // lv_event_code_t event_code = lv_event_get_code(e);
@@ -580,6 +682,9 @@ void scrSettingScreenLoaded(lv_event_t * e){
 	//_ui_flag_modify( ui_batSaveSetting , LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 }
 void scrSettingScreen(){
+  if (ui_pnlKeyBoard != NULL && !lv_obj_has_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN)) {
+    return;
+  }
   //설정화면 
   char tempstr[10];
   lv_textarea_set_text(ui_txtBatCurrSet, String(upsModbusData.Bat_Current_Ref).c_str()); //2-20 default 2
@@ -740,6 +845,7 @@ void scrMeasureLoadEvent(lv_event_t * e){
 
 void CommonEevntProc(lv_event_t * e){
 	 ui_txtTempory = lv_event_get_target(e);
+	changeKeyboardText();
     _ui_flag_modify( ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 	lv_textarea_set_text(ui_txtInputArea,lv_textarea_get_text(ui_txtTempory));
 	//lv_textarea_set_placeholder_text(ui_txtInputArea,lv_textarea_get_text(ui_txtTempory));

@@ -43,7 +43,7 @@ bool isNewerVersion(const char* currentVersion, const char* serverVersion) {
     return false;
 }
 
-extern Arduino_RPi_DPI_RGBPanel *gfx ;
+extern Arduino_GFX *gfx ;
 
 void printProgress(size_t prg, size_t sz) {
     static int lastProgress = -1;

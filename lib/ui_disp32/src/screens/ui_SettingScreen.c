@@ -3275,25 +3275,9 @@ void ui_SettingScreen_screen_init(void)
 
 
 
-    ui_Keyboard1 = lv_keyboard_create(ui_pnlKeyBoard);
-    lv_keyboard_set_mode(ui_Keyboard1, LV_KEYBOARD_MODE_NUMBER);
-    lv_obj_set_width(ui_Keyboard1, lv_pct(100));
-    lv_obj_set_height(ui_Keyboard1, lv_pct(80));
-    lv_obj_set_x(ui_Keyboard1, -9);
-    lv_obj_set_y(ui_Keyboard1, 29);
-    lv_obj_set_align(ui_Keyboard1, LV_ALIGN_CENTER);
-    lv_obj_set_flex_flow(ui_Keyboard1, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(ui_Keyboard1, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_add_flag(ui_Keyboard1, LV_OBJ_FLAG_IGNORE_LAYOUT);     /// Flags
-    lv_obj_clear_flag(ui_Keyboard1, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
-                      LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
-    lv_obj_set_style_radius(ui_Keyboard1, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_Keyboard1, lv_color_hex(0xCECACA), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Keyboard1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_text_color(ui_Keyboard1, lv_color_hex(0x090808), LV_PART_ITEMS | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Keyboard1, 255, LV_PART_ITEMS | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Keyboard1, &lv_font_montserrat_26, LV_PART_ITEMS | LV_STATE_DEFAULT);
+    /* 부팅 시 키보드 생성 금지(TG1 WDT). src/ui_events.cpp changeKeyboardText()에서 지연 생성.
+     * SquareLine 반영 빚: SettingScreen Keyboard1 을 화면 init에서 만들지 말 것. */
+    ui_Keyboard1 = NULL;
 
     ui_Button28 = lv_btn_create(ui_pnlKeyBoard);
     lv_obj_set_width(ui_Button28, 150);
@@ -3392,8 +3376,6 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_add_event_cb(ui_txtOfftime, ui_event_txtOfftime, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_txtBrigtness, ui_event_txtBrigtness, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button26, ui_event_Button26, LV_EVENT_ALL, NULL);
-    lv_keyboard_set_textarea(ui_Keyboard1, ui_txtInputArea);
-    lv_obj_add_event_cb(ui_Keyboard1, ui_event_Keyboard1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button28, ui_event_Button28, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_lblMessage, ui_event_lblMessage, LV_EVENT_ALL, NULL);
 

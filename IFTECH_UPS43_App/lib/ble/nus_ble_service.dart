@@ -102,6 +102,7 @@ class NusBleService extends ChangeNotifier {
       await FlutterBluePlus.startScan(
         timeout: timeout,
         androidUsesFineLocation: true,
+        androidLegacy: true,
       );
 
       _scanSub = FlutterBluePlus.scanResults.listen((results) {
@@ -149,6 +150,7 @@ class NusBleService extends ChangeNotifier {
 
   Future<void> connect(BluetoothDevice device) async {
     await stopScan();
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
     await disconnect(notify: false);
 
     _device = device;
@@ -168,8 +170,23 @@ class NusBleService extends ChangeNotifier {
         }
       });
 
-      await device.connect(timeout: const Duration(seconds: 15));
-      await device.requestMtu(185);
+      try {
+        await device.clearGattCache();
+      } catch (_) {}
+
+      // Android FBP 기본 mtu=512는 ESP32 연결 직후 끊기는 경우가 있다.
+      // 타임아웃 직후 재시도는 폰 GATT를 더 꼬이게 하므로 한 번만 시도한다.
+      await device.connect(
+        timeout: const Duration(seconds: 20),
+        autoConnect: false,
+        mtu: null,
+      );
+      try {
+        await device.requestMtu(185);
+      } catch (e) {
+        _appendLog('MTU 요청 생략: $e');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 400));
 
       final services = await device.discoverServices();
       BluetoothService? nus;
@@ -211,7 +228,7 @@ class NusBleService extends ChangeNotifier {
     } catch (e) {
       _appendLog('연결 실패: $e');
       await disconnect(notify: false);
-      _setError('연결 실패: $e');
+      _setError('연결 실패: $e\n폰 블루투스를 껐다 켜 보세요.');
     }
   }
 

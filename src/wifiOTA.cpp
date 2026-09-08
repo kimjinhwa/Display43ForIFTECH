@@ -14,18 +14,20 @@ IPAddress gateway(192, 168, 0, 1);
 IPAddress subnetmask(255, 255, 255, 0);
 IPAddress dns1(164, 124, 101, 2);
 IPAddress dns2(8, 8, 8, 8);
-extern Arduino_RPi_DPI_RGBPanel *gfx ;
+extern Arduino_GFX *gfx ;
 
 void wifiPrepareBeforeBle(void)
 {
+  /* WIFI_OFF 후 BLE만 켜면 S3에서 검색은 되고 GATT 연결은 timeout 난다.
+     드라이버는 STA로 올려 두고 AP에는 붙이지 않는다. */
   WiFi.persistent(false);
-  wifi_mode_t mode = WiFi.getMode();
-  if (mode == WIFI_OFF) {
+  WiFi.setAutoReconnect(false);
+  if (WiFi.getMode() == WIFI_OFF) {
     WiFi.mode(WIFI_STA);
     delay(100);
   }
-  /* BLE+WiFi 공존 시 WIFI_PS_NONE이면 abort 됨 → modem sleep 필수 */
   WiFi.setSleep(WIFI_PS_MIN_MODEM);
+  WiFi.disconnect(false);
 }
 
 void wifiOTAsetup(bool isUpdate)

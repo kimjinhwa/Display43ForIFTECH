@@ -86,8 +86,8 @@ ups_modbus_data_t upsModbusData = {
 
 };
 uint8_t _CoilData[16*4]; // converter status 16개, inverter fault status 16개
-void scrMeasureLoad();
-void scrSettingScreen();
+void requestMeasureRefresh(void);
+void requestSettingRefresh(void);
 
 void syncUpsCoilStatusToUpsdata()
 {
@@ -616,8 +616,8 @@ void handleData(ModbusMessage response, uint32_t token)
       {
         offs = response.get(offs, values[i]);
       }
-      scrMeasureLoad();
-      scrSettingScreen();
+      requestMeasureRefresh();
+      requestSettingRefresh();
       // ESP_LOGE("MODBUS","Rev data");
       // for (uint8_t i = 0; i < 59; ++i)
       //   printf("[%d]=%2d ",i, values[i]);
@@ -860,7 +860,7 @@ static unsigned long now;
 unsigned long elaspTime=0;
 uint16_t targetTime=0;
 #include <Arduino_GFX_Library.h>
-extern Arduino_RPi_DPI_RGBPanel *gfx;
+extern Arduino_GFX *gfx;
 extern LittleFileSystem lsFile;
 #endif
     //MB.clearQueue();

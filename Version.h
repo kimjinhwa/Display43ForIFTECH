@@ -1,4 +1,8 @@
-#define VERSION "3.0.3"
+#define VERSION "3.0.21"
+/* 
+키보드를 충전기와 같이 인터페이스를 변경했다.
+*/
+//#define VERSION "3.0.21"
 /* WiFi OTA: IIS Esp32UploadFirmware + IFTECH_DISP43.json 파이프라인 */
 //#define VERSION "3.0.0"
 /* 새로운 보드에서 RTC를 완료 하였다. First Release */

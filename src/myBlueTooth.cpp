@@ -16,10 +16,12 @@ myBlueToothStream mySerialBT;
 
 void MyServerCallbacks::onConnect(BLEServer* pServer) {
       deviceConnected = true;
+      Serial.println("BLE client connected");
 };
 
 void  MyServerCallbacks::onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
+      Serial.println("BLE client disconnected");
 }
 bool btDataReceived=false;
 String btReceiveString="";
@@ -123,38 +125,31 @@ size_t myBlueToothStream::printf(const char *format, ...)
     return len;
 }
 void bleSetup(){
-    String bleName = "IFT_UPS43_"+WiFi.macAddress();
- BLEDevice::init(bleName.c_str());
- //lsFile.littleFsInit(1);// 
+  String bleName = "IFT_UPS43_" + WiFi.macAddress();
+  bleName.replace(":", "");
+  BLEDevice::init(bleName.c_str());
+  Serial.printf("BLE name %s\n", bleName.c_str());
 
   simpleCli.outputStream = &Serial;
   simpleCli.inputStream = &Serial;
-  // Create the BLE Server
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
 
-  // Create the BLE Service
   BLEService *pService = pServer->createService(SERVICE_UUID);
 
-  // Create a BLE Characteristic
   pTxCharacteristic = pService->createCharacteristic(
-										CHARACTERISTIC_UUID_TX,
-										BLECharacteristic::PROPERTY_NOTIFY
-									);
-                      
+                    CHARACTERISTIC_UUID_TX,
+                    BLECharacteristic::PROPERTY_NOTIFY
+                  );
   pTxCharacteristic->addDescriptor(new BLE2902());
 
   BLECharacteristic * pRxCharacteristic = pService->createCharacteristic(
-											 CHARACTERISTIC_UUID_RX,
-											BLECharacteristic::PROPERTY_WRITE
-										);
-
+                       CHARACTERISTIC_UUID_RX,
+                      BLECharacteristic::PROPERTY_WRITE
+                    );
   pRxCharacteristic->setCallbacks(new MyCallbacks());
 
-  // Start the service
   pService->start();
-
-  // Start advertising
   pServer->getAdvertising()->start();
   Serial.println("Waiting a client connection to notify...");
 }
@@ -188,7 +183,7 @@ void bleCheck()
   if (!deviceConnected && oldDeviceConnected)
   {
     delay(500);                  // give the bluetooth stack the chance to get things ready
-    pServer->startAdvertising(); // restart advertising
+    pServer->getAdvertising()->start(); // restart advertising
     Serial.println("start advertising");
     oldDeviceConnected = deviceConnected;
     // lsFile.setOutputStream(&Serial);

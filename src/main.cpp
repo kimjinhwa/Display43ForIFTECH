@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <lvgl.h>
 #include <Arduino_GFX_Library.h>
-#include <TFT_eSPI.h>
 #include <RtcDS1302.h>
 #include "esp32-hal-gpio.h"
 #include "mainGrobal.h"
@@ -9,6 +8,7 @@
 #include "fileSystem.h"
 #include "../Version.h"
 #include "esp_task_wdt.h"
+#include "soc/timer_group_reg.h"
 //#include "font/FreeSansBold12pt7b.h"
 // #include "fileSystem.h"
 
@@ -24,6 +24,7 @@
 #include "wifiOTA.h"
 #include "lv_i18n.h"
 #include "freertos/semphr.h"
+#include "display.h"
 
 /* Board rev 2 — MCP23S08: GP0=RTC CE, GP1=buzzer; CS=GPIO17 */
 #define SERIAL_RX2 19
@@ -34,8 +35,7 @@
 #include <McpRtcThreeWire.h>
 
 #define WDT_TIMEOUT 60 
-#define GFX_BL DF_GFX_BL // default backlight pin, you may replace DF_GFX_BL to actual backlight pin
-#define TFT_BL 2
+#define TFT_BL DISPLAY_BL_PIN
 
 #define BUTTON_ERASE 0 
 
@@ -65,7 +65,6 @@ static unsigned long last_ms;
 // static lv_obj_t *led;
 uint16_t lcdOntime = 0;
 int16_t minDisMessageTime = 1;
-// #define DISPLAY_7
 static char TAG[] = "main";
 
 /** DS1302(McpRtcThreeWire)와 XPT2046(SPI)가 GPIO 11·12 공유 — RTC 구간에서는 터치 읽기 금지 */
@@ -85,45 +84,6 @@ void scrSettingScreen();
 void scrMeasureLoad();
 void toggleBuzzer();
 void RebootSystem(uint16_t afterTime);
-#define DISPLAY_43
-
-#ifdef DISPLAY_7
-Arduino_ESP32RGBPanel *bus = new Arduino_ESP32RGBPanel(
-    GFX_NOT_DEFINED /* CS */, GFX_NOT_DEFINED /* SCK */, GFX_NOT_DEFINED /* SDA */,
-    41 /* DE */, 40 /* VSYNC */, 39 /* HSYNC */, 42 /* PCLK */,
-    14 /* R0 */, 21 /* R1 */, 47 /* R2 */, 48 /* R3 */, 45 /* R4 */,
-    9 /* G0 */, 46 /* G1 */, 3 /* G2 */, 8 /* G3 */, 16 /* G4 */, 1 /* G5 */,
-    15 /* B0 */, 7 /* B1 */, 6 /* B2 */, 5 /* B3 */, 4 /* B4 */
-);
-// option 1:
-// 7寸 50PIN 800*480
-Arduino_RPi_DPI_RGBPanel *gfx = new Arduino_RPi_DPI_RGBPanel(
-    bus,
-    //  800 /* width */, 0 /* hsync_polarity */, 8/* hsync_front_porch */, 2 /* hsync_pulse_width */, 43/* hsync_back_porch */,
-    //  480 /* height */, 0 /* vsync_polarity */, 8 /* vsync_front_porch */, 2/* vsync_pulse_width */, 12 /* vsync_back_porch */,
-    //  1 /* pclk_active_neg */, 16000000 /* prefer_speed */, true /* auto_flush */);
-
-    800 /* width */, 0 /* hsync_polarity */, 210 /* hsync_front_porch */, 30 /* hsync_pulse_width */, 16 /* hsync_back_porch */,
-    480 /* height */, 0 /* vsync_polarity */, 22 /* vsync_front_porch */, 13 /* vsync_pulse_width */, 10 /* vsync_back_porch */,
-    1 /* pclk_active_neg */, 12000000 /* prefer_speed */, true /* auto_flush */);
-#endif
-#ifdef DISPLAY_43
-Arduino_ESP32RGBPanel *bus = new Arduino_ESP32RGBPanel(
-    GFX_NOT_DEFINED /* CS */, GFX_NOT_DEFINED /* SCK */, GFX_NOT_DEFINED /* SDA */,
-    40 /* DE */, 41 /* VSYNC */, 39 /* HSYNC */, 42 /* PCLK */,
-    45 /* R0 */, 48 /* R1 */, 47 /* R2 */, 21 /* R3 */, 14 /* R4 */,
-    5 /* G0 */, 6 /* G1 */, 7 /* G2 */, 15 /* G3 */, 16 /* G4 */, 4 /* G5 */,
-    8 /* B0 */, 3 /* B1 */, 46 /* B2 */, 9 /* B3 */, 1 /* B4 */
-);
-// option 1:
-// ILI6485 LCD 480x272
-Arduino_RPi_DPI_RGBPanel *gfx = new Arduino_RPi_DPI_RGBPanel(
-    bus,
-    480 /* width */, 0 /* hsync_polarity */, 8 /* hsync_front_porch */, 4 /* hsync_pulse_width */, 43 /* hsync_back_porch */,
-    272 /* height */, 0 /* vsync_polarity */, 8 /* vsync_front_porch */, 4 /* vsync_pulse_width */, 12 /* vsync_back_porch */,
-    1 /* pclk_active_neg */, 6000000 /* prefer_speed */, true /* auto_flush */);
-
-#endif
 
 #include "touch.h"
 #if LV_USE_LOG != 0
@@ -142,6 +102,8 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
   uint32_t h = (area->y2 - area->y1 + 1);
   gfx->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)&color_p->full, w, h);
   lv_disp_flush_ready(disp);
+  /* RGB DMA가 PSRAM을 쓰는 동안 코어가 플래시에 묶이지 않게 양보 */
+  taskYIELD();
 }
 
 extern XPT2046_Touchscreen ts;
@@ -895,25 +857,37 @@ void calibrationTouchInit()
   //P_LOGI("TOUCH", "lv_tc_indev_drv_init");
   lv_indev_drv_register(&indev_drv);
   //P_LOGI("TOUCH", "lv_indev_drv_register");
-  bool is_valid = esp_nvs_tc_is_valid_cb();
-  //P_LOGI("TOUCH", "esp_nvs_tc_is_valid_cb %d", is_valid);
-
-  //P_LOGI("TOUCH", "esp_nvs_tc_coeff_init");
   lv_tc_register_coeff_save_cb(esp_nvs_tc_coeff_save_cb);
-  //P_LOGI("TOUCH", "lv_tc_register_coeff_save_cb");
-  lv_obj_t *tCScreen = lv_tc_screen_create();
-  //P_LOGI("TOUCH", "lv_tc_screen_create");
-  lv_obj_add_event_cb(tCScreen, calibrationTouchFinish_cb, LV_EVENT_READY, NULL);
+  /* 캘리브가 이미 있으면 화면을 만들지 않는다.
+   * RGB 패널은 첫 프레임 전에 위젯을 더 만들면 TG1 인터럽트 WDT가 걸린다. */
   if(esp_nvs_tc_is_valid_cb())
   {
     ESP_LOGI("TOUCH", "esp_nvs_tc_is_valid_cb");
     return;
-    //lv_disp_load_scr(ui_MainScreen);
   }
-  //P_LOGI("TOUCH", "lv_disp_load_scr");
+  lv_obj_t *tCScreen = lv_tc_screen_create();
+  lv_obj_add_event_cb(tCScreen, calibrationTouchFinish_cb, LV_EVENT_READY, NULL);
   lv_disp_load_scr(tCScreen);
   ESP_LOGI("TOUCH", "lv_tc_screen_start");
   lv_tc_screen_start(tCScreen);
+}
+#ifndef TIMG_WDT_WKEY_VALUE
+#define TIMG_WDT_WKEY_VALUE 0x50D83AA1
+#endif
+
+/* RGB 패널 프레임버퍼는 PSRAM. 한글 폰트/PNG를 플래시에서 읽으면 캐시가 끊겨
+ * LCD DMA가 굶고 TG1 인터럽트 WDT(기본 300ms)가 리셋한다. */
+static void stretchRgbIntWdt(void)
+{
+#if defined(DISPLAY_43)
+  const uint32_t stg0 = REG_READ(TIMG_WDTCONFIG2_REG(1));
+  const uint32_t stg1 = REG_READ(TIMG_WDTCONFIG3_REG(1));
+  WRITE_PERI_REG(TIMG_WDTWPROTECT_REG(1), TIMG_WDT_WKEY_VALUE);
+  WRITE_PERI_REG(TIMG_WDTCONFIG2_REG(1), stg0 * 10);
+  WRITE_PERI_REG(TIMG_WDTCONFIG3_REG(1), stg1 * 10);
+  WRITE_PERI_REG(TIMG_WDTWPROTECT_REG(1), 0);
+  ESP_LOGI("WDT", "IWDT stg0 %u -> %u", (unsigned)stg0, (unsigned)(stg0 * 10));
+#endif
 }
 void gpioInit(){
   pinMode(BUTTON_ERASE , INPUT);
@@ -932,9 +906,9 @@ void gpioInit(){
 void setup()
 {
   Serial.begin(BAUDRATEDEF);
+  stretchRgbIntWdt();
   gpioInit();
-  WiFi.mode(WIFI_OFF);
-  delay(100);
+  wifiPrepareBeforeBle();
 
   SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
   digitalWrite(TOUCH_XPT2046_CS, HIGH);
@@ -955,6 +929,7 @@ void setup()
 
   // Init Display
   // Add
+  displayCreate();
   gfx->begin();
   gfx->fillScreen(BLACK);
 
@@ -1001,7 +976,6 @@ void setup()
   Serial.println("Setup done");
   Serial2.begin(nvsSystemEEPRom.BAUDRATE, SERIAL_8N1, SERIAL_RX2  /* RX */, SERIAL_TX2  /* TX*/);
   Serial2.println("Serial 1 started");
-  bleSetup();
   //ts.penirqControl(0xD0);
   modbusSetup();
   // GFXfont *f;
@@ -1107,8 +1081,17 @@ void setup()
 
     /* System setting screen*/
     setTimeText();
+    lv_disp_load_scr(ui_MainScreen);
     calibrationTouchInit();
+    uiBindLoopTask();
+    /* 첫 페인트(배경 PNG·폰트=플래시) 동안 BLE/모드버스 태스크를 켜지 않는다. */
+    for (int i = 0; i < 5; ++i) {
+      lv_timer_handler();
+      vTaskDelay(pdMS_TO_TICKS(30));
+    }
   }
+  wifiPrepareBeforeBle();
+  bleSetup();
   // Modbus는 내부적으로 task를 사용하고 있다.
   xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask, 0);  
 
@@ -1141,6 +1124,7 @@ uint16_t incTime = 0;
 // int modbusEventSendLoop(int timeout);
 // int modbusEventGetLoop();
 void showMessageLabel(const char *message);
+void drainPendingUiUpdates(void);
 //extern lv_obj_t * ui_MainScreen;
 uint16_t pressedResetButton=0;
 void loop()
@@ -1148,6 +1132,7 @@ void loop()
   void *parameters;
   bleCheck();
   now = millis();
+  drainPendingUiUpdates();
   #ifndef DONOTUSECOMM
   if(modbusErrorCounter>2)
   {

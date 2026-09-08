@@ -14,4 +14,9 @@ typedef struct {
 } ModbusCommand;
 
 extern QueueHandle_t modbusCmdQueue;
+
+void uiBindLoopTask(void);
+void requestMeasureRefresh(void);
+void requestSettingRefresh(void);
+void drainPendingUiUpdates(void);
 #endif
