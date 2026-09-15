@@ -107,6 +107,7 @@ ko-KR:
   Output_Overload: 출력 과부하
   Inverter_Overload_Stop: 인버터 과부하 정지
   OFFSET_Check_ERR: 옵셋체크 이상
+  OUTPUT_CT_ERR: 출력 CT에러
   input_volt_rms: 입력 전압
   input_curr_rms: 입력 전류
   vdc_link_volt_rms: 직류링크 전압

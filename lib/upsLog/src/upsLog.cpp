@@ -51,13 +51,13 @@ upsLog::upsLog(const char* filename,eventType_t eventType)
     {
         mask_moduleStatusEvent  = 0b0111111111111111;
         mask_HwStatusEvent      = 0b0110110111100111;
-        mask_upsOperationFault  = 0b0111111111111111;
+        mask_upsOperationFault  = 0b1111111111111111;
     }
     else // ALARM
     {
         mask_moduleStatusEvent  = 0x00;
         mask_HwStatusEvent      = 0b0110110111100111;
-        mask_upsOperationFault  = 0b0111111111111111;
+        mask_upsOperationFault  = 0b1111111111111111;
         ;
     }
     logCount = 0;

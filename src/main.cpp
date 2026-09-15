@@ -1071,6 +1071,7 @@ void setup()
     //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
     ui_init();
+    myui_scrAlarm1_lock_scroll();
     lv_obj_scroll_to_view_recursive(ui_alarmTextArea,LV_ANIM_OFF);
     lv_obj_scroll_to_view_recursive(ui_eventTextArea,LV_ANIM_OFF);
     lv_tabview_set_act(ui_TabView2,1,LV_ANIM_OFF); 

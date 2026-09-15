@@ -56,7 +56,7 @@ private:
     uint16_t logid=0;
     uint16_t mask_moduleStatusEvent =0b0111111111111111;
     uint16_t mask_HwStatusEvent     =0b0110110111100111;
-    uint16_t mask_upsOperationFault =0b0111111111111111;
+    uint16_t mask_upsOperationFault =0b1111111111111111;
 
     int shrinkFile();
     int16_t currentMemoryPage=0;
@@ -151,7 +151,7 @@ public:
         "Output_Overload",               /* 12 */
         "Inverter_Overload_Stop",        /* 13*/
         "OFFSET_Check_ERR",              /* 14 */
-        "",                              /* 15 reserved*/
+        "OUTPUT_CT_ERR",                 /* 15 */
     };
 };
 #endif

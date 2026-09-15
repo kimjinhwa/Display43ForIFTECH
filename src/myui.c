@@ -89,3 +89,29 @@ void myui_MainScreen_screen_init(void){
     // lv_obj_set_style_bg_color(ui_pnlInvPower, lv_color_hex(ONLINE_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT);
     // lv_obj_set_style_border_color(ui_pnlInvPower, lv_color_hex(ONLINE_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT);
 }
+
+static void lockLogTextArea(lv_obj_t *ta)
+{
+    if (ta == NULL) {
+        return;
+    }
+    lv_obj_clear_flag(ta, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK |
+                      LV_OBJ_FLAG_CLICK_FOCUSABLE | LV_OBJ_FLAG_SCROLLABLE |
+                      LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
+                      LV_OBJ_FLAG_SCROLL_CHAIN | LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    lv_obj_set_scrollbar_mode(ta, LV_SCROLLBAR_MODE_OFF);
+    lv_textarea_set_cursor_click_pos(ta, false);
+}
+
+/* SquareLine은 TabView 본체 플래그만 건드린다. 스와이프는 자식 content가 담당.
+ * 탭하면 elastic/snap 때문에 TextArea 글자가 잠깐 흔들린다. */
+void myui_scrAlarm1_lock_scroll(void)
+{
+    lv_obj_t *cont = lv_tabview_get_content(ui_TabView2);
+    lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC |
+                      LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);
+    lv_obj_set_scrollbar_mode(cont, LV_SCROLLBAR_MODE_OFF);
+
+    lockLogTextArea(ui_alarmTextArea);
+    lockLogTextArea(ui_eventTextArea);
+}

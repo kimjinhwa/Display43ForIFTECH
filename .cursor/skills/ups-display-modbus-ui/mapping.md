@@ -153,12 +153,12 @@ HW 알람 마스크 `0b0110110111100111` = bits 0,1,2,5,6,7,8,10,11,13,14.
 | 12 | `output_OC_overtime_fault` | 알람 | `Output_Overload` |
 | 13 | `inverter_OL_STOP` | 알람 | `Inverter_Overload_Stop` |
 | 14 | `OFFSET_CHECK_ERR` | 알람 | `OFFSET_Check_ERR` |
-| 15 | reserved | 없음 | |
+| 15 | `OUTPUT_CT_ERR` | 알람 | `OUTPUT_CT_ERR` |
 
 Bit7=1 이면 입력 라인 3개를 `OFFLINE_COLOR`. 0이면 `ONLINE_COLOR`.
 바이패스 경로(`pnlMainPower2/3`)도 같은 비트로 같이 꺼진다.
 
-알람 마스크 `0b0111111111111111` (bit15 제외).
+알람 마스크 `0b1111111111111111` (bit15 `OUTPUT_CT_ERR` 포함).
 
 ---
 

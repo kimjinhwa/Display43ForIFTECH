@@ -89,7 +89,7 @@ typedef struct
   uint16_t output_OC_overtime_fault : 1;      // 17.12	output OC overtime fault(출력 과부하)	1: fault, 0: Normal
   uint16_t inverter_OL_STOP : 1;              // 17.13	inverter OL STOP(인버터 과부하 정지)	1: fault, 0: Normal	인버터 정지, 절환
   uint16_t OFFSET_CHECK_ERR : 1;              // 17.14	OFFSET CHECK ERR	1: fault, 0: Normal
-  uint16_t reserved : 1;                      // 17.15
+  uint16_t OUTPUT_CT_ERR : 1;                 // 17.15	OUTPUT CT ERR	1: fault, 0: Normal	출력 CT에러
 } UpsOperationFaultBit_t;
 
 typedef union{

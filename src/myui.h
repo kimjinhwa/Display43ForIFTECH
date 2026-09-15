@@ -30,6 +30,7 @@ extern lv_obj_t * ui_pnlInvPower2;
 extern lv_obj_t * ui_pnlInvPower3;
 extern lv_obj_t * ui_pnlInvPower4;
 void myui_MainScreen_screen_init(void);
+void myui_scrAlarm1_lock_scroll(void);
 
 #ifdef __cplusplus
 } /*extern "C"*/

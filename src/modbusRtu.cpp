@@ -148,7 +148,7 @@ void syncUpsCoilStatusToUpsdata()
   upsModbusData.upsOperationFault.Bit.output_OC_overtime_fault = _CoilData[index++] ? 1 : 0;
   upsModbusData.upsOperationFault.Bit.inverter_OL_STOP = _CoilData[index++] ? 1 : 0;
   upsModbusData.upsOperationFault.Bit.OFFSET_CHECK_ERR = _CoilData[index++] ? 1 : 0;
-  upsModbusData.upsOperationFault.Bit.reserved = _CoilData[index++] ? 1 : 0;
+  upsModbusData.upsOperationFault.Bit.OUTPUT_CT_ERR = _CoilData[index++] ? 1 : 0;
 }
 void UpsdataTosyncUpsCoilStatus()
 {
@@ -210,7 +210,7 @@ void UpsdataTosyncUpsCoilStatus()
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.output_OC_overtime_fault;
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.inverter_OL_STOP;
   _CoilData[index++] = upsModbusData.upsOperationFault.Bit.OFFSET_CHECK_ERR;
-  _CoilData[index++] = upsModbusData.upsOperationFault.Bit.reserved;
+  _CoilData[index++] = upsModbusData.upsOperationFault.Bit.OUTPUT_CT_ERR;
 }
 #ifdef MODBUSSERVER
 ModbusServerRTU upsModbus232(2000);
