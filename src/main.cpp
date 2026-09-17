@@ -26,13 +26,15 @@
 #include "freertos/semphr.h"
 #include "display.h"
 
-/* Board rev 2 — MCP23S08: GP0=RTC CE, GP1=buzzer; CS=GPIO17 */
+/* Board: MCP23S08 GP1=buzzer CS=GPIO17. DS1302 CE=GPIO43 (UART0 TX). */
 #define SERIAL_RX2 19
 #define SERIAL_TX2 20
 #define A23S08_CS 17
 
 #include <Mcp23s08.h>
-#include <McpRtcThreeWire.h>
+#include "rtcCeGpioWire.h"
+#include "spiBusCs.h"
+#include "driver/uart.h"
 
 #define WDT_TIMEOUT 60 
 #define TFT_BL DISPLAY_BL_PIN
@@ -67,7 +69,7 @@ uint16_t lcdOntime = 0;
 int16_t minDisMessageTime = 1;
 static char TAG[] = "main";
 
-/** DS1302(McpRtcThreeWire)와 XPT2046(SPI)가 GPIO 11·12 공유 — RTC 구간에서는 터치 읽기 금지 */
+/** DS1302 CE=GPIO43. SCK/MOSI는 터치·MCP와 공유 — RTC 구간에서는 터치 읽기 금지 */
 
 
 extern LittleFileSystem lsFile;
@@ -291,24 +293,13 @@ void touchCalibrationInit()
 
 void stopTouchSpi(void)
 {
-  ts.penirqControl(0x93);               // 무력화
+  ts.penirqControl(0x93);
+  rtcCeGpioLow();
   Mcp23s08_RtcCe(false);
   enalbeTouchEdit=1;
-  lv_indev_enable(NULL, false); 
-  digitalWrite(TOUCH_XPT2046_CS, LOW);
-  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
-  SPI.transfer (0x00);
-  SPI.transfer (0x00);
-  SPI.endTransaction();
+  lv_indev_enable(NULL, false);
   digitalWrite(TOUCH_XPT2046_CS, HIGH);
-  SPI.bus();
-  SPI.end();
-  Serial.println("SPI.end");
-  delay(500);
-  // static lv_indev_drv_t indev_drv;
-  // lv_indev_drv_init(&indev_drv);
-  // indev_drv.type = LV_INDEV_TYPE_POINTER;
-  // lv_indev_drv_register(&indev_drv);
+  digitalWrite(A23S08_CS, HIGH);
 }
 void startTouchSpi(void) {
 
@@ -327,6 +318,37 @@ void startTouchSpi(void) {
 }
 
 static bool g_rtcBootSynced = false;
+static bool g_rtcHardwareMissing = false;
+
+/** DS1302 RAM 왕복. 칩이 없으면 스탬프가 돌아오지 않는다. */
+template<typename TWire>
+static bool probeRtcRam(RtcDS1302<TWire> &rtc)
+{
+  bool wasProtected = rtc.GetIsWriteProtected();
+  if (wasProtected)
+    rtc.SetIsWriteProtected(false);
+
+  const uint8_t stamp[4] = {0xA5, 0x5A, 0x3C, (uint8_t)~0x3C};
+  bool ok = false;
+  for (int i = 0; i < 2 && !ok; i++) {
+    if (rtc.SetMemory(stamp, 4) != 4) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+      continue;
+    }
+    uint8_t check[4] = {0};
+    if (rtc.GetMemory(check, 4) == 4 &&
+        check[0] == stamp[0] && check[1] == stamp[1] &&
+        check[2] == stamp[2] && check[3] == stamp[3]) {
+      ok = true;
+      break;
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  if (wasProtected)
+    rtc.SetIsWriteProtected(true);
+  return ok;
+}
 
 /** Burst read @p samples times; true if all valid and TotalSeconds span <= @p maxSpreadSec. */
 template<typename TWire>
@@ -433,25 +455,32 @@ static bool readRtcTrusted(RtcDS1302<TWire> &rtc, RtcDateTime &out,
   return false;
 }
 
-static void initMcpRtcWire(McpRtcThreeWire &wire)
+static void finishRtcBus(void)
 {
-  wire.configureSpiBus(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI,
-                         TOUCH_XPT2046_CS);
+  rtcCeGpioLow();
+  digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  digitalWrite(A23S08_CS, HIGH);
+  spiBusRecoverFromBitBang();
+  rtcCeGpioLow();
 }
 
 void initSetRtc(){
-
-  /* Cold power: DS1302 / bus need a short settle before first CE access */
   vTaskDelay(pdMS_TO_TICKS(80));
-
-  digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  finishRtcBus();
   Mcp23s08_RtcCe(false);
-  McpRtcThreeWire myWire(TOUCH_XPT2046_MOSI, TOUCH_XPT2046_SCK);
-  initMcpRtcWire(myWire);
-  RtcDS1302<McpRtcThreeWire> Rtc(myWire);
-  myWire.begin();
+
+  RtcCeGpioWire myWire(TOUCH_XPT2046_MOSI, TOUCH_XPT2046_SCK, RTC_CE_GPIO);
+  RtcDS1302<RtcCeGpioWire> Rtc(myWire);
   Rtc.Begin();
-  myWire.begin();
+  rtcCeGpioLow();
+
+  if (!probeRtcRam(Rtc)) {
+    g_rtcBootSynced = false;
+    g_rtcHardwareMissing = true;
+    printf("RTC not present — keep ESP time\r\n");
+    finishRtcBus();
+    return;
+  }
 
   if (Rtc.GetIsWriteProtected())
     printf("RTC is write protected\r\n");
@@ -478,7 +507,7 @@ void initSetRtc(){
     g_rtcBootSynced = false;
     printf("RTC boot read failed after %d rounds — keep ESP time, no settimeofday\r\n",
            kBootOuterRounds);
-    myWire.end();
+    finishRtcBus();
     return;
   }
 
@@ -505,20 +534,22 @@ void initSetRtc(){
     printf("\r\nnow RTC Time INVALID after trusted read — skip settimeofday\r\n");
     vTaskDelay(50);
   }
-  myWire.end();
-
+  finishRtcBus();
+  printf("RTC CE GPIO43 LOW after boot\r\n");
 }
-RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
-//void setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0)) 
+
+RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
 {
   stopTouchSpi();
+  finishRtcBus();
+  Mcp23s08_RtcCe(false);
 
-  McpRtcThreeWire myWire(TOUCH_XPT2046_MOSI, TOUCH_XPT2046_SCK);
-  initMcpRtcWire(myWire);
-  RtcDS1302<McpRtcThreeWire> Rtc(myWire);
-  myWire.begin();
+  RtcCeGpioWire myWire(TOUCH_XPT2046_MOSI, TOUCH_XPT2046_SCK, RTC_CE_GPIO);
+  RtcDS1302<RtcCeGpioWire> Rtc(myWire);
   Rtc.Begin();
+  rtcCeGpioLow();
   vTaskDelay(10);
+
   if (Rtc.GetIsWriteProtected())
     printf("RTC is write protected\r\n");
   if (!Rtc.GetIsRunning()) {
@@ -563,7 +594,7 @@ RtcDateTime setRtc(bool write, const RtcDateTime *newTime = new RtcDateTime(0))
     printf("\r\nnow RTC Time INVALID after write — skip settimeofday\r\n");
     vTaskDelay(50);
   }
-  myWire.end();
+  finishRtcBus();
   startTouchSpi();
   return now;
 }
@@ -894,11 +925,15 @@ void gpioInit(){
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
 
-  pinMode(TOUCH_XPT2046_SCK, OUTPUT);
-  pinMode(TOUCH_XPT2046_MISO, INPUT);
-  pinMode(TOUCH_XPT2046_MOSI, OUTPUT);
   pinMode(TOUCH_XPT2046_CS, OUTPUT);
   digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  pinMode(A23S08_CS, OUTPUT);
+  digitalWrite(A23S08_CS, HIGH);
+
+  rtcCeGpioTakeFromUart0();
+#if defined(DISPLAY_43)
+  uart_driver_delete(UART_NUM_0);
+#endif
 
   pinMode(SERIAL_TX2 , OUTPUT);
   pinMode(SERIAL_RX2 , INPUT);
@@ -910,19 +945,27 @@ void setup()
   gpioInit();
   wifiPrepareBeforeBle();
 
-  SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
   digitalWrite(TOUCH_XPT2046_CS, HIGH);
+  digitalWrite(A23S08_CS, HIGH);
   Mcp23s08_begin(A23S08_CS, 1000000);
-  Mcp23s08_initOutputsAll();
   Mcp23s08_RtcCe(false);
-  Mcp23s08_BuzzerControl(false);
-
+  printf("MCP OLAT=0x%02X GPIO=0x%02X CE43=%d\r\n",
+         (unsigned)Mcp23s08_readReg(0x0A), (unsigned)Mcp23s08_readReg(0x09),
+         (int)digitalRead(RTC_CE_GPIO));
+  Mcp23s08_bootBeep(1);
   initSetRtc();
+  spiBusRecoverFromBitBang();
+  rtcCeGpioLow();
   if (!g_rtcBootSynced) {
     printf("RTC late resync (before touch_init)\r\n");
     vTaskDelay(pdMS_TO_TICKS(100));
     initSetRtc();
+    spiBusRecoverFromBitBang();
+    rtcCeGpioLow();
   }
+  Mcp23s08_bootBeep(2);
+  printf("after RTC MCP OLAT=0x%02X CE43=%d\r\n",
+         (unsigned)Mcp23s08_readReg(0x0A), (int)digitalRead(RTC_CE_GPIO));
 
   initialEEPROM();
   nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
@@ -1206,7 +1249,7 @@ void loop()
   if(now - previous10000mills > 3000)
   {
     previous10000mills = now;
-    /* 설정 화면: LVGL/터치가 SPI를 쓰는 동안 setRtc가 SPI.end·RTC 3-wire를 하면 칩 읽기·통신이 깨지기 쉬움 */
+    /* 설정 화면에서는 터치 SPI와 RTC 비트뱅이 겹치지 않게 주기적 RTC 읽기를 하지 않음 */
     if (lv_scr_act() != ui_SettingScreen)
     {
       //setRtc(false, nullptr);

@@ -42,7 +42,7 @@ XPT2046_Touchscreen ts(TOUCH_XPT2046_CS);
 
 void touch_init()
 {
-  SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, TOUCH_XPT2046_CS);
+  SPI.begin(TOUCH_XPT2046_SCK, TOUCH_XPT2046_MISO, TOUCH_XPT2046_MOSI, -1);
   ts.begin();
   ts.setRotation(TOUCH_XPT2046_ROTATION);
   ts.penirqControl(0x93);

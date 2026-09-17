@@ -457,10 +457,10 @@ ModbusMessage FC06(ModbusMessage request)
     default:
       break;
     }
-    // tmv.tv_sec = now.TotalSeconds();
-    // tmv.tv_usec = 0;
-    // settimeofday(&tmv, NULL);
-    // setRtc(true, &now);
+    tmv.tv_sec = now.TotalSeconds();
+    tmv.tv_usec = 0;
+    settimeofday(&tmv, NULL);
+    setRtc(true, &now);
   }
   if (writeAddress >= 66 && writeAddress < 84)  //Reserved
   {

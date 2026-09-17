@@ -1,4 +1,9 @@
-#define VERSION "3.0.22"
+#define VERSION "4.0.2"
+/* 
+ 여기서 하드웨어를 변경하여 변경한다. 
+ 시리얼 통신 TX를 사용하여 RTC를 사용한다.
+*/
+//#define VERSION "3.0.22"
 /*
 여기에도 반영해줘.
 
