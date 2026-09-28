@@ -4,7 +4,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../ble/nus_ble_service.dart';
-import 'control_screen.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -68,12 +67,18 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _onConnect(ScanResult result) async {
     final ble = context.read<NusBleService>();
+    final already =
+        ble.isConnected && ble.device?.remoteId == result.device.remoteId;
+    if (already) {
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      return;
+    }
     await ble.connect(result.device);
     if (!mounted) return;
     if (ble.isConnected) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const ControlScreen()),
-      );
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     } else if (ble.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(ble.error!)),
@@ -87,9 +92,16 @@ class _ScanScreenState extends State<ScanScreen> {
     final scanning = ble.state == BleConnectionState.scanning;
     final connecting = ble.state == BleConnectionState.connecting;
 
-    return Scaffold(
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v.abs() > 400 && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
-        title: const Text('UPS43D1P'),
+        title: const Text('장비 연결'),
         actions: [
           if (scanning || connecting || _requesting)
             const Padding(
@@ -110,7 +122,9 @@ class _ScanScreenState extends State<ScanScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
-              'IFT_UPS 장비를 검색합니다.\nBLE Nordic UART 방식입니다.',
+              ble.isConnected
+                  ? '현재 연결은 유지됩니다. 다른 장비를 선택하면 그쪽으로 바꿉니다.'
+                  : 'IFT_ 장비를 검색합니다. BLE Nordic UART 방식입니다.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -124,6 +138,21 @@ class _ScanScreenState extends State<ScanScreen> {
               label: Text(scanning ? '검색 중…' : '장비 검색'),
             ),
           ),
+          if (ble.isConnected && ble.device != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Card(
+                child: ListTile(
+                  leading: const Icon(Icons.bluetooth_connected),
+                  title: Text(
+                    ble.device!.platformName.isNotEmpty
+                        ? ble.device!.platformName
+                        : '연결됨',
+                  ),
+                  subtitle: Text(ble.device!.remoteId.str),
+                ),
+              ),
+            ),
           if (ble.error != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -152,17 +181,24 @@ class _ScanScreenState extends State<ScanScreen> {
                       final name = r.device.platformName.isNotEmpty
                           ? r.device.platformName
                           : '(이름 없음)';
+                      final isCurrent = ble.isConnected &&
+                          ble.device?.remoteId == r.device.remoteId;
                       return Card(
                         child: ListTile(
                           leading: CircleAvatar(
                             backgroundColor: Theme.of(context)
                                 .colorScheme
                                 .primaryContainer,
-                            child: const Icon(Icons.bluetooth),
+                            child: Icon(
+                              isCurrent
+                                  ? Icons.bluetooth_connected
+                                  : Icons.bluetooth,
+                            ),
                           ),
                           title: Text(name),
                           subtitle: Text(
-                            '${r.device.remoteId.str}\nRSSI ${r.rssi} dBm',
+                            '${r.device.remoteId.str}\nRSSI ${r.rssi} dBm'
+                            '${isCurrent ? '\n현재 연결' : ''}',
                           ),
                           isThreeLine: true,
                           trailing: connecting
@@ -171,7 +207,11 @@ class _ScanScreenState extends State<ScanScreen> {
                                   height: 24,
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : const Icon(Icons.chevron_right),
+                              : Icon(
+                                  isCurrent
+                                      ? Icons.check
+                                      : Icons.chevron_right,
+                                ),
                           onTap: connecting ? null : () => _onConnect(r),
                         ),
                       );
@@ -180,6 +220,7 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

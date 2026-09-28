@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -48,6 +49,13 @@ class NusBleService extends ChangeNotifier {
   UpsRatingConfig? _deviceRating;
   int _wifiConfigVersion = 0;
   int _ratingConfigVersion = 0;
+  String? _deviceFwVersion;
+  String? _fwUpdateBase;
+  String? _fwMeta;
+  String? _fwJsonUrl;
+  String? _serverLatest;
+  bool _updateAvailable = false;
+  String? _fwCheckError;
 
   BleConnectionState get state => _state;
   String? get error => _error;
@@ -72,6 +80,20 @@ class NusBleService extends ChangeNotifier {
   /// Bumps when rating lines are parsed.
   int get ratingConfigVersion => _ratingConfigVersion;
 
+  String? get deviceFwVersion => _deviceFwVersion;
+  String? get fwUpdateBase => _fwUpdateBase;
+  String? get fwMeta => _fwMeta;
+  String? get fwJsonUrl => _fwJsonUrl;
+  String? get serverLatest => _serverLatest;
+  bool get updateAvailable => _updateAvailable;
+  bool get fwIsLatest {
+    if (_updateAvailable) return false;
+    if (_deviceFwVersion == null || _serverLatest == null) return false;
+    return !_isNewerVersion(_deviceFwVersion, _serverLatest) &&
+        !_isNewerVersion(_serverLatest, _deviceFwVersion);
+  }
+  String? get fwCheckError => _fwCheckError;
+
   Future<bool> ensureAdapterOn() async {
     if (await FlutterBluePlus.isSupported == false) {
       _setError('이 기기는 BLE를 지원하지 않습니다.');
@@ -92,6 +114,7 @@ class NusBleService extends ChangeNotifier {
   Future<void> startScan({Duration timeout = const Duration(seconds: 8)}) async {
     if (!await ensureAdapterOn()) return;
 
+    final keepConnected = _state == BleConnectionState.connected;
     await stopScan();
     _scanResults.clear();
     _state = BleConnectionState.scanning;
@@ -134,7 +157,9 @@ class NusBleService extends ChangeNotifier {
       _setError('스캔 실패: $e');
     } finally {
       if (_state == BleConnectionState.scanning) {
-        _state = BleConnectionState.disconnected;
+        _state = keepConnected
+            ? BleConnectionState.connected
+            : BleConnectionState.disconnected;
         notifyListeners();
       }
     }
@@ -151,6 +176,12 @@ class NusBleService extends ChangeNotifier {
   Future<void> connect(BluetoothDevice device) async {
     await stopScan();
     await Future<void>.delayed(const Duration(milliseconds: 1200));
+    final sameDevice = _device?.remoteId == device.remoteId &&
+        _state == BleConnectionState.connected;
+    if (sameDevice) {
+      notifyListeners();
+      return;
+    }
     await disconnect(notify: false);
 
     _device = device;
@@ -223,8 +254,10 @@ class NusBleService extends ChangeNotifier {
       _state = BleConnectionState.connected;
       _appendLog('연결됨. 명령을 전송할 수 있습니다.');
       notifyListeners();
-      // Load stored Wi-Fi credentials from device
-      Future.delayed(const Duration(milliseconds: 250), fetchStoredWifi);
+      Future.delayed(const Duration(milliseconds: 250), () async {
+        await fetchStoredWifi();
+        await fetchFwInfo();
+      });
     } catch (e) {
       _appendLog('연결 실패: $e');
       await disconnect(notify: false);
@@ -245,6 +278,13 @@ class NusBleService extends ChangeNotifier {
     _deviceSsid = null;
     _devicePass = null;
     _deviceRating = null;
+    _deviceFwVersion = null;
+    _fwUpdateBase = null;
+    _fwMeta = null;
+    _fwJsonUrl = null;
+    _serverLatest = null;
+    _updateAvailable = false;
+    _fwCheckError = null;
     _state = BleConnectionState.disconnected;
     if (notify) {
       _appendLog('연결 해제');
@@ -322,6 +362,116 @@ class NusBleService extends ChangeNotifier {
     await sendCommand('ssid');
   }
 
+  Future<void> fetchFwInfo() async {
+    if (!isConnected) return;
+    try {
+      await sendCommand('version', clearFirst: false);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      await sendCommand('fw', clearFirst: false);
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      _scanLogForFwInfo();
+      _applyFwUrlFallback();
+      await refreshServerFirmware();
+    } catch (e) {
+      _fwCheckError = '확인 실패: $e';
+      _updateAvailable = false;
+      _appendLog('펌웨어 확인 실패: $e');
+    }
+  }
+
+  void _scanLogForFwInfo() {
+    for (final line in _logLines) {
+      _parseFwInfoLine(line);
+    }
+  }
+
+  void _applyFwUrlFallback() {
+    if (_fwJsonUrl != null && _fwJsonUrl!.isNotEmpty) return;
+    var base = (_fwUpdateBase ?? BleConstants.fwUpdateBase).trim();
+    while (base.endsWith('/')) {
+      base = base.substring(0, base.length - 1);
+    }
+    final meta = (_fwMeta != null && _fwMeta!.isNotEmpty)
+        ? _fwMeta!
+        : BleConstants.fwUpdateMeta;
+    _fwUpdateBase = base;
+    _fwMeta = meta;
+    _fwJsonUrl = '$base/$meta';
+  }
+
+  Future<void> refreshServerFirmware() async {
+    final url = _fwJsonUrl;
+    if (url == null || url.isEmpty) {
+      _fwCheckError = '업데이트 경로 없음';
+      notifyListeners();
+      return;
+    }
+    try {
+      final uri = Uri.parse(url);
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 8);
+      try {
+        final req = await client.getUrl(uri);
+        final res = await req.close().timeout(const Duration(seconds: 8));
+        if (res.statusCode != 200) {
+          _fwCheckError = '서버 HTTP ${res.statusCode}';
+          _updateAvailable = false;
+          notifyListeners();
+          return;
+        }
+        var body = await utf8.decodeStream(res);
+        if (body.startsWith('\uFEFF')) {
+          body = body.substring(1);
+        }
+        final decoded = jsonDecode(body);
+        if (decoded is! Map) {
+          _fwCheckError = 'JSON 형식 오류';
+          notifyListeners();
+          return;
+        }
+        _serverLatest = decoded['latest']?.toString();
+        _updateAvailable = _isNewerVersion(_deviceFwVersion, _serverLatest);
+        _fwCheckError = null;
+        _appendLog(
+          _updateAvailable
+              ? '서버 ${_serverLatest} > 장비 ${_deviceFwVersion} (업데이트 있음)'
+              : (fwIsLatest
+                  ? '서버 ${_serverLatest} = 장비 ${_deviceFwVersion} (최신 버전)'
+                  : '서버 ${_serverLatest ?? '-'} / 장비 ${_deviceFwVersion ?? '-'} (비교 불가)'),
+        );
+      } finally {
+        client.close(force: true);
+      }
+    } catch (e) {
+      _fwCheckError = '서버 확인 실패: $e';
+      _updateAvailable = false;
+      _appendLog('펌웨어 서버 확인 실패 ($_fwJsonUrl): $e');
+      notifyListeners();
+    }
+  }
+
+  bool _isNewerVersion(String? current, String? server) {
+    List<int>? parse(String? v) {
+      if (v == null) return null;
+      final m = RegExp(r'(\d+)\.(\d+)\.(\d+)').firstMatch(v.trim());
+      if (m == null) return null;
+      return [
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+      ];
+    }
+
+    final c = parse(current);
+    final s = parse(server);
+    if (c == null || s == null) return false;
+    for (var i = 0; i < 3; i++) {
+      if (s[i] > c[i]) return true;
+      if (s[i] < c[i]) return false;
+    }
+    return false;
+  }
+
   void clearLog() {
     _log.clear();
     _logLines.clear();
@@ -348,6 +498,9 @@ class NusBleService extends ChangeNotifier {
       _logLines.add(line);
       _log.writeln(line);
       if (fromDevice && _parseWifiConfigLine(line)) {
+        wifiUpdated = true;
+      }
+      if (fromDevice && _parseFwInfoLine(line)) {
         wifiUpdated = true;
       }
       if (fromDevice && _parseRatingConfigLine(line)) {
@@ -388,6 +541,36 @@ class NusBleService extends ChangeNotifier {
       return true;
     }
     return false;
+  }
+
+  bool _parseFwInfoLine(String line) {
+    final trimmed = line.trim();
+    var hit = false;
+    final ver = RegExp(r'VERSION\s*:\s*(\d+\.\d+\.\d+)', caseSensitive: false)
+        .firstMatch(trimmed);
+    if (ver != null) {
+      _deviceFwVersion = ver.group(1);
+      hit = true;
+    }
+    final upd = RegExp(r'UPDATE\s*:\s*(\S+)', caseSensitive: false)
+        .firstMatch(trimmed);
+    if (upd != null) {
+      _fwUpdateBase = upd.group(1)?.trim();
+      hit = true;
+    }
+    final meta = RegExp(r'META\s*:\s*(\S+)', caseSensitive: false)
+        .firstMatch(trimmed);
+    if (meta != null) {
+      _fwMeta = meta.group(1)?.trim();
+      hit = true;
+    }
+    final json = RegExp(r'FWJSON\s*:\s*(\S+)', caseSensitive: false)
+        .firstMatch(trimmed);
+    if (json != null) {
+      _fwJsonUrl = json.group(1)?.trim();
+      hit = true;
+    }
+    return hit;
   }
 
   /// Parse `KVA : 10.0 kVA`, `BAT : 192 V`, `IN  : 220 V`, `OUT : 220 V`.

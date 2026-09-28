@@ -123,16 +123,16 @@ def after_build(source, target, env):
     ota_bins = [
         ("firmware.bin", new_name, firmware_bin),
     ]
-    # 로컬 미러: 전체 플래시용 bootloader/partitions 포함
+    # 로컬 미러: 전체 플래시용 bootloader/partitions (버전 없이 env만)
     local_bins = ota_bins + [
         (
-            "bootloader.bin",
-            f"bootloader_{version}_{pioenv}.bin",
+            f"bootloader_{pioenv}.bin",
+            None,
             os.path.join(source_directory, "bootloader.bin"),
         ),
         (
-            "partitions.bin",
-            f"partitions_{version}_{pioenv}.bin",
+            f"partitions_{pioenv}.bin",
+            None,
             os.path.join(source_directory, "partitions.bin"),
         ),
     ]
@@ -144,11 +144,12 @@ def after_build(source, target, env):
                 continue
             try:
                 dest_plain = os.path.join(dest_dir, plain_name)
-                dest_versioned = os.path.join(dest_dir, versioned_name)
                 shutil.copy2(src_path, dest_plain)
                 print(f"Copied: {dest_plain}")
-                shutil.copy2(src_path, dest_versioned)
-                print(f"Copied: {dest_versioned}")
+                if versioned_name and versioned_name != plain_name:
+                    dest_versioned = os.path.join(dest_dir, versioned_name)
+                    shutil.copy2(src_path, dest_versioned)
+                    print(f"Copied: {dest_versioned}")
             except Exception as copy_error:
                 print(f"Error during copy ({dest_dir}/{plain_name}): {str(copy_error)}")
 

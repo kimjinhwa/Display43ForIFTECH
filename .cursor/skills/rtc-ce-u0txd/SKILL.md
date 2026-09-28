@@ -29,7 +29,7 @@ CE를 MCP GP0에 두면, RTC를 켠 뒤 **같은 SCK/MOSI**로 MCP에 “CE 꺼�
 
 - DS1302 CE ← GPIO43 ← CH340 RX (병렬 OK)
 - **MCP GP0와 CE를 동시에 밀지 말 것** (GP0 분리 또는 MCP에서 미사용)
-- 업로드는 UART0이라 대체로 됨. 앱 로그는 **BLE** (`IFT_UPS43_`+MAC). COM 모니터는 TX를 씀
+- 업로드는 UART0이라 대체로 됨. 앱 로그는 **BLE** (`IFT_43_`+MAC). COM 모니터는 TX를 씀
 
 ## 소프트웨어 작업
 
@@ -41,7 +41,7 @@ CE를 MCP GP0에 두면, RTC를 켠 뒤 **같은 SCK/MOSI**로 MCP에 “CE 꺼�
 6. `stopTouchSpi()`의 `SPI.end()` 제거. CE Low + CS High만.
 7. 부팅: 삑1(GP0=0, OLAT `0x02`) → RTC 읽고 `settimeofday` → SPI 복구 → 삑2. UPS는 `setRtc(true)`를 **살릴 것** (화면/모드버스 시각). 충전기는 쓰기 UI 없음.
 8. 모드버스 FC06 65~70: `settimeofday` + `setRtc(true, &now)` 주석이면 풀기.
-9. BLE 이름 `IFT_UPS43_` 유지. UART0을 CE로 쓰므로 시리얼 모니터에 의존하지 말 것.
+9. BLE 이름 `IFT_43_` 유지. UART0을 CE로 쓰므로 시리얼 모니터에 의존하지 말 것.
 
 ## 확인
 

@@ -95,10 +95,12 @@ class _WifiScanSheetState extends State<WifiScanSheet> {
       }
 
       final results = await WiFiScan.instance.getScannedResults();
-      // Unique by SSID, keep strongest
+      // ESP32 STA is 2.4 GHz only (2412–2484 MHz). Drop 5/6 GHz.
+      // Unique by SSID, keep strongest 2.4 GHz BSS.
       final best = <String, WiFiAccessPoint>{};
       for (final ap in results) {
         if (ap.ssid.trim().isEmpty) continue;
+        if (!_is24Ghz(ap.frequency)) continue;
         final prev = best[ap.ssid];
         if (prev == null || ap.level > prev.level) {
           best[ap.ssid] = ap;
@@ -113,6 +115,13 @@ class _WifiScanSheetState extends State<WifiScanSheet> {
     } finally {
       if (mounted) setState(() => _scanning = false);
     }
+  }
+
+  /// Android ScanResult.frequency is MHz. Unknown (0) is kept so older APIs
+  /// do not hide every network.
+  bool _is24Ghz(int frequencyMhz) {
+    if (frequencyMhz <= 0) return true;
+    return frequencyMhz >= 2400 && frequencyMhz < 2500;
   }
 
   IconData _signalIcon(int level) {
@@ -136,7 +145,7 @@ class _WifiScanSheetState extends State<WifiScanSheet> {
               child: Row(
                 children: [
                   Text(
-                    '주변 Wi-Fi',
+                    '주변 Wi-Fi (2.4 GHz)',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const Spacer(),
@@ -183,7 +192,10 @@ class _WifiScanSheetState extends State<WifiScanSheet> {
                         return ListTile(
                           leading: Icon(_signalIcon(ap.level)),
                           title: Text(ap.ssid),
-                          subtitle: Text('${ap.level} dBm'),
+                          subtitle: Text(
+                            '${ap.level} dBm'
+                            '${ap.frequency > 0 ? ' · ${ap.frequency} MHz' : ''}',
+                          ),
                           trailing: Icon(
                             secure ? Icons.lock_outline : Icons.lock_open,
                             size: 18,

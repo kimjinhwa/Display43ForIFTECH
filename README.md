@@ -24,7 +24,7 @@ HMI 통신 보조: [doc/단상 HMI 통신_4_2inch.xlsx](doc/단상%20HMI%20통�
 - UPS 입력·배터리·인버터·출력 계측과 전력흐름을 4.3" 화면에 표시한다.
 - 운전/정지, 설정(이득·오프셋·시간·밝기), 알람 리셋을 터치로 모듈에 쓴다.
 - 경보·이벤트 로그를 화면에 남긴다.
-- BLE(`IFT_UPS43_<MAC>`)와 Wi‑Fi OTA로 현장 펌웨어를 올린다.
+- BLE(`IFT_43_<MAC>`)와 Wi‑Fi OTA로 현장 펌웨어를 올린다.
 
 ---
 
@@ -231,7 +231,7 @@ pio device monitor -e IFTECH_DISP43
 ### Wi‑Fi OTA (현장)
 
 1. `pio run -e IFTECH_DISP43` → IIS `Esp32UploadFirmware`에 `firmware_*.bin`과 `IFTECH_DISP43.json` 배포
-2. 앱 `IFTECH_UPS43_App`에서 BLE `IFT_UPS43_…` 연결 → Wi‑Fi 프리셋 전송 → 펌웨어 업그레이드
+2. 앱 `IFTECH_UPS43_App`에서 BLE `IFT_43_…` 연결 → Wi‑Fi 프리셋 전송 → 펌웨어 업그레이드
 3. 단말기 재부팅 후 BLE보다 먼저 OTA
 
 서버: `http://ift.iptime.org:81/Esp32UploadFirmware`  

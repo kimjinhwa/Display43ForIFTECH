@@ -3,7 +3,7 @@
   (ProjectType "PCB")
   (Folder "Design Resources"
     (Folder "Library")
-    (File ".\1ph_disp4in_int_invt_v104.dsn"
+    (File ".\1ph_disp4in_v4.dsn"
       (Type "Schematic Design"))
     (BuildFileAddedOrDeleted "x")
     (CompileFileAddedOrDeleted "x")
@@ -14,24 +14,23 @@
   (GlobalState
     (FileView
       (Path "Design Resources")
-      (Path "Design Resources" ".\1ph_disp4in_int_invt_v104.dsn")
-      (Path "Design Resources" ".\1ph_disp4in_int_invt_v104.dsn" "SCHEMATIC1")
-      (Select "Design Resources" ".\1ph_disp4in_int_invt_v104.dsn" "SCHEMATIC1"
-         "Display"))
+      (Path "Design Resources" ".\1ph_disp4in_v4.dsn")
+      (Path "Design Resources" ".\1ph_disp4in_v4.dsn" "SCHEMATIC1")
+      (Select "Design Resources" ".\1ph_disp4in_v4.dsn" "SCHEMATIC1" "Display"))
     (HierarchyView)
     (Doc
       (Type "COrCapturePMDoc")
       (Frame
-        (Placement "44 0 1 -1 -1 -1 -1 0 200 0 607"))
+        (Placement "44 0 1 -1 -1 -8 -31 0 200 0 610"))
       (Tab 0))
     (Doc
       (Type "COrSchematicDoc")
       (Frame
-        (Placement "44 0 1 -1 -1 -1 -1 130 1760 130 776")
-        (Scroll "0 120")
+        (Placement "44 2 3 -1 -1 -8 -31 104 1738 104 753")
+        (Scroll "0 0")
         (Zoom "100")
         (Occurrence "/"))
       (Path
-         "C:\DEVWORK\4.IFTECHWORK\1.UPS1P1P\DISPLAY4.3\DOC\DISPLAY(4.3INCH)\1PH_DISP4IN_INT_INVT_V104.DSN")
+         "C:\DEVWORK\4.IFTECHWORK\1.UPS1P1P\DISPLAY4.3\DOC\1PH_DISP4IN_V4.DSN")
       (Schematic "SCHEMATIC1")
       (Page "Display"))))

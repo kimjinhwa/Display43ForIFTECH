@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'ble/nus_ble_service.dart';
-import 'screens/scan_screen.dart';
+import 'screens/control_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +37,7 @@ class Ups43D1pApp extends StatelessWidget {
           useMaterial3: true,
         ),
         themeMode: ThemeMode.system,
-        home: const ScanScreen(),
+        home: const ControlScreen(),
       ),
     );
   }

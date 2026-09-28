@@ -23,7 +23,7 @@ JSON 예:
 
 ## 앱 사용 (UPS43D1P)
 
-1. BLE 검색 → `IFT_UPS…` 장비 연결
+1. BLE 검색 → `IFT_…` 장비 연결
 2. Wi-Fi 프리셋 선택 (타이핑 불필요)
    - **iftech** / iftech0273
    - **iptime_mbhong** / 오픈

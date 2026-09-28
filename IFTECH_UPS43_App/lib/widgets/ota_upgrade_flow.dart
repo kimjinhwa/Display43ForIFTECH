@@ -24,10 +24,14 @@ class OtaUpgradeFlow {
       builder: (ctx) => AlertDialog(
         title: const Text('펌웨어 업그레이드'),
         content: Text(
-          '장치에 저장된 Wi-Fi로 ift.iptime.org 서버에서 펌웨어를 확인합니다.\n'
+          '장치에 저장된 Wi-Fi로 서버에서 펌웨어를 확인합니다.\n'
           'OTA 후 장치가 재부팅됩니다.\n\n'
           'SSID: $ssid\n'
-          'PASS: $pass',
+          'PASS: $pass\n'
+          '현재: ${ble.deviceFwVersion ?? '(미확인)'}\n'
+          '서버: ${ble.serverLatest ?? '(미확인)'}'
+          '${ble.updateAvailable ? '\n새 버전이 있습니다.' : ''}'
+          '${ble.fwJsonUrl != null ? '\n${ble.fwJsonUrl}' : ''}',
         ),
         actions: [
           TextButton(

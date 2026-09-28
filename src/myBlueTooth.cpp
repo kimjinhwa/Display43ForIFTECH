@@ -125,7 +125,7 @@ size_t myBlueToothStream::printf(const char *format, ...)
     return len;
 }
 void bleSetup(){
-  String bleName = "IFT_UPS43_" + WiFi.macAddress();
+  String bleName = "IFT_43_" + WiFi.macAddress();
   bleName.replace(":", "");
   BLEDevice::init(bleName.c_str());
   Serial.printf("BLE name %s\n", bleName.c_str());

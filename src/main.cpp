@@ -1125,7 +1125,7 @@ void setup()
 
     /* System setting screen*/
     setTimeText();
-    lv_disp_load_scr(ui_MainScreen);
+    lv_disp_load_scr(ui_InitScreen);
     calibrationTouchInit();
     uiBindLoopTask();
     /* 첫 페인트(배경 PNG·폰트=플래시) 동안 BLE/모드버스 태스크를 켜지 않는다. */
@@ -1241,8 +1241,7 @@ void loop()
 
     if (nvsSystemEEPRom.systemLedOffTime != 0 && lcdOntime >= nvsSystemEEPRom.systemLedOffTime*60) // lv_led_off(led);
     {
-      //_ui_screen_change(&ui_InitScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_InitScreen_screen_init); // lv_disp_load_scr( ui_InitScreen);
-      _ui_screen_change(&ui_MainScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_MainScreen_screen_init);
+      _ui_screen_change(&ui_InitScreen, LV_SCR_LOAD_ANIM_NONE, 0, 0, &ui_InitScreen_screen_init);
       ledcWrite(0, 0);
     }
   }

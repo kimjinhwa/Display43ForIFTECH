@@ -18,6 +18,8 @@
 #include "../../../Version.h"
 #include "../../../src/myBlueTooth.h"
 #include "../../../src/esp32SelfUploder.h"
+#include "../../../src/main.h"
+#include <sys/time.h>
 
 LittleFileSystem lsFile;
 SimpleCLI simpleCli;
@@ -149,7 +151,25 @@ void version_Callback(cmd *cmdPtr)
 {
     Command cmd(cmdPtr);
     mySerialBT.printf("\r\nVERSION : %s\r\n", VERSION);
-    //wifiOTAsetup();
+}
+
+#ifndef FW_UPDATE_BASE
+#define FW_UPDATE_BASE "http://ift.iptime.org:81/Esp32UploadFirmware"
+#endif
+#ifndef FW_UPDATE_META
+#define FW_UPDATE_META "version.json"
+#endif
+
+void fw_Callback(cmd *cmdPtr)
+{
+    (void)cmdPtr;
+    String base = String(FW_UPDATE_BASE);
+    while (base.endsWith("/"))
+        base.remove(base.length() - 1);
+    mySerialBT.printf("\r\nVERSION : %s\r\n", VERSION);
+    mySerialBT.printf("UPDATE : %s\r\n", base.c_str());
+    mySerialBT.printf("META : %s\r\n", FW_UPDATE_META);
+    mySerialBT.printf("FWJSON : %s/%s\r\n", base.c_str(), FW_UPDATE_META);
 }
 void ssid_Callback(cmd *cmdPtr)
 {
@@ -219,11 +239,72 @@ void ip_Callback(cmd *cmdPtr){
         mySerialBT.printf("Not connected\n");
     }
 }
+
+static void printCliTime(const char *label, const RtcDateTime &dt)
+{
+    mySerialBT.printf("%s : %04u-%02u-%02u %02u:%02u:%02u\r\n",
+                      label,
+                      (unsigned)dt.Year(), (unsigned)dt.Month(), (unsigned)dt.Day(),
+                      (unsigned)dt.Hour(), (unsigned)dt.Minute(), (unsigned)dt.Second());
+}
+
+void time_Callback(cmd *cmdPtr)
+{
+    Command cmd(cmdPtr);
+    String joined;
+    for (int i = 0; i < cmd.countArgs(); i++) {
+        String v = cmd.getArgument(i).getValue();
+        v.trim();
+        if (v.length() == 0)
+            continue;
+        if (joined.length() > 0)
+            joined += ' ';
+        joined += v;
+    }
+
+    if (joined.length() == 0) {
+        struct timeval tmv;
+        gettimeofday(&tmv, NULL);
+        RtcDateTime sys((uint32_t)tmv.tv_sec);
+        mySerialBT.printf("\r\n");
+        printCliTime("TIME", sys);
+        return;
+    }
+
+    joined.replace('T', ' ');
+    joined.replace('_', ' ');
+    int y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0;
+    if (sscanf(joined.c_str(), "%d-%d-%d %d:%d:%d", &y, &mo, &d, &h, &mi, &s) != 6) {
+        mySerialBT.printf("\r\nTIME usage: time\r\n");
+        mySerialBT.printf("TIME usage: time YYYY-MM-DD HH:MM:SS\r\n");
+        return;
+    }
+
+    RtcDateTime want((uint16_t)y, (uint8_t)mo, (uint8_t)d, (uint8_t)h, (uint8_t)mi, (uint8_t)s);
+    if (!want.IsValid()) {
+        mySerialBT.printf("\r\nTIME : invalid\r\n");
+        return;
+    }
+
+    RtcDateTime written = setRtc(true, &want);
+    mySerialBT.printf("\r\n");
+    if (written.IsValid()) {
+        printCliTime("TIME", written);
+    } else {
+        struct timeval tmv;
+        tmv.tv_sec = (time_t)want.TotalSeconds();
+        tmv.tv_usec = 0;
+        settimeofday(&tmv, NULL);
+        printCliTime("TIME", want);
+        mySerialBT.printf("TIME : RTC write failed, ESP clock set\r\n");
+    }
+}
+
 SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStream ) : commandQueueSize(commandQueueSize), errorQueueSize(errorQueueSize)
 {
     this->inputStream = &Serial;
     Command cmd_config = addCommand("ls", ls_configCallback);
-    Command cmd_ssid, cmd_pass, cmd_ip,cmd_version;
+    Command cmd_ssid, cmd_pass, cmd_ip,cmd_version, cmd_time, cmd_fw;
     cmd_config.setDescription(" File list \r\n ");
     cmd_config = addSingleArgCmd("cat", cat_configCallback);
     cmd_config = addSingleArgCmd("rm", rm_configCallback);
@@ -237,8 +318,12 @@ SimpleCLI::SimpleCLI(int commandQueueSize, int errorQueueSize,Print *outputStrea
     cmd_ssid.setDescription("Set the SSID");
     cmd_pass = simpleCli.addSingleArgCmd("pass", pass_Callback); // PASS
     cmd_pass.setDescription("Set the PASS (pass none = open AP)");
-    cmd_ip = simpleCli.addSingleArgCmd("ip", ip_Callback); // IP
+    cmd_ip = simpleCli.addSingleArgCmd("ip/addess", ip_Callback); // IP
     cmd_ip.setDescription("Read the IPAddress,GW,SUBNETMASK");
+    cmd_time = simpleCli.addBoundlessCommand("time", time_Callback);
+    cmd_time.setDescription("Read/set clock (time YYYY-MM-DD HH:MM:SS)");
+    cmd_fw = simpleCli.addCommand("fw", fw_Callback);
+    cmd_fw.setDescription("Firmware version and update URL");
 
     simpleCli.setOnError(errorCallback);
     cmd_config = addCommand("help", help_Callback);

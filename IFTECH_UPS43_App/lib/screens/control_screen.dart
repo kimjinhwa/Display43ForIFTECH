@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../ble/nus_ble_service.dart';
 import '../ble/wifi_presets.dart';
-import '../widgets/log_console.dart';
 import '../widgets/ota_upgrade_flow.dart';
 import '../widgets/wifi_scan_sheet.dart';
+import 'log_screen.dart';
+import 'scan_screen.dart';
 
 class ControlScreen extends StatefulWidget {
   const ControlScreen({super.key});
@@ -26,6 +26,9 @@ class _ControlScreenState extends State<ControlScreen> {
   bool _quickCmdExpanded = false;
   String _wifiPresetId = kWifiPresets.first.id;
   bool _applyingWifiFields = false;
+  bool _logOpening = false;
+  bool _connectOpening = false;
+  bool _fwChecking = false;
 
   @override
   void initState() {
@@ -36,7 +39,7 @@ class _ControlScreenState extends State<ControlScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ble = context.read<NusBleService>();
       _syncWifiFields(ble, force: true);
-      ble.fetchStoredWifi();
+      if (ble.isConnected) ble.fetchStoredWifi();
     });
   }
 
@@ -178,21 +181,158 @@ class _ControlScreenState extends State<ControlScreen> {
     );
     if (ok == true && mounted) {
       await context.read<NusBleService>().sendCommand(command);
+      if (mounted) await _openLogPage();
     }
   }
 
-  void _openFullScreenLog() {
+  String _fmtDateTime(DateTime dt) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} '
+        '${two(dt.hour)}:${two(dt.minute)}:${two(dt.second)}';
+  }
+
+  String? _parseDeviceTime(List<String> lines) {
+    final re = RegExp(
+      r'TIME\s*:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})',
+      caseSensitive: false,
+    );
+    for (final line in lines.reversed) {
+      final m = re.firstMatch(line);
+      if (m != null) return m.group(1);
+    }
+    return null;
+  }
+
+  Future<void> _openTimeSetDialog() async {
     final ble = context.read<NusBleService>();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FullScreenLogPage(
-          title: '로그',
-          lines: ble.logLines,
-          shareTitle: 'UPS43D1P Log',
-          onClear: () => ble.clearLog(),
+    if (!ble.isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('먼저 장비를 연결하세요')),
+      );
+      return;
+    }
+    await ble.sendCommand('time');
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+
+    final deviceTime = _parseDeviceTime(ble.logLines);
+    final ctrl = TextEditingController(
+      text: deviceTime ?? _fmtDateTime(DateTime.now()),
+    );
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('현재시간설정'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              deviceTime == null
+                  ? '장비 시각을 읽지 못했습니다. 아래 값을 확인하세요.'
+                  : '장비 시각: $deviceTime',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: '설정할 시간',
+                hintText: 'YYYY-MM-DD HH:MM:SS',
+              ),
+            ),
+          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'typed'),
+            child: const Text('전송'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, 'phone'),
+            child: const Text('현재시간 전송'),
+          ),
+        ],
       ),
     );
+
+    if (!mounted) return;
+    if (action == 'typed') {
+      final v = ctrl.text.trim();
+      ctrl.dispose();
+      if (v.isEmpty) return;
+      await _sendAndShowLog('time $v');
+    } else if (action == 'phone') {
+      ctrl.dispose();
+      await _sendAndShowLog('time ${_fmtDateTime(DateTime.now())}');
+    } else {
+      ctrl.dispose();
+    }
+  }
+
+  Future<void> _checkLatestFirmware() async {
+    final ble = context.read<NusBleService>();
+    if (!ble.isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('먼저 장비를 연결하세요')),
+      );
+      return;
+    }
+    setState(() => _fwChecking = true);
+    try {
+      await ble.fetchFwInfo();
+      if (!mounted) return;
+      final msg = ble.fwCheckError != null
+          ? '확인 실패: ${ble.fwCheckError}'
+          : ble.updateAvailable
+              ? '새 펌웨어 ${ble.serverLatest} (현재 ${ble.deviceFwVersion})'
+              : ble.fwIsLatest
+                  ? '최신 버전입니다 (${ble.deviceFwVersion})'
+                  : '버전을 비교할 수 없습니다';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } finally {
+      if (mounted) setState(() => _fwChecking = false);
+    }
+  }
+
+  Future<void> _openConnect() async {
+    if (_connectOpening || _logOpening) return;
+    _connectOpening = true;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ScanScreen()),
+      );
+      if (!mounted) return;
+      final ble = context.read<NusBleService>();
+      if (ble.isConnected) {
+        _wifiFieldsTouched = false;
+        ble.fetchStoredWifi();
+      }
+    } finally {
+      _connectOpening = false;
+    }
+  }
+
+  Future<void> _sendAndShowLog(String command) async {
+    await context.read<NusBleService>().sendCommand(command);
+    if (mounted) await _openLogPage();
+  }
+
+  Future<void> _openLogPage() async {
+    if (_logOpening || _connectOpening) return;
+    _logOpening = true;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const LogScreen()),
+      );
+    } finally {
+      _logOpening = false;
+    }
   }
 
   @override
@@ -210,55 +350,57 @@ class _ControlScreenState extends State<ControlScreen> {
         : '장비 저장값: ${ble.deviceSsid}'
             '${(ble.devicePass == null || ble.devicePass!.isEmpty) ? ' / (open)' : ' / ••••••'}';
 
-    return PopScope(
-      canPop: true,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) {
-          await context.read<NusBleService>().disconnect();
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v < -400) {
+          _openLogPage();
+        } else if (v > 400) {
+          _openConnect();
         }
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(name),
+          title: Text(ble.isConnected ? name : 'UPS43D1P'),
           actions: [
             IconButton(
-              tooltip: '로그 공유',
-              onPressed: ble.logLines.isEmpty
-                  ? null
-                  : () async {
-                      final text = ble.logLines.join('\n');
-                      final box = context.findRenderObject() as RenderBox?;
-                      await Share.share(
-                        text,
-                        subject: 'UPS43D1P Log - $name',
-                        sharePositionOrigin: box != null
-                            ? box.localToGlobal(Offset.zero) & box.size
-                            : null,
-                      );
-                    },
-              icon: const Icon(Icons.share),
+              tooltip: '로그',
+              onPressed: _openLogPage,
+              icon: const Icon(Icons.article_outlined),
             ),
-            IconButton(
-              tooltip: '로그 지우기',
-              onPressed: () => ble.clearLog(),
-              icon: const Icon(Icons.delete_outline),
-            ),
-            IconButton(
-              tooltip: '연결 해제',
-              onPressed: () async {
-                await ble.disconnect();
-                if (context.mounted) Navigator.of(context).pop();
-              },
-              icon: const Icon(Icons.link_off),
-            ),
+            if (ble.isConnected)
+              IconButton(
+                tooltip: '연결 해제',
+                onPressed: () async {
+                  await ble.disconnect();
+                },
+                icon: const Icon(Icons.link_off),
+              )
+            else
+              IconButton(
+                tooltip: '장비 연결',
+                onPressed: _openConnect,
+                icon: const Icon(Icons.bluetooth),
+              ),
           ],
         ),
-        body: Column(
+        body: SafeArea(
+          top: false,
+          child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: FilledButton.icon(
+                onPressed: _openConnect,
+                icon: Icon(
+                  ble.isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
+                ),
+                label: Text(ble.isConnected ? '장비 변경' : '장비 연결'),
+              ),
+            ),
             Expanded(
-              flex: 5,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -325,13 +467,79 @@ class _ControlScreenState extends State<ControlScreen> {
                       duration: const Duration(milliseconds: 250),
                     ),
                     const SizedBox(height: 16),
+                    if (ble.updateAvailable)
+                      Card(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        child: ListTile(
+                          leading: const Icon(Icons.new_releases),
+                          title: Text(
+                            '새 펌웨어 ${ble.serverLatest}',
+                          ),
+                          subtitle: Text(
+                            '현재 ${ble.deviceFwVersion ?? '-'}',
+                          ),
+                          trailing: TextButton(
+                            onPressed: () => OtaUpgradeFlow.start(context, ble),
+                            child: const Text('업그레이드'),
+                          ),
+                        ),
+                      )
+                    else if (ble.fwIsLatest)
+                      Card(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: ListTile(
+                          leading: const Icon(Icons.verified),
+                          title: const Text('최신 버전입니다'),
+                          subtitle: Text(
+                            '현재 ${ble.deviceFwVersion} · 서버 ${ble.serverLatest}',
+                          ),
+                        ),
+                      ),
+                    if (ble.updateAvailable || ble.fwIsLatest)
+                      const SizedBox(height: 8),
+                    FilledButton.tonalIcon(
+                      onPressed: !ble.isConnected || _fwChecking
+                          ? null
+                          : _checkLatestFirmware,
+                      icon: _fwChecking
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh),
+                      label: Text(_fwChecking ? '확인 중…' : '최신 버전 확인'),
+                    ),
+                    const SizedBox(height: 8),
                     FilledButton.icon(
                       onPressed: !ble.isConnected
                           ? null
                           : () => OtaUpgradeFlow.start(context, ble),
                       icon: const Icon(Icons.system_update_alt),
-                      label: const Text('펌웨어 업그레이드'),
+                      label: Text(
+                        ble.updateAvailable
+                            ? '펌웨어 업그레이드 (새 버전)'
+                            : '펌웨어 업그레이드',
+                      ),
                     ),
+                    if (ble.isConnected)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          ble.fwCheckError != null
+                              ? '펌웨어 확인: ${ble.fwCheckError}'
+                              : '현재 ${ble.deviceFwVersion ?? '-'}'
+                                  '${ble.serverLatest != null ? ' · 서버 ${ble.serverLatest}' : ''}'
+                                  '${ble.updateAvailable ? ' · 새 버전' : (ble.serverLatest != null ? ' · 최신' : '')}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: ble.updateAvailable
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                              ),
+                        ),
+                      ),
                     const SizedBox(height: 20),
                     InkWell(
                       borderRadius: BorderRadius.circular(8),
@@ -365,37 +573,46 @@ class _ControlScreenState extends State<ControlScreen> {
                           runSpacing: 8,
                           children: [
                             _CmdChip(
+                              label: 'fw',
+                              onTap: () => _sendAndShowLog('fw'),
+                            ),
+                            _CmdChip(
                               label: 'help',
-                              onTap: () => ble.sendCommand('help'),
+                              onTap: () => _sendAndShowLog('help'),
                             ),
                             _CmdChip(
                               label: 'version',
-                              onTap: () => ble.sendCommand('version'),
+                              onTap: () => _sendAndShowLog('version'),
                             ),
                             _CmdChip(
                               label: 'ip',
-                              onTap: () => ble.sendCommand('ip'),
+                              onTap: () => _sendAndShowLog('ip'),
                             ),
                             _CmdChip(
                               label: 'ssid?',
-                              onTap: () {
+                              onTap: () async {
                                 _wifiFieldsTouched = false;
                                 ble.fetchStoredWifi();
+                                await _openLogPage();
                               },
                             ),
                             _CmdChip(
                               label: 'ls',
-                              onTap: () => ble.sendCommand('ls'),
+                              onTap: () => _sendAndShowLog('ls'),
                             ),
                             _CmdChip(
                               label: 'df',
-                              onTap: () => ble.sendCommand('df'),
+                              onTap: () => _sendAndShowLog('df'),
                             ),
                             _CmdChip(
                               label: 'update',
                               color: Colors.deepOrange,
                               onTap: () =>
                                   OtaUpgradeFlow.start(context, ble),
+                            ),
+                            _CmdChip(
+                              label: '현재시간설정',
+                              onTap: _openTimeSetDialog,
                             ),
                             _CmdChip(
                               label: 'reboot',
@@ -444,33 +661,23 @@ class _ControlScreenState extends State<ControlScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
                   ],
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: LogConsole(
-                  lines: ble.logLines,
-                  shareTitle: 'UPS43D1P Log - $name',
-                  onClear: () => ble.clearLog(),
-                  onFullScreen: _openFullScreenLog,
                 ),
               ),
             ),
             if (!ble.isConnected)
               MaterialBanner(
-                content: const Text('연결이 끊어졌습니다'),
+                content: const Text('장비가 연결되지 않았습니다'),
                 actions: [
                   TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('뒤로'),
+                    onPressed: _openConnect,
+                    child: const Text('연결'),
                   ),
                 ],
               ),
           ],
+        ),
         ),
       ),
     );
@@ -514,22 +721,34 @@ class _ControlScreenState extends State<ControlScreen> {
           ],
         ),
         const SizedBox(height: 10),
-        TextField(
-          controller: _ssidCtrl,
-          readOnly: !isCustom,
-          decoration: InputDecoration(
-            labelText: 'SSID',
-            border: const OutlineInputBorder(),
-            hintText: isCustom ? '무선 AP 이름' : null,
-            suffixIcon: isCustom
-                ? IconButton(
-                    tooltip: '주변 Wi-Fi 검색',
-                    onPressed: _pickWifiSsid,
-                    icon: const Icon(Icons.wifi_find),
-                  )
-                : null,
-          ),
-          textInputAction: TextInputAction.next,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _ssidCtrl,
+                readOnly: !isCustom,
+                decoration: InputDecoration(
+                  labelText: 'SSID',
+                  border: const OutlineInputBorder(),
+                  hintText: isCustom ? '무선 AP 이름' : null,
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: FilledButton.tonalIcon(
+                onPressed: () async {
+                  if (!isCustom) _selectWifiPreset(kWifiPresetCustomId);
+                  await _pickWifiSsid();
+                },
+                icon: const Icon(Icons.search),
+                label: const Text('WIFI-검색'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
         TextField(
