@@ -601,6 +601,11 @@ class _ControlScreenState extends State<ControlScreen> {
                               onTap: () => _sendAndShowLog('ls'),
                             ),
                             _CmdChip(
+                              label: 'eventLog',
+                              onTap: () =>
+                                  _sendAndShowLog('cat eventLog.hex'),
+                            ),
+                            _CmdChip(
                               label: 'df',
                               onTap: () => _sendAndShowLog('df'),
                             ),

@@ -1,4 +1,8 @@
-#define VERSION "4.0.20"
+#define VERSION "4.0.24"
+/*
+ event로그를 앱에서 확인하고, 전송할수 있게 한다.
+*/
+//#define VERSION "4.0.24"
 /*
  파티션 복사 파일을 정리한다. 
 */

@@ -450,11 +450,32 @@ int LittleFileSystem::format()
 
 void LittleFileSystem::cat(String filename)
 {
-  FILE *f;
-  f = fopen(filename.c_str(), "r");
+  const bool eventLog = filename.endsWith("eventLog.hex");
+  FILE *f = fopen(filename.c_str(), eventLog ? "rb" : "r");
   if (f == NULL)
   {
     outputStream->printf("Failed to open file for reading\r\n");
+    return;
+  }
+  if (eventLog)
+  {
+    uint8_t rec[76];
+    int count = 0;
+    while (fread(rec, 1, sizeof(rec), f) == sizeof(rec))
+    {
+      if (rec[74] != 0x55)
+        continue;
+      char msg[61];
+      memcpy(msg, rec + 14, 60);
+      msg[60] = 0;
+      if (msg[0] == 0)
+        continue;
+      outputStream->printf("%s\r\n", msg);
+      count++;
+    }
+    if (count == 0)
+      outputStream->printf("(이벤트 없음)\r\n");
+    fclose(f);
     return;
   }
   char line[64];
@@ -463,6 +484,5 @@ void LittleFileSystem::cat(String filename)
     outputStream->printf("%s", line);
   }
   outputStream->printf("\r\n");
-
   fclose(f);
 }
