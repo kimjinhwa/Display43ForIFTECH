@@ -162,6 +162,8 @@ static lv_i18n_phrase_t en_gb_singulars[] = {
     {"Log_Init", "Log File Init"},
     {"ENV_SET", "ENV SET"},
     {"ENTER", "확인"},
+    {"Password", "Password"},
+    {"Password_Fail", "PIN Error"},
     {NULL, NULL} // End mark
 };
 
@@ -328,6 +330,9 @@ static lv_i18n_phrase_t ko_kr_singulars[] = {
     {"BATTERY", "배터리"},
     {"Log_Init", "로그초기화"},
     {"ENV_SET", "환경설정"},
+    {"ENTER", "확인"},
+    {"Password", "암호"},
+    {"Password_Fail", "PIN 오류"},
     {NULL, NULL} // End mark
 };
 

@@ -8,6 +8,10 @@
 
  This is distributed under GNU LGPL license, see license.txt
 """
+import atexit
+import json
+import os
+import re
 import threading
 import random
 import sys
@@ -23,6 +27,7 @@ from tkinter import ttk,messagebox
 import time
 import numpy as np
 
+import ctypes
 from ctypes import c_uint
 
 
@@ -36,11 +41,22 @@ LED_PULSE_S = 0.12
 LED_TICK_MS = 40
 server = None
 slave_1 = None
+serial_port = None
 window = None
 hooks_installed = False
 led_widgets = {}
 activity_until = {"rx": 0.0, "tx": 0.0}
 activity_lock = threading.Lock()
+state_lock = threading.Lock()
+STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "simulator_state.json")
+_GEOM_RE = re.compile(r"(\d+)x(\d+)([+-]\d+)([+-]\d+)")
+selected_port = ""
+port_should_reopen = False
+port_var = None
+last_geometry = "1580x900+0+0"
+status_buttons = {}
+hw_buttons = {}
+alarm_buttons = {}
 
 # data = []
 # # 200개의 랜덤 값 생성
@@ -77,16 +93,200 @@ entries_values= [
 #     print(f"Received write request for address {address} with value {value}")
 # def on_write_request_multi(slave, function_code, address, values):
 #     print(f"Multiple write request - Slave: {slave}, Function Code: {function_code}, Address: {address}, Values: {values}")
+def virtual_screen():
+    if sys.platform == "win32":
+        user32 = ctypes.windll.user32
+        vx = user32.GetSystemMetrics(76)
+        vy = user32.GetSystemMetrics(77)
+        vw = user32.GetSystemMetrics(78)
+        vh = user32.GetSystemMetrics(79)
+        if vw > 0 and vh > 0:
+            return vx, vy, vw, vh
+    return 0, 0, 1920, 1080
+
+
+def fit_geometry(spec):
+    """저장된 좌표가 현재 화면 밖이면 보이는 영역 안으로 당긴다."""
+    match = _GEOM_RE.search(spec or "")
+    if not match:
+        return "1580x900+0+0"
+    w, h = int(match.group(1)), int(match.group(2))
+    x, y = int(match.group(3)), int(match.group(4))
+    vx, vy, vw, vh = virtual_screen()
+    w = min(max(w, 400), vw)
+    h = min(max(h, 300), vh)
+    if x >= vx + vw or y >= vy + vh or x + w <= vx or y + h <= vy:
+        x, y = vx, vy
+    if x < vx:
+        x = vx
+    if y < vy:
+        y = vy
+    if x + w > vx + vw:
+        x = vx + vw - w
+    if y + h > vy + vh:
+        y = vy + vh - h
+    return f"{w}x{h}{x:+d}{y:+d}"
+
+
+def current_port():
+    if threading.current_thread() is threading.main_thread() and port_var is not None:
+        try:
+            text = port_var.get().strip()
+            if text:
+                return text
+        except tk.TclError:
+            pass
+    return selected_port
+
+
+def load_state():
+    global selected_port, port_should_reopen, last_geometry
+    if not os.path.exists(STATE_PATH):
+        return
+    try:
+        with open(STATE_PATH, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, json.JSONDecodeError, TypeError):
+        return
+    values = data.get("values")
+    if isinstance(values, list):
+        for index, raw in enumerate(values):
+            if index >= len(entries_values):
+                break
+            try:
+                entries_values[index] = int(raw) & 0xFFFF
+            except (TypeError, ValueError):
+                pass
+    selected_port = str(data.get("port") or "")
+    port_should_reopen = bool(data.get("port_open"))
+    if data.get("geometry"):
+        last_geometry = str(data["geometry"])
+
+
+def save_state():
+    payload = {
+        "port": current_port(),
+        "port_open": bool(port_should_reopen),
+        "geometry": last_geometry,
+        "values": [int(v) & 0xFFFF for v in entries_values],
+    }
+    try:
+        with state_lock:
+            temporary = STATE_PATH + ".tmp"
+            with open(temporary, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle, ensure_ascii=False, indent=2)
+            os.replace(temporary, STATE_PATH)
+    except OSError as exc:
+        print(f"state save failed: {exc}")
+
+
+_geom_after = None
+
+
+def note_geometry(_event=None):
+    global last_geometry, _geom_after
+    if window is None:
+        return
+    if _event is not None and _event.widget is not window:
+        return
+    try:
+        spec = window.geometry()
+    except tk.TclError:
+        return
+    match = _GEOM_RE.search(spec)
+    if not match:
+        return
+    if int(match.group(1)) < 200 or int(match.group(2)) < 200:
+        return
+    last_geometry = spec
+    if _geom_after is not None:
+        window.after_cancel(_geom_after)
+    _geom_after = window.after(400, save_state)
+
+
+def paint_word_buttons(buttons, value):
+    for bit, btn in buttons.items():
+        on = bool(int(value) & (1 << bit))
+        toggled_states[btn] = on
+        btn.config(background="red" if on else "SystemButtonFace")
+
+
+def push_register(index, value):
+    value = int(value) & 0xFFFF
+    if index < len(entries_values):
+        entries_values[index] = value
+    if index < len(modBusData):
+        modBusData[index] = value
+    if index < len(entries):
+        widget = entries[index]
+        if widget.get() != str(value):
+            widget.delete(0, tk.END)
+            widget.insert(0, str(value))
+    if slave_1 is not None:
+        slave_1.set_values("1", index, value)
+        slave_1.set_values("2", index, value)
+    save_state()
+
+
+def reflect_master_write(address, mod_data):
+    if address < len(entries):
+        entries[address].delete(0, tk.END)
+        entries[address].insert(0, mod_data)
+    if address == 15:
+        global value_1
+        value_1 = mod_data
+        setText_box.delete(0, tk.END)
+        setText_box.insert(0, str(mod_data))
+        paint_word_buttons(status_buttons, mod_data)
+    elif address == 16:
+        global value_3
+        value_3 = mod_data
+        hwStatusTextBox.delete(0, tk.END)
+        hwStatusTextBox.insert(0, str(mod_data))
+        paint_word_buttons(hw_buttons, mod_data)
+    elif address == 17:
+        global value_2
+        value_2 = mod_data
+        alarmStatusTextBox.delete(0, tk.END)
+        alarmStatusTextBox.insert(0, str(mod_data))
+        paint_word_buttons(alarm_buttons, mod_data)
+    save_state()
+
+
+def on_master_write(address, mod_data):
+    if not (0 <= address < 59):
+        return
+    modBusData[address] = mod_data
+    if address < len(entries_values):
+        entries_values[address] = mod_data
+    if slave_1 is not None:
+        slave_1.set_values("1", address, mod_data)
+        slave_1.set_values("2", address, mod_data)
+    if window is None:
+        save_state()
+        return
+    try:
+        window.after(0, lambda: reflect_master_write(address, mod_data))
+    except tk.TclError:
+        save_state()
+
+
 #def list_ports():
 def list_ports():
     ports = serial.tools.list_ports.comports()
     return [port.device for port in ports]
 
-def open_port(port):
+def open_port(port, quiet=False):
     try:
-        global server, slave_1, hooks_installed
-        server = modbus_rtu.RtuServer(serial.Serial(port))
+        global server, slave_1, serial_port, hooks_installed, selected_port, port_should_reopen
+        if not port:
+            return
+        stop_server()
+        serial_port = serial.Serial(port)
+        server = modbus_rtu.RtuServer(serial_port)
         server.set_timeout(0.03)
+        if server._thread is not None:
+            server._thread.daemon = True
         server.start()
         
         modbus_thread = threading.Thread(target=modbus_server_thread)
@@ -94,7 +294,11 @@ def open_port(port):
         modbus_thread.start()
 
         print(f"Opened port {port}")
-        messagebox.showinfo("Success", f"Opened port {port}")
+        selected_port = port
+        port_should_reopen = True
+        save_state()
+        if not quiet:
+            messagebox.showinfo("Success", f"Opened port {port}")
         
         # Add slave after opening the port
         slave_1 = server.add_slave(1)
@@ -112,26 +316,74 @@ def open_port(port):
         refresh_comm_leds()
         
     except Exception as e:
-        server = None
-        slave_1 = None
+        stop_server()
         refresh_comm_leds()
         print(f"Failed to open port {port}: {e}")
         messagebox.showerror("Error", f"Failed to open port {port}: {e}")
 
 
-def close_port():
+def _release_serial(ser):
+    if ser is None:
+        return
     try:
-        global server, slave_1
-        if server :
-            server.stop()
-            server = None
-            slave_1 = None
-            print(f"Closed port")
-            refresh_comm_leds()
-            messagebox.showinfo("Success", "Closed port")
-    except Exception as e:
-        print(f"Failed to close port: {e}")
+        if ser.is_open:
+            try:
+                ser.cancel_read()
+            except Exception:
+                pass
+            ser.close()
+    except Exception as exc:
+        print(f"Failed to close port: {exc}")
+
+
+def stop_server():
+    """서버 스레드를 끊고 COM 포트를 닫는다. 종료 후에도 포트가 잡혀 있지 않게 한다."""
+    global server, slave_1, serial_port
+    srv = server
+    ser = serial_port if serial_port is not None else getattr(srv, "_serial", None)
+    server = None
+    slave_1 = None
+    serial_port = None
+    if srv is not None:
+        try:
+            srv._block_on_first_byte = False
+            go = getattr(srv, "_go", None)
+            if go is not None:
+                go.clear()
+        except Exception as exc:
+            print(f"Failed to stop server: {exc}")
+    if ser is not None:
+        # 블로킹 read 가 예외로 풀린 뒤 라이브러리가 포트를 다시 열지 못하게 한다.
+        ser.open = lambda *args, **kwargs: None
+        try:
+            if ser.is_open:
+                ser.timeout = 0.05
+        except Exception:
+            pass
+        _release_serial(ser)
+    if srv is not None:
+        thread = getattr(srv, "_thread", None)
+        if thread is not None and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=1.0)
+    _release_serial(ser)
+    try:
         refresh_comm_leds()
+    except Exception:
+        pass
+
+
+atexit.register(stop_server)
+
+
+def close_port():
+    global port_should_reopen
+    was_open = server is not None
+    port_should_reopen = False
+    stop_server()
+    save_state()
+    if was_open:
+        print("Closed port")
+        messagebox.showinfo("Success", "Closed port")
 
 def on_rtu_rx(_args):
     note_activity("rx")
@@ -188,7 +440,7 @@ def add_status_led(parent, name, caption, _color_on):
     canvas.pack(side=tk.LEFT)
     oval = canvas.create_oval(2, 2, 14, 14, fill=LED_OFF, outline="#1f1f1f", width=1)
     led_widgets[name] = (canvas, oval)
-    tk.Label(cell, text=caption, bg=bg).pack(side=tk.LEFT, padx=(4, 0))
+    tk.Label(cell, text=caption, bg=bg, fg="#f4f4f4").pack(side=tk.LEFT, padx=(4, 0))
 
 
 def on_write_request_multi(data):
@@ -200,12 +452,7 @@ def on_write_request_multi(data):
        byteCount = pdu[5] 
        modData= pdu[6] << 8 |  pdu[7]
        print(address,modData) 
-       if address <59 : 
-            modBusData[address] =  modData 
-            entries[address].delete(0,tk.END)
-            entries[address].insert(0, modData)
-            slave_1.set_values('1',address,modData)
-            slave_1.set_values('2',address,modData)
+       on_master_write(address, modData)
        #slave_id = slave.id
        slave_id =   pdu[2]
        starting_address = 10 # pdu.starting_address
@@ -223,12 +470,7 @@ def on_write_request(data):
        address = pdu[1] << 8 |  pdu[2]
        modData= pdu[3] << 8 |  pdu[4]
        print(address,modData) 
-       if address <59 : 
-            modBusData[address] =  modData 
-            entries[address].delete(0,tk.END)
-            entries[address].insert(0, modData)
-            slave_1.set_values('1',address,modData)
-            slave_1.set_values('2',address,modData)
+       on_master_write(address, modData)
        #slave_id = slave.id
        slave_id =   pdu[2]
        starting_address = 10 # pdu.starting_address
@@ -274,10 +516,7 @@ def set_bit_value(bit,button):
         value_1 &=  ~(1 << bit)
         setText_box.delete(0,tk.END)
         setText_box.insert(0,str(value_1))
-    
-    slave_1.set_values('1',15,int(setText_box.get()))
-    slave_1.set_values('2',15,int(setText_box.get()))
-    #print("Status Value ", int(setText_box.get()))
+    push_register(15, value_1)
 
 def alarm_status(bit,button):
     # global setButtonStatus
@@ -294,8 +533,7 @@ def alarm_status(bit,button):
         value_2 &=  ~(1 << bit)
         alarmStatusTextBox.delete(0,tk.END)
         alarmStatusTextBox.insert(0,str(value_2))
-    slave_1.set_values('1',17,int(alarmStatusTextBox.get()))
-    slave_1.set_values('2',17,int(alarmStatusTextBox.get()))
+    push_register(17, value_2)
 
 def hw_status(bit,button):
     #global setButtonStatus
@@ -312,64 +550,141 @@ def hw_status(bit,button):
         value_3 &=  ~(1 << bit)
         hwStatusTextBox.delete(0,tk.END)
         hwStatusTextBox.insert(0,str(value_3))
-    slave_1.set_values('1',16,int(hwStatusTextBox.get()))
-    slave_1.set_values('2',16,int(hwStatusTextBox.get()))
+    push_register(16, value_3)
 def entry_changed(event,index):
-    global slave_1  # 전역 변수 사용
     print("index ", index)
-    new_value = int(entries[index].get())
-
-    # for i in range(len(modBusData)):
-    #     modBusData[i] = modBusData[i] & 0xFFFF
-
-    if slave_1 is not None:
-        modBusData[index]= new_value
-        #slave_1.set_values('1',0,list(range(200)))
-        # slave_1.set_values('1', 0, modBusData)
-        # slave_1.set_values('2', 0, modBusData)
-        slave_1.set_values('2',index,new_value)
-        slave_1.set_values('1',index,new_value)
-        print("Entry", index, "changed to:", new_value)
-        #register_values = slave_1.get_values('1', 0, 200)
-        #register_values = modBusData; 
-        # 레지스터 값 출력
-        # print("Register values:")
-        # for i, value in enumerate(register_values):
-        #     print(f"Register {i}: {value}")
+    try:
+        new_value = int(entries[index].get()) & 0xFFFF
+    except ValueError:
+        return
+    if index == 15:
+        global value_1
+        value_1 = new_value
+        setText_box.delete(0, tk.END)
+        setText_box.insert(0, str(new_value))
+        paint_word_buttons(status_buttons, new_value)
+    elif index == 16:
+        global value_3
+        value_3 = new_value
+        hwStatusTextBox.delete(0, tk.END)
+        hwStatusTextBox.insert(0, str(new_value))
+        paint_word_buttons(hw_buttons, new_value)
+    elif index == 17:
+        global value_2
+        value_2 = new_value
+        alarmStatusTextBox.delete(0, tk.END)
+        alarmStatusTextBox.insert(0, str(new_value))
+        paint_word_buttons(alarm_buttons, new_value)
+    push_register(index, new_value)
+    print("Entry", index, "changed to:", new_value)
 def on_closing():
-    close_port()
-    window.destroy()
+    try:
+        note_geometry()
+        save_state()
+    finally:
+        stop_server()
+        try:
+            window.destroy()
+        except tk.TclError:
+            pass
+
+# 단상 HMI 통신 엑셀 번지 15/16/17. 인덱스 = 비트 번호.
+STATUS_BITS = [
+    "충전\n운전", "충전\n재기동", "충전\n정지", "이상\n충전정지",
+    "DCDC\n운전", "DCDC\n재기동", "DCDC\n정지", "이상\nDCDC정지",
+    "INV\n운전", "INV\n재기동", "INV\n정지", "이상\nINV정지",
+    "INV\n절환", "BYP\n절환", "이상\nBYP절환", "충방전",
+]
+HW_BITS = [
+    "입력OC", "INV OC", "Vdc OV", "CONV\n운전",
+    "DCDC\n운전", "CONV\nGDU", "INV\nGDU", "DCDC\nGDU",
+    "N상\nGDU", "INV\n운전", "BAT\n퓨즈", "모듈OT",
+    "부저", "EEPROM", "BAT\n차단기", "절환\nINV/BYP",
+]
+ALARM_BITS = [
+    "충전\n전류제한", "DC\n과전압", "DC\n저전압", "입력\n저전압",
+    "입력\n과전압", "입력\n주파수", "INV\n주파수", "정전",
+    "BAT전류\n제한", "BAT\n과전압", "BAT\n저전압", "INV출력\n전압",
+    "출력\n과부하", "INV과부하\n정지", "옵셋\n이상", "출력CT",
+]
+
+
+BIT_COL_W = 72
+TITLE_W = 78
+LEFT_PAD = 10
+UI_BG = "gray"
+UI_FG = "#f4f4f4"
+
+
+def add_bit_row(parent, row, names, on_click):
+    buttons = {}
+    for bit in range(15, -1, -1):
+        col = 1 + (15 - bit)
+        cell = tk.Frame(parent, bg=UI_BG)
+        cell.grid(row=row, column=col, sticky="n", pady=2)
+        btn = tk.Button(cell, text=str(bit), width=3)
+        btn.configure(command=lambda b=bit, bt=btn: on_click(b, bt))
+        btn.pack(side=tk.TOP)
+        tk.Label(
+            cell,
+            text=names[bit],
+            font=("Malgun Gothic", 8),
+            justify="center",
+            bg=UI_BG,
+            fg=UI_FG,
+            wraplength=BIT_COL_W - 6,
+        ).pack(side=tk.TOP)
+        buttons[bit] = btn
+    return buttons
+
 
 def create_window():
     """main"""
     global toggled_states
     global slave_1
-    toggled_states = {}
     global window
+    global port_var
+    global value_1, value_2, value_3
+    global status_buttons, hw_buttons, alarm_buttons
+    load_state()
+    value_1 = int(entries_values[15]) & 0xFFFF
+    value_3 = int(entries_values[16]) & 0xFFFF
+    value_2 = int(entries_values[17]) & 0xFFFF
+    toggled_states = {}
     window = tk.Tk()
     window.title("Modbus RTU 서버 제어")
 
-    window.geometry("1350x830+0+0")
+    window.geometry(fit_geometry(last_geometry))
     window.config(bg="gray")
+    window.bind("<Configure>", note_geometry)
 
-    portPanel = tk.Frame(window)
-    portPanel.pack(side=tk.TOP,anchor='w', pady=10)
+    bitPanel = tk.Frame(window, bg=UI_BG)
+    bitPanel.pack(side=tk.TOP, anchor="w", padx=LEFT_PAD, pady=(8, 0))
+    bitPanel.grid_columnconfigure(0, minsize=TITLE_W)
+    for col in range(1, 17):
+        bitPanel.grid_columnconfigure(col, minsize=BIT_COL_W, uniform="bit")
 
-    port_label = tk.Label(portPanel,text="Select COM Port:")
-    port_label.pack(side=tk.LEFT,padx=5)
+    portPanel = tk.Frame(bitPanel, bg=UI_BG)
+    portPanel.grid(row=0, column=0, columnspan=18, sticky="ew", pady=(0, 8))
+
+    port_label = tk.Label(portPanel, text="Select COM Port:", bg=UI_BG, fg=UI_FG)
+    port_label.pack(side=tk.LEFT, padx=(0, 5))
 
     availabel_ports = list_ports()
     port_var = tk.StringVar(window)
+    if selected_port:
+        port_var.set(selected_port)
 
-    port_combobox = ttk.Combobox(portPanel,textvariable=port_var)
+    port_combobox = ttk.Combobox(portPanel, textvariable=port_var, width=12)
     port_combobox['values'] = availabel_ports
-    port_combobox.pack(side=tk.LEFT,padx=5)
+    port_combobox.pack(side=tk.LEFT, padx=5)
 
-    open_button = tk.Button(portPanel,text="Open Port",command=lambda: open_port(port_var.get()))
-    open_button.pack(side=tk.LEFT,padx=5)
-    
-    close_button = tk.Button(portPanel,text="Close Por", command=close_port)
-    close_button.pack(side=tk.LEFT,padx=5)
+    open_button = tk.Button(portPanel, text="Open Port", command=lambda: open_port(port_var.get()))
+    open_button.pack(side=tk.LEFT, padx=5)
+
+    close_button = tk.Button(portPanel, text="Close Por", command=close_port)
+    close_button.pack(side=tk.LEFT, padx=5)
+    tk.Frame(portPanel, bg=UI_BG).pack(side=tk.LEFT, fill=tk.X, expand=True)
     add_status_led(portPanel, "conn", "연결", LED_CONN)
     add_status_led(portPanel, "rx", "RX", LED_RX)
     add_status_led(portPanel, "tx", "TX", LED_TX)
@@ -381,182 +696,39 @@ def create_window():
 
     # #infoPanel.pack(side=tk.BOTTOM,fill=tk.X,expand=True, pady=0)
     # infoPanel.place(relx=0.01, rely=0.7, relwidth=0.9, relheight=0.2)
-    setPanel = tk.Frame(window)
-    setPanel.pack(side=tk.TOP,anchor='w',pady=10)
-
-    hwStatusPanel = tk.Frame(window)
-    hwStatusPanel.pack(side=tk.TOP,anchor='w',pady=10)
-
-    alarmPanel = tk.Frame(window)
-    alarmPanel.pack(side=tk.TOP,anchor='w',pady=10)
-
     entryPanel = tk.Frame(window)
-    entryPanel.pack(side=tk.TOP,pady=10)
-    # "15" 버튼 생성 및 패널에 배치
-    set_label = tk.Label(setPanel, text="STATUS")
-    set_label.pack(side=tk.LEFT,padx=20)
+    entryPanel.pack(side=tk.TOP, anchor="w", padx=LEFT_PAD, pady=10)
 
-    btn_setCharteStatusValue15= tk.Button(setPanel, text="15", command=lambda:set_bit_value(15,btn_setCharteStatusValue15))
-    btn_setCharteStatusValue15.pack(side=tk.LEFT,padx=5)
+    def place_bit_title(row, text):
+        tk.Label(
+            bitPanel, text=text, bg=UI_BG, fg=UI_FG,
+            justify="center", font=("Malgun Gothic", 9),
+        ).grid(row=row, column=0, sticky="nw", padx=(0, 4))
 
-    btn_setCharteStatusValue14= tk.Button(setPanel, text="14", command=lambda:set_bit_value(14,btn_setCharteStatusValue14))
-    btn_setCharteStatusValue14.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue13= tk.Button(setPanel, text="13", command=lambda:set_bit_value(13,btn_setCharteStatusValue13))
-    btn_setCharteStatusValue13.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue12= tk.Button(setPanel, text="12", command=lambda:set_bit_value(12,btn_setCharteStatusValue12))
-    btn_setCharteStatusValue12.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue11= tk.Button(setPanel, text="11", command=lambda:set_bit_value(11,btn_setCharteStatusValue11))
-    btn_setCharteStatusValue11.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue10= tk.Button(setPanel, text="10", command=lambda:set_bit_value(10,btn_setCharteStatusValue10))
-    btn_setCharteStatusValue10.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue9= tk.Button(setPanel, text="9", command=lambda:set_bit_value(9,btn_setCharteStatusValue9))
-    btn_setCharteStatusValue9.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue8= tk.Button(setPanel, text="8", command=lambda:set_bit_value(8,btn_setCharteStatusValue8))
-    btn_setCharteStatusValue8.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue7= tk.Button(setPanel, text="7", command=lambda:set_bit_value(7,btn_setCharteStatusValue7))
-    btn_setCharteStatusValue7.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue6= tk.Button(setPanel, text="6", command=lambda:set_bit_value(6,btn_setCharteStatusValue6))
-    btn_setCharteStatusValue6.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue5= tk.Button(setPanel, text="5", command=lambda:set_bit_value(5,btn_setCharteStatusValue5))
-    btn_setCharteStatusValue5.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue4= tk.Button(setPanel, text="4", command=lambda:set_bit_value(4,btn_setCharteStatusValue4))
-    btn_setCharteStatusValue4.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue3= tk.Button(setPanel, text="3", command=lambda:set_bit_value(3,btn_setCharteStatusValue3))
-    btn_setCharteStatusValue3.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue2= tk.Button(setPanel, text="2", command=lambda:set_bit_value(2,btn_setCharteStatusValue2))
-    btn_setCharteStatusValue2.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue1= tk.Button(setPanel, text="1", command=lambda:set_bit_value(1,btn_setCharteStatusValue1))
-    btn_setCharteStatusValue1.pack(side=tk.LEFT,padx=5)
-
-    btn_setCharteStatusValue0= tk.Button(setPanel, text="0", command=lambda:set_bit_value(0,btn_setCharteStatusValue0))
-    btn_setCharteStatusValue0.pack(side=tk.LEFT,padx=5)
-
-    
-
-    clr_label = tk.Label(hwStatusPanel, text="HW Status")
-    clr_label.pack(side=tk.LEFT,padx=20)
-    btn_hwStatusValue15= tk.Button(hwStatusPanel, text="15", command=lambda:hw_status(15,btn_hwStatusValue15))
-    btn_hwStatusValue15.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue14= tk.Button(hwStatusPanel, text="14", command=lambda:hw_status(14,btn_hwStatusValue14))
-    btn_hwStatusValue14.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue13= tk.Button(hwStatusPanel, text="13", command=lambda:hw_status(13,btn_hwStatusValue13))
-    btn_hwStatusValue13.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue12= tk.Button(hwStatusPanel, text="12", command=lambda:hw_status(12,btn_hwStatusValue12))
-    btn_hwStatusValue12.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue11= tk.Button(hwStatusPanel, text="11", command=lambda:hw_status(11,btn_hwStatusValue11))
-    btn_hwStatusValue11.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue10= tk.Button(hwStatusPanel, text="10", command=lambda:hw_status(10,btn_hwStatusValue10))
-    btn_hwStatusValue10.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue9= tk.Button(hwStatusPanel, text="9", command=lambda:hw_status(9,btn_hwStatusValue9))
-    btn_hwStatusValue9.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue8= tk.Button(hwStatusPanel, text="8", command=lambda:hw_status(8,btn_hwStatusValue8))
-    btn_hwStatusValue8.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue7= tk.Button(hwStatusPanel, text="7", command=lambda:hw_status(7,btn_hwStatusValue7))
-    btn_hwStatusValue7.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue6= tk.Button(hwStatusPanel, text="6", command=lambda:hw_status(6,btn_hwStatusValue6))
-    btn_hwStatusValue6.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue5= tk.Button(hwStatusPanel, text="5", command=lambda:hw_status(5,btn_hwStatusValue5))
-    btn_hwStatusValue5.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue4= tk.Button(hwStatusPanel, text="4", command=lambda:hw_status(4,btn_hwStatusValue4))
-    btn_hwStatusValue4.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue3= tk.Button(hwStatusPanel, text="3", command=lambda:hw_status(3,btn_hwStatusValue3))
-    btn_hwStatusValue3.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue2= tk.Button(hwStatusPanel, text="2", command=lambda:hw_status(2,btn_hwStatusValue2))
-    btn_hwStatusValue2.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue1= tk.Button(hwStatusPanel, text="1", command=lambda:hw_status(1,btn_hwStatusValue1))
-    btn_hwStatusValue1.pack(side=tk.LEFT,padx=5)
-
-    btn_hwStatusValue0= tk.Button(hwStatusPanel, text="0", command=lambda:hw_status(0,btn_hwStatusValue0))
-    btn_hwStatusValue0.pack(side=tk.LEFT,padx=5)
-
-    alarm_label = tk.Label(alarmPanel, text="Alarm Status")
-    alarm_label.pack(side=tk.LEFT,padx=20)
-    btn_alarmStatusValue15= tk.Button(alarmPanel, text="15", command=lambda:alarm_status(15,btn_alarmStatusValue15))
-    btn_alarmStatusValue15.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue14= tk.Button(alarmPanel, text="14", command=lambda:alarm_status(14,btn_alarmStatusValue14))
-    btn_alarmStatusValue14.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue13= tk.Button(alarmPanel, text="13", command=lambda:alarm_status(13,btn_alarmStatusValue13))
-    btn_alarmStatusValue13.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue12= tk.Button(alarmPanel, text="12", command=lambda:alarm_status(12,btn_alarmStatusValue12))
-    btn_alarmStatusValue12.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue11= tk.Button(alarmPanel, text="11", command=lambda:alarm_status(11,btn_alarmStatusValue11))
-    btn_alarmStatusValue11.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue10= tk.Button(alarmPanel, text="10", command=lambda:alarm_status(10,btn_alarmStatusValue10))
-    btn_alarmStatusValue10.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue9= tk.Button(alarmPanel, text="9", command=lambda:alarm_status(9,btn_alarmStatusValue9))
-    btn_alarmStatusValue9.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue8= tk.Button(alarmPanel, text="8", command=lambda:alarm_status(8,btn_alarmStatusValue8))
-    btn_alarmStatusValue8.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue7= tk.Button(alarmPanel, text="7", command=lambda:alarm_status(7,btn_alarmStatusValue7))
-    btn_alarmStatusValue7.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue6= tk.Button(alarmPanel, text="6", command=lambda:alarm_status(6,btn_alarmStatusValue6))
-    btn_alarmStatusValue6.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue5= tk.Button(alarmPanel, text="5", command=lambda:alarm_status(5,btn_alarmStatusValue5))
-    btn_alarmStatusValue5.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue4= tk.Button(alarmPanel, text="4", command=lambda:alarm_status(4,btn_alarmStatusValue4))
-    btn_alarmStatusValue4.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue3= tk.Button(alarmPanel, text="3", command=lambda:alarm_status(3,btn_alarmStatusValue3))
-    btn_alarmStatusValue3.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue2= tk.Button(alarmPanel, text="2", command=lambda:alarm_status(2,btn_alarmStatusValue2))
-    btn_alarmStatusValue2.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue1= tk.Button(alarmPanel, text="1", command=lambda:alarm_status(1,btn_alarmStatusValue1))
-    btn_alarmStatusValue1.pack(side=tk.LEFT,padx=5)
-
-    btn_alarmStatusValue0= tk.Button(alarmPanel, text="0", command=lambda:alarm_status(0,btn_alarmStatusValue0))
-    btn_alarmStatusValue0.pack(side=tk.LEFT,padx=5)
+    place_bit_title(1, "STATUS\n번지15")
+    status_buttons = add_bit_row(bitPanel, 1, STATUS_BITS, set_bit_value)
+    place_bit_title(2, "HW\n번지16")
+    hw_buttons = add_bit_row(bitPanel, 2, HW_BITS, hw_status)
+    place_bit_title(3, "Alarm\n번지17")
+    alarm_buttons = add_bit_row(bitPanel, 3, ALARM_BITS, alarm_status)
+    paint_word_buttons(status_buttons, value_1)
+    paint_word_buttons(hw_buttons, value_3)
+    paint_word_buttons(alarm_buttons, value_2)
 
     global setText_box
-    setText_box = tk.Entry(setPanel)
-    setText_box.pack(side=tk.LEFT,padx=10) 
+    setText_box = tk.Entry(bitPanel, width=8)
+    setText_box.grid(row=1, column=17, sticky="n", padx=(8, 0))
+    setText_box.insert(0, str(value_1))
 
     global hwStatusTextBox
-    hwStatusTextBox = tk.Entry(hwStatusPanel)
-    hwStatusTextBox.pack(side=tk.LEFT,padx=10) 
+    hwStatusTextBox = tk.Entry(bitPanel, width=8)
+    hwStatusTextBox.grid(row=2, column=17, sticky="n", padx=(8, 0))
+    hwStatusTextBox.insert(0, str(value_3))
 
     global alarmStatusTextBox
-    alarmStatusTextBox = tk.Entry(alarmPanel)
-    alarmStatusTextBox.pack(side=tk.LEFT,padx=10) 
+    alarmStatusTextBox = tk.Entry(bitPanel, width=8)
+    alarmStatusTextBox.grid(row=3, column=17, sticky="n", padx=(8, 0))
+    alarmStatusTextBox.insert(0, str(value_2)) 
     # canvas = tk.Canvas(window)
     # canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     # scrollbar = tk.Scrollbar(window, orient="vertical", command=canvas.yview)
@@ -581,36 +753,36 @@ def create_window():
     for i in range(0,58,4):
         # 첫 번째 엔트리(entry)와 라벨(label)
         set_label_1 = tk.Label(entryPanel, text=entries_names[i])
-        set_label_1.grid(row=i, column=0, padx=5, pady=2)
+        set_label_1.grid(row=i, column=0, padx=(0, 5), pady=2, sticky="w")
         entry_1 = tk.Entry(entryPanel)
-        entry_1.grid(row=i, column=1, padx=5, pady=2)
+        entry_1.grid(row=i, column=1, padx=5, pady=2, sticky="w")
         entry_1.bind("<Return>", lambda event, index=i: entry_changed(event, index))
         entry_1.insert(0, entries_values[i])
         entries.append(entry_1)
 
         # 두 번째 엔트리(entry)와 라벨(label)
         set_label_2 = tk.Label(entryPanel, text=entries_names[i+1])
-        set_label_2.grid(row=i, column=2, padx=5, pady=2)
+        set_label_2.grid(row=i, column=2, padx=5, pady=2, sticky="w")
         entry_2 = tk.Entry(entryPanel)
-        entry_2.grid(row=i, column=3, padx=5, pady=2)
+        entry_2.grid(row=i, column=3, padx=5, pady=2, sticky="w")
         entry_2.bind("<Return>", lambda event, index=i+1: entry_changed(event, index))
         entry_2.insert(0, entries_values[i+1])
         entries.append(entry_2)
 
         # 세 번째 엔트리(entry)와 라벨(label)
         set_label_3 = tk.Label(entryPanel, text=entries_names[i+2])
-        set_label_3.grid(row=i, column=4, padx=5, pady=2)
+        set_label_3.grid(row=i, column=4, padx=5, pady=2, sticky="w")
         entry_3 = tk.Entry(entryPanel)
-        entry_3.grid(row=i, column=5, padx=5, pady=2)
+        entry_3.grid(row=i, column=5, padx=5, pady=2, sticky="w")
         entry_3.bind("<Return>", lambda event, index=i+2: entry_changed(event, index))
         entry_3.insert(0, entries_values[i+2])
         entries.append(entry_3)
 
         # 네 번째 엔트리(entry)와 라벨(label)
         set_label_4 = tk.Label(entryPanel, text=entries_names[i+3])
-        set_label_4.grid(row=i, column=6, padx=5, pady=2)
+        set_label_4.grid(row=i, column=6, padx=5, pady=2, sticky="w")
         entry_4 = tk.Entry(entryPanel)
-        entry_4.grid(row=i, column=7, padx=5, pady=2)
+        entry_4.grid(row=i, column=7, padx=5, pady=2, sticky="w")
         entry_4.bind("<Return>", lambda event, index=i+3: entry_changed(event, index))
         entry_4.insert(0, entries_values[i+3])
         entries.append(entry_4)
@@ -618,19 +790,10 @@ def create_window():
         # 인덱스 조정
         # i = i + 3
 
-    infoPanel = tk.Frame(window)
-    #infoPanel.pack(side=tk.BOTTOM,fill=tk.X,expand=True, pady=0)
-    infoPanel.place(relx=0.01, rely=0.7, relwidth=0.9, relheight=0.2)
-
-    text="H/W Status info \n\n \
-16.0	Input_OC(H/W Latch) 16.1	Inverter OC(H/W Latch) 16.2	Vdc_OV(H/W Latch)\n\n \
-16.3	CONVERTER RUN/STOP STATE 16.4	DC/DC CONVERTER RUN/STOP STATE 16.5	Conv_GDU 16.6	Inv_GDU 16.7	GDU_DCDC \n\n\
-16.8	Com_GDU \ 16.9	INVERTER RUN/STOP STATE \ 16.10	BAT_FUSE \ 16.11	Module OT \n\n\
-16.12	Buzz ON/OFF Control from COM.  \ 16.13	EEPROM ERR \ 16.14	BAT MCCB Fault \ 16.15	TRANSFER RUN/STOP STATE\n"
-    infoState_label = tk.Label(infoPanel,text=text ,justify='left',anchor='w',wraplength=1600)
-    infoState_label.pack(side=tk.LEFT,padx=20)
     window.protocol("WM_DELETE_WINDOW", on_closing)
     window.after(LED_TICK_MS, tick_comm_leds)
+    if port_should_reopen and selected_port in availabel_ports:
+        window.after(300, lambda port=selected_port: open_port(port, quiet=True))
     window.mainloop()
 
 if __name__ == "__main__":

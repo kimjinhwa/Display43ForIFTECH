@@ -249,10 +249,13 @@ void showSystemUpdate()
   lv_label_set_text(ui_lblOutputVol, String(upsModbusData.Nominal_OutputVoltage).c_str());
 
 
-  //메인화면 //battery 용량 //sprintf(buf, "%d", rand() % (4) + 90);
-  lv_label_set_text(ui_lbaBatCapacity, String(upsModbusData.battery_capacity).c_str());
-  //sprintf(buf, "%d", rand() % (10) + 20);
-  lv_label_set_text(ui_lblLoadCapacity, String(upsModbusData.load_percentage).c_str());
+  //메인화면 //battery 용량
+  snprintf(buf, sizeof(buf), "#ff0000 BAT# %u #ff0000 %%#",
+           (unsigned)upsModbusData.battery_capacity);
+  lv_label_set_text(ui_lbaBatCapacity, buf);
+  snprintf(buf, sizeof(buf), "#ff0000 LOAD# %u #ff0000 %%#",
+           (unsigned)upsModbusData.load_percentage);
+  lv_label_set_text(ui_lblLoadCapacity, buf);
 
   lv_label_set_text(ui_lblDcLinkVol, String(upsModbusData.vdc_link_volt_rms).c_str());
   lv_label_set_text(ui_lblBatteryVol, String(upsModbusData.bat_volt_rms).c_str());
@@ -968,7 +971,7 @@ void setup()
          (unsigned)Mcp23s08_readReg(0x0A), (int)digitalRead(RTC_CE_GPIO));
 
   initialEEPROM();
-  nvsSystemEEPRom.systemLedOffTime = nvsSystemEEPRom.systemLedOffTime < 10 ? 10 : nvsSystemEEPRom.systemLedOffTime;
+  /* 0 = 화면 꺼짐 없음. 예전에는 10분 미만을 10으로 덮어 0이 유지되지 않았다. */
 
   // Init Display
   // Add
@@ -1261,27 +1264,15 @@ void loop()
 int isReceiveEventData = 0;
 QueueHandle_t modbusCmdQueue;
 
-extern int tokenLoopCount;
 void systemControllTask(void *parameter)
 {
   modbusCmdQueue = xQueueCreate(10, sizeof(ModbusCommand));
   for (;;)
   {
-    if( lv_scr_act() != ui_SettingScreen)
-    {
-      isReceiveEventData = modbusEventSendLoop(100);
-      if(isReceiveEventData == 'E'){
-        // Main Thread 의 isGetSetEventData() 함수를 호출하여 이벤트 데이터를 처리한다.
-        GetSetEventData();
-      }
-    }
-    else{
-      tokenLoopCount = 0;  
-      modbusEventSendLoop(100); // 이벤트를 0 즉 E 부터 시작하기 위함이다. 
-                                // ui_SettingScreen에서는 Modbus 통신을 잠정 중단한다. 
-                                // 이렇게 해서 textbox에 사용자가 입력한 값이 훼손 되지 않게 한다.
-                                // 다시 시작을 할 때는 Event정보를 먼저 받기 때문에 화면 데이타는 유지되며
-                                // 즉시 queue에 있는 데이타가 처리된다.
+    /* 설정 화면도 'A' 폴링을 유지한다. 키보드가 열린 동안만
+     * drainPendingUiUpdates()가 설정 칸 갱신을 미룬다. */
+    isReceiveEventData = modbusEventSendLoop(100);
+    if(isReceiveEventData == 'E'){
       GetSetEventData();
     }
     vTaskDelay(300);

@@ -723,6 +723,34 @@ void enqueueModbusCommand(int index, int value, uint32_t token) {
     xQueueSend(modbusCmdQueue, &cmd, portMAX_DELAY);
 }
 
+static uint32_t s_setupVerifyAt = 0;
+#define SETUP_VERIFY_DELAY_MS 300
+
+static bool isSetupAddr(int index)
+{
+  return (index >= 8 && index <= 11) ||
+         (index >= 38 && index <= 46) ||
+         (index >= 50 && index <= 58);
+}
+
+static bool setupVerifyDue(void)
+{
+  return s_setupVerifyAt != 0 && (int32_t)(millis() - s_setupVerifyAt) >= 0;
+}
+
+static int readCyclicRegisters(void)
+{
+  ModbusMessage rc = MB.syncRequest(
+      (uint32_t)'A', (uint8_t)1, READ_INPUT_REGISTER,
+      (uint16_t)0, (uint16_t)59);
+  if (rc.getError() != 0) {
+    ESP_LOGW("MODBUS", "setup verify FC04 error %d", rc.getError());
+    return 0;
+  }
+  handleData(rc, 'A');
+  return 1;
+}
+
 int WriteHoldRegistor(int index,int value,uint32_t Token){
   // 태스크 핸들 유효성 검사
   tokenLoopCount = -1;  // 더이상 Looping을 하지 않게 한다
@@ -741,6 +769,11 @@ int WriteHoldRegistor(int index,int value,uint32_t Token){
   ModbusMessage rc = MB.syncRequest(Token,(uint8_t) 1, (uint8_t)WRITE_MULT_REGISTERS,(uint16_t) index,(uint16_t)address,(uint8_t) byteCount,(uint16_t *) &arrayWord);
   if(rc.getError() == 0){
     handleData(rc,Token);
+    if (isSetupAddr(index)) {
+      s_setupVerifyAt = millis() + SETUP_VERIFY_DELAY_MS;
+      if (s_setupVerifyAt == 0)
+        s_setupVerifyAt = 1;
+    }
   }
   else{
     ESP_LOGW("MODUBS","MODBUS ERROR %d",rc.getError());
@@ -793,6 +826,22 @@ int modbusEventSendLoop(int token)
     MB.setTimeout(1000);
 		// else
 		// 	ESP_LOGI("MODUBS", "Received token %d..", token);
+  }
+
+  if (setupVerifyDue()) {
+    s_setupVerifyAt = 0;
+    const int savedLoop = tokenLoopCount;
+    if (!readCyclicRegisters()) {
+      modbusErrorCounter++;
+    }
+    tokenLoopCount = savedLoop;
+    return 'A';
+  }
+
+  if (s_setupVerifyAt != 0 && requestToken[tokenLoopCount] == 'A') {
+    tokenLoopCount++;
+    if (tokenLoopCount >= 12)
+      tokenLoopCount = 0;
   }
 
   switch (requestToken[tokenLoopCount])

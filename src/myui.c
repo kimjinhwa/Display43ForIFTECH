@@ -7,7 +7,14 @@
 //lv_obj_t * ui_pnlInvPower3;
 //lv_obj_t * ui_pnlInvPower4;
 
-#define ONLINE_COLOR 0x20945E 
+#define ONLINE_COLOR 0x20945E
+
+static void style_capacity_label(lv_obj_t *obj)
+{
+    if (obj == NULL) return;
+    lv_label_set_recolor(obj, true);
+    lv_obj_set_style_text_letter_space(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+}
 
 void myui_MainScreen_screen_init(void){
     // ui_pnlInvPower1 = lv_obj_create(ui_Container4);
@@ -88,6 +95,8 @@ void myui_MainScreen_screen_init(void){
 
     // lv_obj_set_style_bg_color(ui_pnlInvPower, lv_color_hex(ONLINE_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT);
     // lv_obj_set_style_border_color(ui_pnlInvPower, lv_color_hex(ONLINE_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT);
+    style_capacity_label(ui_lbaBatCapacity);
+    style_capacity_label(ui_lblLoadCapacity);
 }
 
 static void lockLogTextArea(lv_obj_t *ta)

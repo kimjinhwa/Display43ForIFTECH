@@ -145,3 +145,5 @@ ko-KR:
   ENTER : 확인 
   MAIN : 메인 
   OFFSET : 옵셋
+  Password: 암호
+  Password_Fail: PIN 오류

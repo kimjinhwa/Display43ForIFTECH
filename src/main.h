@@ -19,4 +19,5 @@ void uiBindLoopTask(void);
 void requestMeasureRefresh(void);
 void requestSettingRefresh(void);
 void drainPendingUiUpdates(void);
+bool settingKeyboardOpen(void);
 #endif

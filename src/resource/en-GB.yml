@@ -144,4 +144,6 @@ en-GB:
   ENV_SET : ENV SET 
   ENTER : ENTER 
   MAIN : MAIN 
-  OFFSET : OFFSEET 
+  OFFSET : OFFSEET
+  Password: Password
+  Password_Fail: PIN Error 

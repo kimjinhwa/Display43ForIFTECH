@@ -6,6 +6,7 @@
 .vscode/
 uploadFirmware/
 compile_commands.json
+Modbus_SImulator/simulator_state.json
 
 # Flutter companion app
 IFTECH_UPS43_App/.dart_tool/

@@ -1,4 +1,4 @@
-#define VERSION "4.0.24"
+#define VERSION "4.0.30"
 /*
  event로그를 앱에서 확인하고, 전송할수 있게 한다.
 */

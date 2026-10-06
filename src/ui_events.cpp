@@ -58,6 +58,7 @@ void showMessageLabel(const char *message);
 void timeSave(TIMESAVE tType,int16_t value);
 void scrSettingScreen();
 void scrMeasureLoad();
+void changeKeyboardText();
 void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction);
 
 static TaskHandle_t s_uiTask = NULL;
@@ -82,6 +83,11 @@ void requestSettingRefresh(void)
 	s_settingDirty = true;
 }
 
+bool settingKeyboardOpen(void)
+{
+	return ui_pnlKeyBoard && !lv_obj_has_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
+}
+
 void drainPendingUiUpdates(void)
 {
 	if (s_haveQueuedMsg) {
@@ -93,6 +99,8 @@ void drainPendingUiUpdates(void)
 		scrMeasureLoad();
 	}
 	if (s_settingDirty) {
+		if (settingKeyboardOpen())
+			return;
 		s_settingDirty = false;
 		scrSettingScreen();
 	}
@@ -337,9 +345,67 @@ void TabEvtESCClick(lv_event_t * e)
 	else 
 	lv_tabview_set_act(ui_TabView1,0,LV_ANIM_OFF);
 }
+#define GAIN_SETUP_PIN "1234"
+static bool s_gainPasswordOpen = false;
+
+static void endGainPasswordMode(void)
+{
+	s_gainPasswordOpen = false;
+	if (!ui_txtInputArea)
+		return;
+	lv_textarea_set_password_mode(ui_txtInputArea, false);
+	lv_textarea_set_password_bullet(ui_txtInputArea, "*");
+	lv_textarea_set_accepted_chars(ui_txtInputArea, NULL);
+	lv_textarea_set_placeholder_text(ui_txtInputArea, "");
+}
+
+static void hideSettingKeyboard(void)
+{
+	if (ui_pnlKeyBoard)
+		lv_obj_add_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
+	endGainPasswordMode();
+}
+
+static void openGainTab(void)
+{
+	if (ui_TabView1)
+		lv_tabview_set_act(ui_TabView1, 1, LV_ANIM_OFF);
+}
+
+static bool confirmGainPassword(void)
+{
+	const char *pin = ui_txtInputArea ? lv_textarea_get_text(ui_txtInputArea) : "";
+	if (pin != NULL && strcmp(pin, GAIN_SETUP_PIN) == 0) {
+		hideSettingKeyboard();
+		openGainTab();
+		return true;
+	}
+	if (ui_txtInputArea) {
+		lv_textarea_set_text(ui_txtInputArea, "");
+		lv_textarea_set_cursor_pos(ui_txtInputArea, 0);
+	}
+	showMessageLabel(_("Password_Fail"));
+	return false;
+}
+
 void TabEventSetupVolClick(lv_event_t * e)
 {
-	lv_tabview_set_act(ui_TabView1,1,LV_ANIM_OFF);
+	LV_UNUSED(e);
+	if (!ui_pnlKeyBoard || !ui_txtInputArea)
+		return;
+	changeKeyboardText();
+	s_gainPasswordOpen = true;
+	ui_txtTempory = nullptr;
+	lv_textarea_set_password_mode(ui_txtInputArea, true);
+	lv_textarea_set_password_bullet(ui_txtInputArea, "*");
+	lv_textarea_set_password_show_time(ui_txtInputArea, 0);
+	lv_textarea_set_max_length(ui_txtInputArea, 8);
+	lv_textarea_set_accepted_chars(ui_txtInputArea, "0123456789");
+	lv_textarea_set_placeholder_text(ui_txtInputArea, _("Password"));
+	lv_textarea_set_text(ui_txtInputArea, "");
+	lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED);
+	lv_obj_clear_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
+	lv_obj_move_foreground(ui_pnlKeyBoard);
 }
 
 void TabEvtSystemGoBackClick(lv_event_t * e){
@@ -524,15 +590,18 @@ int checkValidation()
 
 void bntEnterEvent(lv_event_t *e)
 {
-	// lv_event_send(ui_btnAlarmPrev2,LV_EVENT_CLICKED,0);
+	LV_UNUSED(e);
+	if (s_gainPasswordOpen) {
+		confirmGainPassword();
+		return;
+	}
 	ESP_LOGI("DEBUG","bntEnterEvent ");
 	checkValidation();
-	lv_obj_add_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
+	s_settingDirty = false;
+	hideSettingKeyboard();
 	if (ui_txtTempory != nullptr)
 	{
-		// ui_txtTempory 이것은 해당 Text이다.
 		lv_textarea_set_text(ui_txtTempory, lv_textarea_get_text(ui_txtInputArea));
-		// ui_txtTempory.get
 	}
 }
 void keyBoardValueChangedEvent(lv_event_t * e)
@@ -558,7 +627,8 @@ void keyBoardValueChangedEvent(lv_event_t * e)
 static void onKeyboardCloseClicked(lv_event_t *e)
 {
 	if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
-		lv_obj_add_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
+		hideSettingKeyboard();
+		requestSettingRefresh();
 	}
 }
 
@@ -682,9 +752,10 @@ void scrSettingScreenLoaded(lv_event_t * e){
 	//_ui_flag_modify( ui_batSaveSetting , LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
 }
 void scrSettingScreen(){
-  if (ui_pnlKeyBoard != NULL && !lv_obj_has_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN)) {
+  if (settingKeyboardOpen())
     return;
-  }
+  if (!ui_txtBatCurrSet)
+    return;
   //설정화면 
   char tempstr[10];
   lv_textarea_set_text(ui_txtBatCurrSet, String(upsModbusData.Bat_Current_Ref).c_str()); //2-20 default 2
@@ -844,6 +915,7 @@ void scrMeasureLoadEvent(lv_event_t * e){
 
 
 void CommonEevntProc(lv_event_t * e){
+	endGainPasswordMode();
 	 ui_txtTempory = lv_event_get_target(e);
 	changeKeyboardText();
     _ui_flag_modify( ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
