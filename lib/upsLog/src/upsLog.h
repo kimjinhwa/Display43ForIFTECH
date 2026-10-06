@@ -73,6 +73,7 @@ public:
     void setCurrentMemoryPage(int16_t page){
         currentMemoryPage = page;
     };
+    void goLastPage();
     enum upsStatus_t
     {
         MODULE_STATUS = 0,

@@ -933,10 +933,14 @@ void gpioInit(){
   pinMode(A23S08_CS, OUTPUT);
   digitalWrite(A23S08_CS, HIGH);
 
-  rtcCeGpioTakeFromUart0();
 #if defined(DISPLAY_43)
-  uart_driver_delete(UART_NUM_0);
+  /* GPIO43은 UART0 TX이자 DS1302 CE. 이 줄 이후 시리얼은 CE 파형을 깨뜨린다. */
+  Serial.println("이제부터 RTC에 제어권을 넘깁니다.");
+  Serial.flush();
+  esp_log_level_set("*", ESP_LOG_NONE);
+  Serial.end();
 #endif
+  rtcCeGpioTakeFromUart0();
 
   pinMode(SERIAL_TX2 , OUTPUT);
   pinMode(SERIAL_RX2 , INPUT);

@@ -235,6 +235,9 @@ void ESP32SelfUploder::begin(const char* ssid, const char* password, const char*
     this->password[sizeof(this->password) - 1] = '\0';
     strncpy(this->update_url, update_url, sizeof(this->update_url) - 1);
     this->update_url[sizeof(this->update_url) - 1] = '\0';
+#if !defined(DISPLAY_43)
+    /* 4.3"는 GPIO43을 RTC CE로 쓴 뒤 UART0를 닫는다. 여기서 다시 열면 CE가 끊긴다. */
     Serial.begin(115200);
     Serial.println();
+#endif
 }

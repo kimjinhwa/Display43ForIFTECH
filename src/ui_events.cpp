@@ -399,7 +399,7 @@ void TabEventSetupVolClick(lv_event_t * e)
 	lv_textarea_set_password_mode(ui_txtInputArea, true);
 	lv_textarea_set_password_bullet(ui_txtInputArea, "*");
 	lv_textarea_set_password_show_time(ui_txtInputArea, 0);
-	lv_textarea_set_max_length(ui_txtInputArea, 8);
+	lv_textarea_set_max_length(ui_txtInputArea, 4);
 	lv_textarea_set_accepted_chars(ui_txtInputArea, "0123456789");
 	lv_textarea_set_placeholder_text(ui_txtInputArea, _("Password"));
 	lv_textarea_set_text(ui_txtInputArea, "");
@@ -686,12 +686,18 @@ void changeKeyboardText()
 
 	if (ui_Keyboard1 == NULL) {
 		ui_Keyboard1 = lv_keyboard_create(s_kbKeysRow);
-		lv_obj_remove_event_cb(ui_Keyboard1, lv_keyboard_def_event_cb);
 		lv_keyboard_set_textarea(ui_Keyboard1, ui_txtInputArea);
 		lv_obj_add_event_cb(ui_Keyboard1, ui_event_Keyboard1, LV_EVENT_ALL, NULL);
 	} else if (lv_obj_get_parent(ui_Keyboard1) != s_kbKeysRow) {
 		lv_obj_set_parent(ui_Keyboard1, s_kbKeysRow);
 	}
+	/* lv_keyboard_create가 붙인 기본 콜백도 글자를 넣는다.
+	 * keyBoardValueChangedEvent와 겹치면 한 번에 두 글자가 들어간다. */
+	lv_obj_remove_event_cb(ui_Keyboard1, lv_keyboard_def_event_cb);
+	/* SquareLine이 Keyboard에 IGNORE_LAYOUT을 주면 키보드는 제자리에 그려지고
+	 * 확인 버튼만 행의 왼쪽에 세로로 커져 1,4,7을 가린다. */
+	lv_obj_clear_flag(ui_Keyboard1, LV_OBJ_FLAG_IGNORE_LAYOUT | LV_OBJ_FLAG_FLOATING);
+	lv_obj_set_width(ui_Keyboard1, LV_SIZE_CONTENT);
 
 	if (ui_Button28 != NULL && lv_obj_get_parent(ui_Button28) != s_kbKeysRow) {
 		lv_obj_clear_flag(ui_Button28, LV_OBJ_FLAG_FLOATING | LV_OBJ_FLAG_IGNORE_LAYOUT);
@@ -1155,7 +1161,7 @@ void setLogTextArea(lv_obj_t *obj,upsLog  *upslog,directionType_t direction)
 	upslog_t log;
 	String retStr;
 	retStr = "";
-	retStr = upslog->readCurrentLog(direction,true);
+	retStr = upslog->readCurrentLogExt(direction,true);
 
 	//ESP_LOGW("UI EventLog","log \n%s",retStr.c_str() );
 	lv_textarea_set_text(obj, retStr.c_str());
@@ -1195,6 +1201,7 @@ void evtLogScreenLoaded(lv_event_t * e){
 	upslog_t log;
 	//if(selectedTab ==0 )
 	{
+		upslogEvent.goLastPage();
 		setLogTextArea(ui_eventTextArea,&upslogEvent,CURRENTLOG);
 		//lv_textarea_set_text(ui_eventTextArea, retStr.c_str() );
 	}

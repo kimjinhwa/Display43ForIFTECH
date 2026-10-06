@@ -27,6 +27,13 @@ upsLog::upsLog()
 upsLog::upsLog(eventType_t eventType)
 {
     this->eventType = eventType;
+    if (this->eventType == FAULT_TYPE)
+    {
+        /* 15.3 충전 이상정지, 15.7 DCDC 이상정지, 15.11 인버터 이상정지, 15.14 이상 바이패스 */
+        mask_moduleStatusEvent = (1u << 3) | (1u << 7) | (1u << 11) | (1u << 14);
+        mask_HwStatusEvent     = 0b0110110111100111;
+        mask_upsOperationFault = 0b1111111111111111;
+    }
     logCount = 0;
     logid=0;
     totalPage = 0;
@@ -55,7 +62,7 @@ upsLog::upsLog(const char* filename,eventType_t eventType)
     }
     else // ALARM
     {
-        mask_moduleStatusEvent  = 0x00;
+        mask_moduleStatusEvent  = (1u << 3) | (1u << 7) | (1u << 11) | (1u << 14);
         mask_HwStatusEvent      = 0b0110110111100111;
         mask_upsOperationFault  = 0b1111111111111111;
         ;
@@ -170,11 +177,13 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
     }
     else if(eventType == FAULT_TYPE)// Alarm Event
     {
-        if (HwStatusEvent == old_HwStatusEvent && upsOperationFault == old_upsOperationFault)
+        if (moduleStatusEvent == old_moduleStatusEvent
+            && HwStatusEvent == old_HwStatusEvent
+            && upsOperationFault == old_upsOperationFault)
         {  //값의 변화가 없으면 리턴한다
             return 0;
         }
-        if (HwStatusEvent == 0 && upsOperationFault == 0 )
+        if (moduleStatusEvent == 0 && HwStatusEvent == 0 && upsOperationFault == 0 )
         {
             //값이 같지는 않으나 알람 이벤트가 0 값이면 
             //알람이 해소 된다
@@ -186,12 +195,13 @@ int upsLog::setEventCode(uint16_t moduleStatusEvent,uint16_t HwStatusEvent,uint1
         // ESP_LOGW("FAULT", "-----------FAULT Changed---------");
         // ESP_LOGW("FAULT", "now_hw_st 0x%04x :old 0x%04x %ld", HwStatusEvent ,old_HwStatusEvent,millis());
         // ESP_LOGW("FAULT", "now_op_st 0x%04x :old 0x%04x %ld", upsOperationFault,old_upsOperationFault,millis());
+        old_moduleStatusEvent = moduleStatusEvent;
         old_HwStatusEvent = HwStatusEvent;
         old_upsOperationFault = upsOperationFault;
-        log.modulestatus = 0;
+        log.modulestatus = moduleStatusEvent;
         log.HWstatus = mask_HwStatusEvent & HwStatusEvent;
         log.operationFault = mask_upsOperationFault & upsOperationFault;
-        if(log.HWstatus || log.operationFault)  //둘중의 하나라도 값이 0이 아닐경우 로그를 기록한다.
+        if(log.modulestatus || log.HWstatus || log.operationFault)  //하나라도 값이 0이 아닐경우 로그를 기록한다.
         {
             // 이제 EVENT를 기록 한다.
             eventHistory = 1;
@@ -288,7 +298,7 @@ const char *upsLog::getLogString(const upslog_t *logArray)
     }
     else
     {
-        //printf("\nstep1\n");
+        parseMessage(&strRet, logArray->logId, logArray->modulestatus, MODULE_STATUS, logArray->logTime);
         parseMessage(&strRet,logArray->logId, logArray->HWstatus, HW_STATUS, logArray->logTime);               // 1 : moduleStatus
         //printf("\nstep2\n");
         parseMessage(&strRet,logArray->logId, logArray->operationFault, OPERATIONAL_FAULT, logArray->logTime); // 1 : moduleStatus
@@ -329,6 +339,29 @@ long upsLog::getFileSize()
     }
     ESP_LOGW("CURRENTLOG","currentMemoryPage %d logCount %d",currentMemoryPage,logCount);
     return file_size;
+}
+void upsLog::goLastPage()
+{
+    if (eventType == FAULT_TYPE)
+    {
+        return;
+    }
+    if (readFile == NULL)
+    {
+        readFile = fopen(filename, "rb");
+    }
+    if (readFile == NULL)
+    {
+        logCount = 0;
+        totalPage = 0;
+        currentMemoryPage = 0;
+        return;
+    }
+    fseek(readFile, 0, SEEK_END);
+    long file_size = ftell(readFile);
+    logCount = (file_size > 0) ? (uint16_t)(file_size / sizeof(upslog_t)) : 0;
+    totalPage = (logCount == 0) ? 0 : (uint16_t)ceil((double)logCount / LOG_PER_PAGE);
+    currentMemoryPage = (totalPage > 0) ? (int16_t)(totalPage - 1) : 0;
 }
 int upsLog::shrinkFile()
 {
