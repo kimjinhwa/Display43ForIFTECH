@@ -16,7 +16,45 @@ static void style_capacity_label(lv_obj_t *obj)
     lv_obj_set_style_text_letter_space(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
+/* 그림의 전력선 대신 패널 보더로 관을 그린다.
+ * 가로는 위·아래만, 세로는 좌·우만 남겨 이음 끝의 막힌 선을 없앤다. */
+static void style_power_border(lv_obj_t *obj, lv_border_side_t side)
+{
+    if (obj == NULL) return;
+    lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_all(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0xA0A0A0), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(obj, lv_color_hex(0xA0A0A0), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_side(obj, side, LV_PART_MAIN | LV_STATE_DEFAULT);
+}
+
+static void style_hline_border(lv_obj_t *obj)
+{
+    style_power_border(obj, LV_BORDER_SIDE_TOP | LV_BORDER_SIDE_BOTTOM);
+}
+
+static void style_vline_border(lv_obj_t *obj)
+{
+    style_power_border(obj, LV_BORDER_SIDE_LEFT | LV_BORDER_SIDE_RIGHT);
+}
+
 void myui_MainScreen_screen_init(void){
+    style_hline_border(ui_pnlMainPower1);
+    style_vline_border(ui_pnlMainPower2); /* 아래(와 위) 이음은 비움 */
+    style_hline_border(ui_pnlMainPower3); /* 왼쪽 이음은 비움 */
+
+    style_hline_border(ui_pnlConvPower1); /* 오른쪽 이음은 비움 */
+    style_hline_border(ui_pnlConvPower2); /* 왼쪽 이음은 비움 */
+    style_vline_border(ui_pnlConvPower3); /* 위쪽 이음은 비움 */
+
+    style_hline_border(ui_pnlInvPower);
+    style_hline_border(ui_pnlInvPower1);
+    style_hline_border(ui_pnlInvPower2);
+    style_vline_border(ui_pnlInvPower3);
+    style_hline_border(ui_pnlInvPower4);
     // ui_pnlInvPower1 = lv_obj_create(ui_Container4);
     // lv_obj_set_width(ui_pnlInvPower1, 27);
     // lv_obj_set_height(ui_pnlInvPower1, 14);

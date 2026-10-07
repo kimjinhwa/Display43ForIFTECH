@@ -1,4 +1,22 @@
-#define VERSION "4.0.35"
+#define VERSION "4.0.40"
+/*
+지금 화면에서 전력라인이 보인다. 
+전력이 흐르지 않을때를 표현하지 위해 그림파일에 전력선을 미리 그려 놓았었는데, 
+그림파일에서 이 부분을 제거 하겠다. 
+C:\DevWork\4.IFTechWork\1.UPS1P1P\Display3.2  이쪽에서는 
+보더로 사용을 했다. 
+그래서 여기서도 그런 방법을 사용하고 싶다. 
+즉 pnlMainPower1의 경우 보더에 흰색을 보여 주고 
+통전이 되면, 내부에 색을 칠한다. 
+pnlMainPower2는 역시 색이 칠해지는데, 이때 보더의 아랫쪽 보더는 보이지 않아야 한다. 그래야 전기가 흐르는 모습이 보일것이다. 
+다시 pnlMainPower3 라인이 그려지고, 이때는 이 라인늬 왼쪽 끝 보더가 보이지 않아야 할것이다. 
+pnlInvPower2.pnlInvPower3.pnlInvPower4 이와 같은 식이고, 
+pnlConvPower1, pnlConvPower2, pnlConvPower3도 이런식으로 되어야 겠다.
+pnlConvPower1은 오른쪽 보더를 숨기고, pnlConvPower2는 왼쪽 보더, 
+pnlConvPower3은 위쪽 보더일것이다. 
+맞는지 확인하고 구현해줘.
+*/
+//efine VERSION "4.0.35"
 /*
 1. 15번지의 14,11,7,3은 이벤트에만 사용했는데, 이것들을 경보화면에도 넣어주자.
 2. 로그 버튼을 클릭해서 경보창 혹은 이벤트창을 보여 주게 되어 있는데, 

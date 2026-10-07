@@ -47,7 +47,8 @@
 //#define WHITE 0xFFFFFF  /* WHITE*/
 #define ONCONV_BG_COLOR 0xFF00000 /* RED */
 #define ONLINE_COLOR 0x379B57 //
-#define OFFLINE_COLOR 0xD2EBF6// 
+#define OFFLINE_COLOR 0xD2EBF6//
+#define PIPE_IDLE_COLOR 0xA0A0A0 /* 흰 화면 위에서 보이는 꺼진 전력선 */ 
 //#define ONLINE_COLOR 0xFF00000 /* RED */
 //#define OFFLINE_COLOR 0xFFFFFF  // WHITE
 // #define BRIGHT 80
@@ -648,27 +649,29 @@ void GetSetEventData()
   //ESP_LOGI("MODBUS","Receive Event Data %d %d %d", isEventLogChanged, isAlarmLogChanged,millis());
 }
 
+/* 통전이면 속과 보더를 같은 초록으로 칠해 이음의 흰 줄을 없앤다.
+ * 꺼지면 회색으로 관을 남긴다. 흰 보더는 흰 배경에 묻힌다. */
+static void paintPowerLine(lv_obj_t *obj, bool energized)
+{
+  uint32_t color = energized ? ONLINE_COLOR : PIPE_IDLE_COLOR;
+  lv_obj_set_style_bg_color(obj, lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_color(obj, lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT);
+}
+
 void mainScrUpdata(){
     //lv_obj_set_style_bg_img_recolor(ui_imgConvPowerLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
   //정전일때 꺼지고, 평상시는 파워가 인가 된다.
   if (upsModbusData.upsOperationFault.Bit.utility_line_failure == 1) 
     {
-      lv_obj_set_style_bg_color(ui_pnlMainPower1, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlMainPower2, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlMainPower3, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-     
-      lv_obj_set_style_bg_opa(ui_pnlMainPower1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlMainPower2, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlMainPower3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      paintPowerLine(ui_pnlMainPower1, false);
+      paintPowerLine(ui_pnlMainPower2, false);
+      paintPowerLine(ui_pnlMainPower3, false);
     }
   else {
-      lv_obj_set_style_bg_color(ui_pnlMainPower1, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlMainPower2, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlMainPower3, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-
-      lv_obj_set_style_bg_opa(ui_pnlMainPower1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlMainPower2, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlMainPower3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      paintPowerLine(ui_pnlMainPower1, true);
+      paintPowerLine(ui_pnlMainPower2, true);
+      paintPowerLine(ui_pnlMainPower3, true);
   }
   //바이패스모드 Change 바이패스와 인버터 SCR은 항상 반대로 
   if (upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE == 0 ) // 바이패스 모드
@@ -681,14 +684,10 @@ void mainScrUpdata(){
       lv_obj_set_style_img_recolor(ui_imgScrOutput, lv_color_hex(BLACK), LV_PART_MAIN | LV_STATE_DEFAULT);
       lv_obj_set_style_img_recolor_opa(ui_imgScrOutput, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-      lv_obj_set_style_bg_color(ui_pnlInvPower1 , lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlInvPower2 , lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlInvPower3 , lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlInvPower4 , lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlInvPower1 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlInvPower2 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlInvPower3 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlInvPower4 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      paintPowerLine(ui_pnlInvPower1, false);
+      paintPowerLine(ui_pnlInvPower2, true);
+      paintPowerLine(ui_pnlInvPower3, true);
+      paintPowerLine(ui_pnlInvPower4, true);
       //lv_obj_set_style_bg_opa(ui_pnlInvPower1, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
       // Bypass인데 정전이 아니어야 한다.  물론 이경우는 생기지는 않느다. 
       // 이미 정전을 감지 했으면 이 루틴으로 들어오지 않으며, 그것도 아니면 이미 셧다운이다. 
@@ -703,15 +702,10 @@ void mainScrUpdata(){
       lv_obj_set_style_img_recolor(ui_imgScrOutput, lv_color_hex(OFFCONV_FORE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
       lv_obj_set_style_img_recolor_opa(ui_imgScrOutput, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-      lv_obj_set_style_bg_color(ui_pnlInvPower1 , lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlInvPower2 , lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlInvPower3 , lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(ui_pnlInvPower4 , lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-
-      lv_obj_set_style_bg_opa(ui_pnlInvPower1 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlInvPower2 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlInvPower3 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlInvPower4 , 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      paintPowerLine(ui_pnlInvPower1, true);
+      paintPowerLine(ui_pnlInvPower2, false);
+      paintPowerLine(ui_pnlInvPower3, false);
+      paintPowerLine(ui_pnlInvPower4, true);
       //lv_obj_set_style_bg_opa(ui_pnlInvPower1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
   }
   // 충전부 운전  bg = white or red , 
@@ -720,10 +714,8 @@ void mainScrUpdata(){
     lv_obj_set_style_img_recolor(ui_imgConvertor, lv_color_hex(OFFCONV_FORE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_img_recolor_opa(ui_imgConvertor, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    lv_obj_set_style_bg_color(ui_pnlConvPower1, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_pnlConvPower2, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_pnlConvPower1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_pnlConvPower2, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+    paintPowerLine(ui_pnlConvPower1, true);
+    paintPowerLine(ui_pnlConvPower2, true);
 
   }
   else{
@@ -731,31 +723,26 @@ void mainScrUpdata(){
     lv_obj_set_style_img_recolor(ui_imgConvertor, lv_color_hex(BLACK), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_img_recolor_opa(ui_imgConvertor, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    lv_obj_set_style_bg_color(ui_pnlConvPower1, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_pnlConvPower1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+    paintPowerLine(ui_pnlConvPower1, false);
     if(upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE==0)
     {
-      lv_obj_set_style_bg_color(ui_pnlConvPower2, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlConvPower2, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      paintPowerLine(ui_pnlConvPower2, false);
     }
     else 
     {
-      lv_obj_set_style_bg_color(ui_pnlConvPower2, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlConvPower2, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      paintPowerLine(ui_pnlConvPower2, true);
     }
   }
   if(upsModbusData.HWState.Bit.DC_DC_CONVERTER_RUN_STOP_STATE)
   {
-      lv_obj_set_style_bg_color(ui_pnlConvPower3, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlConvPower3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      paintPowerLine(ui_pnlConvPower3, true);
 
       lv_obj_set_style_bg_color(ui_imgBattery, lv_color_hex(ONCONV_BG_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
       lv_obj_set_style_img_recolor(ui_imgBattery, lv_color_hex(OFFCONV_FORE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
       lv_obj_set_style_img_recolor_opa(ui_imgBattery, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
   }
   else{
-      lv_obj_set_style_bg_color(ui_pnlConvPower3, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_opa(ui_pnlConvPower3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+      paintPowerLine(ui_pnlConvPower3, false);
 
       lv_obj_set_style_bg_color(ui_imgBattery, lv_color_hex(OFFCONV_FORE_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
       lv_obj_set_style_img_recolor(ui_imgBattery, lv_color_hex(BLACK), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -768,8 +755,7 @@ void mainScrUpdata(){
     lv_obj_set_style_img_recolor(ui_imgInvertor, lv_color_hex(OFFCONV_FORE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_img_recolor_opa(ui_imgInvertor, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    lv_obj_set_style_bg_color(ui_pnlInvPower, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_pnlInvPower, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+    paintPowerLine(ui_pnlInvPower, true);
     //lv_obj_set_style_bg_color(ui_imgInvertorPowerLine, lv_color_hex(ONLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
   }
   else //인버터 정지,인버터와 연결되는 라인도 같이 전원을 제거 한다.
@@ -778,8 +764,7 @@ void mainScrUpdata(){
     lv_obj_set_style_img_recolor(ui_imgInvertor, lv_color_hex(BLACK), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_img_recolor_opa(ui_imgInvertor, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    lv_obj_set_style_bg_color(ui_pnlInvPower, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_pnlInvPower, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+    paintPowerLine(ui_pnlInvPower, false);
     //lv_obj_set_style_bg_color(ui_imgInvertorPowerLine, lv_color_hex(OFFLINE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT );
   }
   toggleBuzzer();
