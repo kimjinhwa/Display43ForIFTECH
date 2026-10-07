@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../ble/nus_ble_service.dart';
 import '../ble/wifi_presets.dart';
 import '../widgets/ota_upgrade_flow.dart';
+import '../widgets/screen_capture_flow.dart';
 import '../widgets/wifi_scan_sheet.dart';
 import 'log_screen.dart';
 import 'scan_screen.dart';
@@ -404,6 +405,21 @@ class _ControlScreenState extends State<ControlScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    FilledButton.icon(
+                      onPressed: !ble.isConnected
+                          ? null
+                          : () => runScreenCapture(context, ble),
+                      icon: const Icon(Icons.photo_camera_outlined),
+                      label: const Text('화면 캡처'),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '지금 화면을 받아 그림으로 확인한 뒤, 저장할지 고릅니다.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
                     InkWell(
                       borderRadius: BorderRadius.circular(8),
                       onTap: () {

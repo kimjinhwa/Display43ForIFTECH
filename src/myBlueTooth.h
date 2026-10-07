@@ -30,7 +30,9 @@ class myBlueToothStream : public Stream {
     ~myBlueToothStream(void);
     int peek(void);
     size_t write(uint8_t c);
-    size_t write(const uint8_t *buffer, size_t size);       
+    size_t write(const uint8_t *buffer, size_t size);
+    /** 화면 캡처처럼 긴 데이터. 컨트롤러 버퍼가 빌 때까지 기다린 뒤 보낸다. */
+    size_t writePaced(const uint8_t *buffer, size_t size);       
     int available(void);
     int read(void);
     String readString();

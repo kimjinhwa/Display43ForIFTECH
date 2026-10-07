@@ -25,6 +25,7 @@
 #include "lv_i18n.h"
 #include "freertos/semphr.h"
 #include "display.h"
+#include "screen_capture.h"
 
 /* Board: MCP23S08 GP1=buzzer CS=GPIO17. DS1302 CE=GPIO43 (UART0 TX). */
 #define SERIAL_RX2 19
@@ -1128,6 +1129,7 @@ void setup()
   }
   wifiPrepareBeforeBle();
   bleSetup();
+  screenCaptureCliInit();
   // Modbus는 내부적으로 task를 사용하고 있다.
   xTaskCreatePinnedToCore(systemControllTask, "systemControllTask", 5000, NULL, 1, h_pxsystemControllTask, 0);  
 

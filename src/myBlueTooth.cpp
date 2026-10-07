@@ -2,6 +2,8 @@
 #include "fileSystem.h"
 #include "SimpleCLI.h"
 #include "WiFi.h"
+#include "esp_gatt_common_api.h"
+#include "esp_task_wdt.h"
 
 extern LittleFileSystem lsFile;
 extern SimpleCLI simpleCli;
@@ -69,7 +71,51 @@ size_t myBlueToothStream::write(const uint8_t *buffer, size_t size){
             delay(8);
     }
     return sent;
-};       
+}
+
+size_t myBlueToothStream::writePaced(const uint8_t *buffer, size_t size)
+{
+    if (pTxCharacteristic == nullptr || pServer == nullptr)
+        return write(buffer, size);
+
+    size_t sent = 0;
+    while (sent < size) {
+        auto peers = pServer->getPeerDevices(false);
+        if (peers.empty())
+            return sent;
+        uint16_t connId = peers.begin()->first;
+        uint16_t mtu = pServer->getPeerMTU(connId);
+        size_t chunk = 20;
+        if (mtu > 23)
+            chunk = (size_t)mtu - 3;
+        if (chunk > 500)
+            chunk = 500;
+
+        size_t n = size - sent;
+        if (n > chunk)
+            n = chunk;
+
+        bool sentThis = false;
+        for (int attempt = 0; attempt < 30 && !sentThis; attempt++) {
+            uint16_t room = esp_ble_get_cur_sendable_packets_num(connId);
+            if (room == 0 && attempt < 20) {
+                vTaskDelay(pdMS_TO_TICKS(8));
+                (void)esp_task_wdt_reset();
+                continue;
+            }
+            pTxCharacteristic->setValue((uint8_t *)buffer + sent, n);
+            pTxCharacteristic->notify(true);
+            sentThis = true;
+            /* 버퍼가 남아 있으면 컨트롤러가 비우는 속도에 맞춘다. */
+            vTaskDelay(pdMS_TO_TICKS(room > 2 ? 1 : 6));
+            (void)esp_task_wdt_reset();
+        }
+        if (!sentThis)
+            return sent;
+        sent += n;
+    }
+    return sent;
+}       
 int myBlueToothStream::available(void)
 {
     return btDataReceived; 
@@ -136,6 +182,7 @@ void bleSetup(){
   String bleName = "IFT_43_" + WiFi.macAddress();
   bleName.replace(":", "");
   BLEDevice::init(bleName.c_str());
+  BLEDevice::setMTU(517);
   Serial.printf("BLE name %s\n", bleName.c_str());
 
   simpleCli.outputStream = &Serial;

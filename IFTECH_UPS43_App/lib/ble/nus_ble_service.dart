@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'ble_constants.dart';
+import 'screen_capture.dart';
 
 /// Parsed UPS nominal rating from `rating` CLI.
 class UpsRatingConfig {
@@ -20,6 +21,67 @@ class UpsRatingConfig {
   final int batV;
   final int inV;
   final int outV;
+}
+
+/// BLE notify 를 `***` 에코가 올 때까지 모은다. base64 는 로그에 넣지 않는다.
+class _RxWait {
+  _RxWait({this.onProgress});
+
+  final void Function(ScreenCaptureProgress progress)? onProgress;
+  final StringBuffer _buf = StringBuffer();
+  final Completer<String> done = Completer<String>();
+  String _carry = '';
+  int _screCount = 0;
+  int? _bandsTotal;
+  bool _finished = false;
+  String? _lastLabel;
+
+  String get text => _buf.toString();
+  bool get finished => _finished;
+
+  void add(String chunk) {
+    _buf.write(chunk);
+    final window = _carry + chunk;
+    var start = 0;
+    while (true) {
+      final i = window.indexOf('SCRE', start);
+      if (i < 0) break;
+      if (i + 4 > _carry.length) _screCount++;
+      start = i + 4;
+    }
+    if (_bandsTotal == null && window.contains('BANDS=')) {
+      final m = RegExp(r'BANDS=(\d+)').firstMatch(text);
+      final n = int.tryParse(m?.group(1) ?? '');
+      if (n != null && n > 0) _bandsTotal = n;
+    }
+    // `***` 는 base64에 없다. 결과 마커 뒤의 에코에서만 끝낸다.
+    if (!_finished && window.contains('***')) {
+      _finished = _resultEchoReached();
+    }
+    _carry = window.length <= 3 ? window : window.substring(window.length - 3);
+
+    final label = _bandsTotal == null
+        ? '화면을 그리는 중…'
+        : '받는 중 $_screCount / $_bandsTotal';
+    if (_lastLabel != label) {
+      _lastLabel = label;
+      onProgress?.call(
+        ScreenCaptureProgress(bandsDone: _screCount, bandsTotal: _bandsTotal ?? 0),
+      );
+    }
+  }
+
+  bool _resultEchoReached() {
+    final s = text;
+    final doneAt = s.lastIndexOf('SCR DONE');
+    final errAt = s.lastIndexOf('SCR ERR');
+    final errorAt = s.lastIndexOf('ERROR:');
+    var mark = doneAt;
+    if (errAt > mark) mark = errAt;
+    if (errorAt > mark) mark = errorAt;
+    if (mark < 0) return false;
+    return s.indexOf('***', mark) >= 0;
+  }
 }
 
 enum BleConnectionState {
@@ -56,6 +118,8 @@ class NusBleService extends ChangeNotifier {
   String? _serverLatest;
   bool _updateAvailable = false;
   String? _fwCheckError;
+  Future<void> _cliChain = Future<void>.value();
+  _RxWait? _rxWait;
 
   BleConnectionState get state => _state;
   String? get error => _error;
@@ -213,7 +277,7 @@ class NusBleService extends ChangeNotifier {
         mtu: null,
       );
       try {
-        await device.requestMtu(185);
+        await device.requestMtu(517);
       } catch (e) {
         _appendLog('MTU 요청 생략: $e');
       }
@@ -248,6 +312,15 @@ class NusBleService extends ChangeNotifier {
       _txSub = _tx!.onValueReceived.listen((bytes) {
         if (bytes.isEmpty) return;
         final text = utf8.decode(bytes, allowMalformed: true);
+        final wait = _rxWait;
+        if (wait != null) {
+          wait.add(text);
+          if (wait.finished && !wait.done.isCompleted) {
+            _rxWait = null;
+            wait.done.complete(wait.text);
+          }
+          return;
+        }
         _appendLog(text, fromDevice: true);
       });
 
@@ -266,6 +339,7 @@ class NusBleService extends ChangeNotifier {
   }
 
   Future<void> disconnect({bool notify = true}) async {
+    _failRxWait(StateError('연결이 끊겼습니다.'));
     await _txSub?.cancel();
     _txSub = null;
     await _connSub?.cancel();
@@ -292,9 +366,82 @@ class NusBleService extends ChangeNotifier {
     }
   }
 
+  Future<T> _cli<T>(Future<T> Function() job) {
+    final next = _cliChain.then((_) => job());
+    _cliChain = next.then((_) {}).catchError((Object _) {});
+    return next;
+  }
+
+  void _failRxWait(Object error) {
+    final wait = _rxWait;
+    _rxWait = null;
+    if (wait != null && !wait.done.isCompleted) {
+      wait.done.completeError(error);
+    }
+  }
+
+  Future<void> _writeRaw(String cmd) async {
+    final bytes = utf8.encode(cmd);
+    const chunk = 160;
+    for (var i = 0; i < bytes.length; i += chunk) {
+      final end = (i + chunk < bytes.length) ? i + chunk : bytes.length;
+      await _rx!.write(bytes.sublist(i, end), withoutResponse: false);
+    }
+  }
+
+  /// `***` 에코까지 장치 응답을 모은다. 캡처 본문은 로그에 남기지 않는다.
+  Future<String> _transact(
+    String command, {
+    Duration timeout = const Duration(seconds: 8),
+    void Function(ScreenCaptureProgress progress)? onProgress,
+  }) async {
+    if (!isConnected || _rx == null) {
+      throw ScreenCaptureException('장치가 연결되지 않았습니다.');
+    }
+    final wait = _RxWait(onProgress: onProgress);
+    _rxWait = wait;
+    try {
+      await _writeRaw('$command\r\n');
+      _appendLog('> $command');
+      return await wait.done.future.timeout(timeout);
+    } finally {
+      if (identical(_rxWait, wait)) _rxWait = null;
+    }
+  }
+
+  /// 현재 LVGL 화면을 PNG로 받는다. 펌웨어 명령은 `scr`.
+  Future<ScreenCaptureResult> captureScreen({
+    void Function(String status)? onProgress,
+  }) {
+    return _cli(() => _captureNow(onProgress: onProgress));
+  }
+
+  Future<ScreenCaptureResult> _captureNow({
+    void Function(String status)? onProgress,
+  }) async {
+    try {
+      onProgress?.call('화면을 그리는 중…');
+      final text = await _transact(
+        'scr',
+        timeout: const Duration(seconds: 180),
+        onProgress: (progress) => onProgress?.call(progress.label),
+      );
+      final shot = await decodeScreenCapture(text);
+      _appendLog('화면 캡처 ${shot.width}x${shot.height}');
+      return shot;
+    } catch (e) {
+      _appendLog('화면 캡처 실패: $e');
+      rethrow;
+    }
+  }
+
   /// Send a CLI command. Appends CR+LF if missing (ESP32 expects \\r or \\n).
   /// By default clears the log console so only this command's traffic is shown.
-  Future<void> sendCommand(String command, {bool clearFirst = true}) async {
+  Future<void> sendCommand(String command, {bool clearFirst = true}) {
+    return _cli(() => _sendCommandNow(command, clearFirst: clearFirst));
+  }
+
+  Future<void> _sendCommandNow(String command, {bool clearFirst = true}) async {
     if (!isConnected || _rx == null) {
       _setError('장치가 연결되지 않았습니다.');
       return;
