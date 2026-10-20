@@ -30,6 +30,9 @@ class ESP32SelfUploder {
 
 extern ESP32SelfUploder selfUploder;
 
+/* 1: 서버가 더 높음, 0: 같음, -1: 장비가 더 높음, -2: 해석 실패.
+ * major, minor, patch 순서로 숫자 비교한다. 4.1.3 > 4.0.29. */
+int compareVersion(const char* currentVersion, const char* serverVersion);
 bool isNewerVersion(const char* currentVersion, const char* serverVersion);
 
 #endif

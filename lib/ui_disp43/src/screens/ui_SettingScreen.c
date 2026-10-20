@@ -126,8 +126,8 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_pad_bottom(ui_Panel19, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Label6 = lv_label_create(ui_Panel19);
+    lv_obj_set_width(ui_Label6, 305);
     lv_obj_set_height(ui_Label6, LV_SIZE_CONTENT);    /// 100
-    lv_obj_set_flex_grow(ui_Label6, 3);
     lv_obj_set_align(ui_Label6, LV_ALIGN_CENTER);
     lv_label_set_text(ui_Label6, _("Bat_Volt_Set"));
     lv_label_set_recolor(ui_Label6, "true");
@@ -143,8 +143,8 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_pad_column(ui_Label6, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_txtBatVolSet = lv_textarea_create(ui_Panel19);
+    lv_obj_set_width(ui_txtBatVolSet, 95);
     lv_obj_set_height(ui_txtBatVolSet, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_flex_grow(ui_txtBatVolSet, 1);
     lv_obj_set_align(ui_txtBatVolSet, LV_ALIGN_CENTER);
     lv_textarea_set_max_length(ui_txtBatVolSet, 4);
     lv_textarea_set_one_line(ui_txtBatVolSet, true);
@@ -184,8 +184,8 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_pad_bottom(ui_Panel18, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Label18 = lv_label_create(ui_Panel18);
+    lv_obj_set_width(ui_Label18, 305);
     lv_obj_set_height(ui_Label18, LV_SIZE_CONTENT);    /// 100
-    lv_obj_set_flex_grow(ui_Label18, 3);
     lv_obj_set_align(ui_Label18, LV_ALIGN_CENTER);
     lv_label_set_text(ui_Label18, _("Bat_Curr_Set"));
     lv_label_set_recolor(ui_Label18, "true");
@@ -201,8 +201,8 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_pad_column(ui_Label18, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_txtBatCurrSet = lv_textarea_create(ui_Panel18);
+    lv_obj_set_width(ui_txtBatCurrSet, 95);
     lv_obj_set_height(ui_txtBatCurrSet, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_flex_grow(ui_txtBatCurrSet, 1);
     lv_obj_set_align(ui_txtBatCurrSet, LV_ALIGN_CENTER);
     lv_textarea_set_max_length(ui_txtBatCurrSet, 3);
     lv_textarea_set_one_line(ui_txtBatCurrSet, true);
@@ -242,8 +242,8 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_pad_bottom(ui_Panel35, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Label38 = lv_label_create(ui_Panel35);
+    lv_obj_set_width(ui_Label38, 305);
     lv_obj_set_height(ui_Label38, LV_SIZE_CONTENT);    /// 100
-    lv_obj_set_flex_grow(ui_Label38, 3);
     lv_obj_set_align(ui_Label38, LV_ALIGN_CENTER);
     lv_label_set_text(ui_Label38, _("Inv_Volt_Set"));
     lv_label_set_recolor(ui_Label38, "true");
@@ -259,8 +259,8 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_pad_column(ui_Label38, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_txtOutputVolSet = lv_textarea_create(ui_Panel35);
+    lv_obj_set_width(ui_txtOutputVolSet, 95);
     lv_obj_set_height(ui_txtOutputVolSet, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_flex_grow(ui_txtOutputVolSet, 1);
     lv_obj_set_align(ui_txtOutputVolSet, LV_ALIGN_CENTER);
     lv_textarea_set_max_length(ui_txtOutputVolSet, 4);
     lv_textarea_set_one_line(ui_txtOutputVolSet, true);
@@ -304,7 +304,7 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_width(ui_Label21, 305);
     lv_obj_set_height(ui_Label21, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_Label21, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label21, _("HF_Mode"));
+    lv_label_set_text(ui_Label21, _("Bat_First_UV_Volt"));
     lv_label_set_recolor(ui_Label21, "true");
     lv_obj_set_style_text_font(ui_Label21, &ui_font_malgun26, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui_Label21, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -338,8 +338,8 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_style_pad_bottom(ui_Panel59, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
     ui_txtHFMnBatFirstFaultUV = lv_textarea_create(ui_Panel21);
+    lv_obj_set_width(ui_txtHFMnBatFirstFaultUV, 95);
     lv_obj_set_height(ui_txtHFMnBatFirstFaultUV, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_flex_grow(ui_txtHFMnBatFirstFaultUV, 1);
     lv_obj_set_align(ui_txtHFMnBatFirstFaultUV, LV_ALIGN_CENTER);
     lv_textarea_set_max_length(ui_txtHFMnBatFirstFaultUV, 4);
     lv_textarea_set_one_line(ui_txtHFMnBatFirstFaultUV, true);
@@ -3295,6 +3295,7 @@ void ui_SettingScreen_screen_init(void)
     lv_obj_set_height(ui_Label64, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_Label64, LV_ALIGN_CENTER);
     lv_label_set_text(ui_Label64, _("ENTER"));
+    lv_obj_add_flag(ui_Label64, LV_OBJ_FLAG_HIDDEN);     /// Flags
     lv_obj_set_style_text_color(ui_Label64, lv_color_hex(0x443C3C), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_Label64, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label64, &ui_font_malbun32, LV_PART_MAIN | LV_STATE_DEFAULT);

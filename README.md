@@ -3,7 +3,7 @@
 IFTECH 단상 UPS를 4.3인치 터치 패널에서 감시·운전하는 펌웨어입니다.  
 인버터/충전기 모듈과는 Modbus RTU(마스터, **FC04** 읽기 / **FC10** 쓰기)로 통신하고, 화면은 LVGL + SquareLine 작화입니다.
 
-현재 펌웨어 버전은 `Version.h`의 `3.0.21`입니다. `IFTECH_DISP43` / `IFTECH_DISP32` 빌드마다 patch가 1 올라갑니다.
+현재 펌웨어 버전은 `Version.h`입니다. patch는 `python versionup.py`를 실행할 때만 1 올라가고, 그때 inetpub과 `uploadFirmware`도 같이 갱신됩니다.
 
 작화 메모리맵(구형 335 HMI): [doc/UPS 335 단독_V6.4_작화 데이터 정리(20140228).xls](doc/UPS%20335%20단독_V6.4_작화%20데이터%20정리(20140228).xls)  
 시트 **사용중인 전체 메모리번지 정리(최종)**. 엑셀은 3상 335 HMI 맵이고, 이 펌웨어는 단상으로 재배치되어 있습니다.  
@@ -157,30 +157,24 @@ RGB 핀은 `src/display.cpp`와 보드 회로가 같습니다 (DE 40, VSYNC 41, 
 
 보드 정의는 저장소 루트 `sunton_s3.json`입니다. Flash 16 MB, PSRAM OPI, 업로드 460800 bps.
 
-제품 빌드 4.3" (버전 +1, IIS 배포 스크립트 포함):
+로컬 빌드 4.3" (버전 유지, 배포 폴더 변경 없음):
 
 ```bat
 pio run -e IFTECH_DISP43
 ```
 
-로컬만 4.3" (버전 안 올림):
+현장 배포 (Version.h patch +1, inetpub과 uploadFirmware 갱신, `IFTECH_DISP43`만):
 
 ```bat
-pio run -e esp32_Release
+python versionup.py
 ```
 
-3.2" (`esp32dev`, 4 MB `huge_app.csv`, ST7789):
-
-```bat
-pio run -e IFTECH_DISP32
-```
+화면 캡처를 뺀 USB 빌드는 `pio run -e IFTECH_DISP43_noscr` 입니다. 앱 OTA는 `IFTECH_DISP43.json`만 받으므로 이 환경은 배포되지 않습니다.
 
 VS Code에서는 PlatformIO 환경 `IFTECH_DISP43`를 고른 뒤 Build.
 
-`IFTECH_DISP43` / `IFTECH_DISP32`만 `pre_build.py`가 `Version.h` patch를 +1 합니다. 쓸데없는 빌드를 반복하지 마십시오.
-
 산출물: `.pio/build/<env>/firmware.bin`  
-`post_build.py`가 아래에도 복사합니다.
+`versionup.py`가 `post_build.py`로 아래에도 복사합니다.
 
 - `uploadFirmware/` (로컬, bootloader/partitions 포함)
 - `C:\inetpub\ftproot\Esp32UploadFirmware` (OTA용 firmware + JSON만)
@@ -230,7 +224,7 @@ pio device monitor -e IFTECH_DISP43
 
 ### Wi‑Fi OTA (현장)
 
-1. `pio run -e IFTECH_DISP43` → IIS `Esp32UploadFirmware`에 `firmware_*.bin`과 `IFTECH_DISP43.json` 배포
+1. `python versionup.py` → IIS `Esp32UploadFirmware`와 `uploadFirmware/`에 `firmware_*.bin`과 `IFTECH_DISP43.json` 배포
 2. 앱 `IFTECH_UPS43_App`에서 BLE `IFT_43_…` 연결 → Wi‑Fi 프리셋 전송 → 펌웨어 업그레이드
 3. 단말기 재부팅 후 BLE보다 먼저 OTA
 

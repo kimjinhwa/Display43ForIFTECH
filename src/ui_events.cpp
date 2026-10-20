@@ -26,7 +26,7 @@ enum TextId {
 	BATCURR_REF=8,
 	BATVOL_REF=9,
 	OUTPUTVOL_REF=10,
-	HFMODE=11,
+	BAT_FIRST_UV_VOLT=11,
 	INPUTVOLTGAIN = 38,
 	INPUTCURRGAIN = 39,
 	VDCLINKVOLTGAIN = 40,
@@ -402,6 +402,10 @@ void TabEventSetupVolClick(lv_event_t * e)
 	lv_textarea_set_max_length(ui_txtInputArea, 4);
 	lv_textarea_set_accepted_chars(ui_txtInputArea, "0123456789");
 	lv_textarea_set_placeholder_text(ui_txtInputArea, _("Password"));
+	/* 입력칸 본문 글꼴은 montserrat라 한글 '암호'가 빈 네모 두 개로 그려진다. */
+	lv_obj_set_style_text_font(ui_txtInputArea, &ui_font_malgun26, LV_PART_TEXTAREA_PLACEHOLDER | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(ui_txtInputArea, lv_color_hex(0x808080), LV_PART_TEXTAREA_PLACEHOLDER | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_align(ui_txtInputArea, LV_TEXT_ALIGN_CENTER, LV_PART_TEXTAREA_PLACEHOLDER | LV_STATE_DEFAULT);
 	lv_textarea_set_text(ui_txtInputArea, "");
 	lv_obj_add_state(ui_txtInputArea, LV_STATE_FOCUSED);
 	lv_obj_clear_flag(ui_pnlKeyBoard, LV_OBJ_FLAG_HIDDEN);
@@ -536,7 +540,7 @@ int checkValidation()
 		case INVERTER_VOLT_GAIN:
 		case INVERTER_CURRENT_GAIN:
 		case OUTPUT_CURRENT_GAIN:
-		case HFMODE:
+		case BAT_FIRST_UV_VOLT:
 			enqueueModbusCommand(inputTextId,inputData ,inputTextId);
 			ESP_LOGI("SET","enqueueModbusCommand %d %d",inputTextId,inputData);
 			// token = WriteHoldRegistor(inputTextId,inputData ,inputTextId);
@@ -767,7 +771,7 @@ void scrSettingScreen(){
   lv_textarea_set_text(ui_txtBatCurrSet, String(upsModbusData.Bat_Current_Ref).c_str()); //2-20 default 2
   lv_textarea_set_text(ui_txtBatVolSet, String(upsModbusData.Bat_Voltage_Ref).c_str()); //
   lv_textarea_set_text(ui_txtOutputVolSet, String(upsModbusData.Output_Voltage_Ref).c_str()); //
-  lv_textarea_set_text(ui_txtHFMnBatFirstFaultUV, String(upsModbusData.HF_MODE).c_str()); //
+  lv_textarea_set_text(ui_txtHFMnBatFirstFaultUV, String(upsModbusData.Bat_First_UV_Volt).c_str()); //
 
 //   if(upsModbusData.HF_MODE==1)
 //     lv_obj_add_state( ui_txtHFMnBatFirstFaultUV, LV_STATE_CHECKED );     /// States
@@ -971,7 +975,7 @@ void EventTxtOutputVolSet(lv_event_t * e)
 uint32_t hfmBatFirstFaultUVConstrain=0x0000ffff;
 void EventTxtHFMnBatFirstFaultUV(lv_event_t * e)
 {
-	int32_t id =  HFMODE<<24;
+	int32_t id =  BAT_FIRST_UV_VOLT<<24;
 	hfmBatFirstFaultUVConstrain+= id;
 	ui_txtTempory = lv_event_get_target(e);
 	lv_obj_set_user_data(ui_txtTempory ,(uint32_t *)&hfmBatFirstFaultUVConstrain);
@@ -1196,6 +1200,8 @@ std::string showEventTabTitle()
 };
 void evtLogScreenLoaded(lv_event_t * e){
 	uint16_t selectedTab=0;
+	/* 메뉴의 경보는 경보이력이 아니라 경보 탭으로 연다. */
+	lv_tabview_set_act(ui_TabView2, 0, LV_ANIM_OFF);
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	//ESP_LOGW("UI","Tab selected %d",selectedTab);
 	upslog_t log;
@@ -1253,18 +1259,6 @@ void evtLogScreenLoaded(lv_event_t * e){
 }
 void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 {
-	if(upslogEvent.logCount == 0) return;
-	//로그가 1개라도 있으면 TotalPage는 1이어야 한다.
-	//이때 CurrentMemoryPage는 0이지만 1를 리턴 받는다.
-	if(upslogEvent.getCurrentMemoryPage() == upslogEvent.totalPage) 
-	{
-		showEventTabTitle();
-		return;
-	}
-	// if( upslogEvent.logCount % LOG_PER_PAGE == 0 && upslogEvent.getCurrentMemoryPage() + 1 == upslogEvent.totalPage)
-	// {
-	// 	return;
-	// };
 	uint16_t selectedTab = 0;
 	selectedTab = lv_tabview_get_tab_act(ui_TabView2);
 	if (selectedTab == 0){
@@ -1272,6 +1266,14 @@ void EventLogNext(lv_event_t *e) /* 이전 버튼 */
 		setLogTextArea(ui_alarmTextArea, &upslogAlarm,NEXTLOG);
 	}
 	else{
+		if(upslogEvent.logCount == 0) return;
+		//로그가 1개라도 있으면 TotalPage는 1이어야 한다.
+		//이때 CurrentMemoryPage는 0이지만 1를 리턴 받는다.
+		if(upslogEvent.getCurrentMemoryPage() == upslogEvent.totalPage) 
+		{
+			showEventTabTitle();
+			return;
+		}
 		//ESP_LOGI("EVENT", "logEvent  Next Selected");
 		setLogTextArea(ui_eventTextArea, &upslogEvent,NEXTLOG);
 	}
@@ -1344,13 +1346,8 @@ void btnAlarmRunStop(lv_event_t * e){
 }
 
 void pnlNothingEvent(lv_event_t * e){
-  ESP_LOGI("EVT","Event Received for chkbox");
-  const char * str = lv_obj_get_state(ui_txtHFMnBatFirstFaultUV) & LV_STATE_CHECKED ? "Checked" : "Unchecked";
-  ESP_LOGI("CHECKBOX","%s",str );
-  int token = millis();
-  lv_state_t state = lv_obj_get_state(ui_txtHFMnBatFirstFaultUV) & LV_STATE_CHECKED ;
-  enqueueModbusCommand(HFMODE, state, token );
-  // token = WriteHoldRegistor(HFMODE, state, token );
+  (void)e;
+  /* 11번지는 Bat First UV Volt. 예전 HF 체크 0/1은 보내지 않는다. */
 }
 void pnlhfModeClickEvent(lv_event_t *e)
 {

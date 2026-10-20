@@ -27,7 +27,7 @@
 | 8 | `Bat_Current_Ref` | 04/10 | Setting | `ui_txtBatCurrSet` | |
 | 9 | `Bat_Voltage_Ref` | 04/10 | Setting | `ui_txtBatVolSet` | |
 | 10 | `Output_Voltage_Ref` | 04/10 | Setting | `ui_txtOutputVolSet` | |
-| 11 | `HF_MODE` | 04/10 | Setting | `ui_txtHFMnBatFirstFaultUV` | 0 Normal, 1 HF |
+| 11 | `Bat_First_UV_Volt` | 04/10 | Setting | `ui_txtHFMnBatFirstFaultUV` | Bat First UV Volt |
 | 15 | `ModuleState` | 04 | Event | 로그 문자열 | 이벤트 전용 |
 | 16 | `HWState` | 04 | Main+Alarm | 전력흐름 + 알람 | 아래 비트표 |
 | 17 | `upsOperationFault` | 04 | Main+Alarm | 입력라인/정전 + 알람 | 아래 비트표 |
@@ -128,7 +128,7 @@ bit3 충전기 이상정지, bit7 DC/DC 이상정지, bit11 인버터 이상정�
 | 12 | `Buzz_ON_OFF` | `ui_btnAlarm` + MCP 부저 | 토글 시 `runBuzzStatus` 반전 | 로그 제외 |
 | 13 | `EEPROM_ERR` | 없음 | 1=fault | `EEPROM_ERR` |
 | 14 | `BAT_MCCB_Fault` | 없음 (전용 NFB 위젯 없음) | 1=fault | `Battery_MCCB_Fault` |
-| 15 | `TRANSFER_RUN_STOP_STATE` | `ui_imgScrBypass`, `ui_imgScrOutput`, `ui_pnlInvPower1`–`4` | **0=바이패스**: Bypass SCR ON, Output SCR OFF, Power2/3/4 ON, Power1 OFF. **1=인버터**: 반대, Power1/4 ON | 로그 제외 |
+| 15 | `TRANSFER_RUN_STOP_STATE` | `ui_imgScrBypass`, `ui_imgScrOutput`, `ui_pnlInvPower1`–`4` | **0=바이패스**: Bypass SCR ON, Output SCR OFF, Power2/3/4 ON, Power1 OFF. **17.7 정전이면** Bypass SCR과 Power2/3/4도 OFF. **1=인버터**: 반대, Power1/4 ON | 로그 제외 |
 
 HW 알람 마스크 `0b0110110111100111` = bits 0,1,2,5,6,7,8,10,11,13,14.
 운전접점 3,4,9,12,15 는 알람으로 안 남긴다.
@@ -156,8 +156,8 @@ HW 알람 마스크 `0b0110110111100111` = bits 0,1,2,5,6,7,8,10,11,13,14.
 | 14 | `OFFSET_CHECK_ERR` | 알람 | `OFFSET_Check_ERR` |
 | 15 | `OUTPUT_CT_ERR` | 알람 | `OUTPUT_CT_ERR` |
 
-Bit7=1 이면 입력 라인 3개를 `OFFLINE_COLOR`. 0이면 `ONLINE_COLOR`.
-바이패스 경로(`pnlMainPower2/3`)도 같은 비트로 같이 꺼진다.
+Bit7=1 이면 입력 라인 3개(`pnlMainPower1/2/3`)를 끈다. 0이면 켠다.
+16.15가 0이어도 정전이면 `imgScrBypass`와 `pnlInvPower2/3/4`는 끈다. 16.15가 1이면 인버터 출력 경로는 유지한다.
 
 알람 마스크 `0b1111111111111111` (bit15 `OUTPUT_CT_ERR` 포함).
 

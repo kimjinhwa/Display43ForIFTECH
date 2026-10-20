@@ -30,7 +30,9 @@ extern lv_obj_t * ui_pnlInvPower2;
 extern lv_obj_t * ui_pnlInvPower3;
 extern lv_obj_t * ui_pnlInvPower4;
 void myui_MainScreen_screen_init(void);
+void myui_set_capacity(unsigned bat, unsigned load);
 void myui_scrAlarm1_lock_scroll(void);
+void myui_InitScreen_version(void);
 
 #ifdef __cplusplus
 } /*extern "C"*/

@@ -96,8 +96,8 @@ void wifiOTAsetup(bool isUpdate)
   }
   else
   {
-    Serial.println("Already on latest version");
-    gfx->println("Already on latest version");
+    Serial.println("No firmware download");
+    gfx->println("No firmware download");
     delay(2000);
   }
 }

@@ -197,7 +197,7 @@ void ui_scrAlarm1_screen_init(void)
     lv_obj_set_style_pad_column(ui_Panel61, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Button13 = lv_btn_create(ui_Panel61);
-    lv_obj_set_height(ui_Button13, lv_pct(100));
+    lv_obj_set_height(ui_Button13, 50);
     lv_obj_set_flex_grow(ui_Button13, 1);
     lv_obj_set_x(ui_Button13, -276);
     lv_obj_set_y(ui_Button13, -1);
@@ -229,7 +229,7 @@ void ui_scrAlarm1_screen_init(void)
     lv_obj_set_style_text_font(ui_Label127, &ui_font_malgun20, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_btnAlarmPrev2 = lv_btn_create(ui_Panel61);
-    lv_obj_set_height(ui_btnAlarmPrev2, lv_pct(100));
+    lv_obj_set_height(ui_btnAlarmPrev2, 50);
     lv_obj_set_flex_grow(ui_btnAlarmPrev2, 1);
     lv_obj_set_x(ui_btnAlarmPrev2, -276);
     lv_obj_set_y(ui_btnAlarmPrev2, -1);
@@ -261,7 +261,7 @@ void ui_scrAlarm1_screen_init(void)
     lv_obj_set_style_text_font(ui_Label122, &ui_font_malgun20, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_btnAlarmNext2 = lv_btn_create(ui_Panel61);
-    lv_obj_set_height(ui_btnAlarmNext2, lv_pct(100));
+    lv_obj_set_height(ui_btnAlarmNext2, 50);
     lv_obj_set_flex_grow(ui_btnAlarmNext2, 1);
     lv_obj_set_x(ui_btnAlarmNext2, -276);
     lv_obj_set_y(ui_btnAlarmNext2, -1);
@@ -293,7 +293,7 @@ void ui_scrAlarm1_screen_init(void)
     lv_obj_set_style_text_font(ui_Label124, &ui_font_malgun20, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Button9 = lv_btn_create(ui_Panel61);
-    lv_obj_set_height(ui_Button9, lv_pct(100));
+    lv_obj_set_height(ui_Button9, 50);
     lv_obj_set_flex_grow(ui_Button9, 1);
     lv_obj_set_align(ui_Button9, LV_ALIGN_TOP_RIGHT);
     lv_obj_set_flex_flow(ui_Button9, LV_FLEX_FLOW_ROW_WRAP);

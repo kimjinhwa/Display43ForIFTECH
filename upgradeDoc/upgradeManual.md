@@ -2,7 +2,7 @@
 
 ## 개요
 
-1. 빌드 PC에서 `pio run -e IFTECH_DISP43` → Version.h patch +1 후 IIS에 배포
+1. 빌드 PC에서 `python versionup.py` → Version.h patch +1 후 inetpub과 `uploadFirmware`에 배포 (`IFTECH_DISP43`만)
 2. 앱(UPS43D1P)에서 BLE로 연결 → Wi-Fi 프리셋 선택 → 전송 → 펌웨어 업그레이드
 3. 단말기는 재부팅 후 BLE보다 먼저 WiFi OTA 수행
 

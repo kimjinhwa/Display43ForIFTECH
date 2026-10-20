@@ -293,8 +293,10 @@ class _ControlScreenState extends State<ControlScreen> {
           : ble.updateAvailable
               ? '새 펌웨어 ${ble.serverLatest} (현재 ${ble.deviceFwVersion})'
               : ble.fwIsLatest
-                  ? '최신 버전입니다 (${ble.deviceFwVersion})'
-                  : '버전을 비교할 수 없습니다';
+                  ? '같은 버전입니다 (${ble.deviceFwVersion})'
+                  : ble.deviceFwIsNewer
+                      ? '장비가 더 높습니다 (장비 ${ble.deviceFwVersion} > 서버 ${ble.serverLatest})'
+                      : '버전을 비교할 수 없습니다';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => _fwChecking = false);
@@ -505,13 +507,24 @@ class _ControlScreenState extends State<ControlScreen> {
                         color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         child: ListTile(
                           leading: const Icon(Icons.verified),
-                          title: const Text('최신 버전입니다'),
+                          title: const Text('서버와 같은 버전입니다'),
+                          subtitle: Text(
+                            '현재 ${ble.deviceFwVersion} · 서버 ${ble.serverLatest}',
+                          ),
+                        ),
+                      )
+                    else if (ble.deviceFwIsNewer)
+                      Card(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: ListTile(
+                          leading: const Icon(Icons.info_outline),
+                          title: const Text('장비가 서버보다 높습니다'),
                           subtitle: Text(
                             '현재 ${ble.deviceFwVersion} · 서버 ${ble.serverLatest}',
                           ),
                         ),
                       ),
-                    if (ble.updateAvailable || ble.fwIsLatest)
+                    if (ble.updateAvailable || ble.fwIsLatest || ble.deviceFwIsNewer)
                       const SizedBox(height: 8),
                     FilledButton.tonalIcon(
                       onPressed: !ble.isConnected || _fwChecking
@@ -546,7 +559,7 @@ class _ControlScreenState extends State<ControlScreen> {
                               ? '펌웨어 확인: ${ble.fwCheckError}'
                               : '현재 ${ble.deviceFwVersion ?? '-'}'
                                   '${ble.serverLatest != null ? ' · 서버 ${ble.serverLatest}' : ''}'
-                                  '${ble.updateAvailable ? ' · 새 버전' : (ble.serverLatest != null ? ' · 최신' : '')}',
+                                  '${ble.updateAvailable ? ' · 새 버전' : ble.fwIsLatest ? ' · 같은 버전' : ble.deviceFwIsNewer ? ' · 장비가 더 높음' : ''}',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: ble.updateAvailable
                                     ? Theme.of(context).colorScheme.primary

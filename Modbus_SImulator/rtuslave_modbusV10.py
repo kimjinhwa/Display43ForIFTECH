@@ -68,7 +68,7 @@ entries_values= [
   30, 220, 221, 222,0,
 #   "reserved_2", "upsRun_t upsRun", "reserved_3", "Bat_Current_Ref", "Bat_Voltage_Ref", 
   0, 0, 0, 23, 233, 
-#   "Output_Voltage_Ref", "HF_MODE", "converterStatus_t reserved_4", "reserved_5", "reserved_6",
+#   "Output_Voltage_Ref", "Bat_First_UV_Volt", "converterStatus_t reserved_4", "reserved_5", "reserved_6",
   225, 0, 0, 0, 0, 
 #   "ModuleState_t ModuleState",   "HWState_t HWState", "UpsOperationFault_t upsOperationFault", "reserved_7", "reserved_8", 
   0, 0, 0, 0, 0, 
@@ -739,7 +739,7 @@ def create_window():
     entries_names= [
         "Nominal_Capacity", "Nominal_InputVoltage", "Nominal_OutputVoltage", "Nominal_BatVoltage", "reserved_1", 
         "reserved_2", "upsRun_t upsRun", "reserved_3", "Bat_Current_Ref", "Bat_Voltage_Ref",
-        "Output_Voltage_Ref", "HF_MODE", "converterStatus_t reserved_4", "reserved_5", "reserved_6", 
+        "Output_Voltage_Ref", "Bat_First_UV_Volt", "converterStatus_t reserved_4", "reserved_5", "reserved_6", 
         "ModuleState_t ModuleState", "HWState_t HWState", "UpsOperationFault_t upsOperationFault", "reserved_7", "reserved_8",
         "Input_volt_rms", "Input_current_rms", "vdc_link_volt_rms", "bat_volt_rms", "bat_current_rms", 
         "inverter_volt_rms", "inverter_current_rms", "output_volt_rms", "output_current_rms", "conv_Frequency", 
@@ -752,7 +752,7 @@ def create_window():
 
     for i in range(0,58,4):
         # 첫 번째 엔트리(entry)와 라벨(label)
-        set_label_1 = tk.Label(entryPanel, text=entries_names[i])
+        set_label_1 = tk.Label(entryPanel, text=f"{i}.{entries_names[i]}")
         set_label_1.grid(row=i, column=0, padx=(0, 5), pady=2, sticky="w")
         entry_1 = tk.Entry(entryPanel)
         entry_1.grid(row=i, column=1, padx=5, pady=2, sticky="w")
@@ -761,7 +761,7 @@ def create_window():
         entries.append(entry_1)
 
         # 두 번째 엔트리(entry)와 라벨(label)
-        set_label_2 = tk.Label(entryPanel, text=entries_names[i+1])
+        set_label_2 = tk.Label(entryPanel, text=f"{i+1}.{entries_names[i+1]}")
         set_label_2.grid(row=i, column=2, padx=5, pady=2, sticky="w")
         entry_2 = tk.Entry(entryPanel)
         entry_2.grid(row=i, column=3, padx=5, pady=2, sticky="w")
@@ -770,7 +770,7 @@ def create_window():
         entries.append(entry_2)
 
         # 세 번째 엔트리(entry)와 라벨(label)
-        set_label_3 = tk.Label(entryPanel, text=entries_names[i+2])
+        set_label_3 = tk.Label(entryPanel, text=f"{i+2}.{entries_names[i+2]}")
         set_label_3.grid(row=i, column=4, padx=5, pady=2, sticky="w")
         entry_3 = tk.Entry(entryPanel)
         entry_3.grid(row=i, column=5, padx=5, pady=2, sticky="w")
@@ -779,7 +779,7 @@ def create_window():
         entries.append(entry_3)
 
         # 네 번째 엔트리(entry)와 라벨(label)
-        set_label_4 = tk.Label(entryPanel, text=entries_names[i+3])
+        set_label_4 = tk.Label(entryPanel, text=f"{i+3}.{entries_names[i+3]}")
         set_label_4.grid(row=i, column=6, padx=5, pady=2, sticky="w")
         entry_4 = tk.Entry(entryPanel)
         entry_4.grid(row=i, column=7, padx=5, pady=2, sticky="w")

@@ -116,7 +116,6 @@ class NusBleService extends ChangeNotifier {
   String? _fwMeta;
   String? _fwJsonUrl;
   String? _serverLatest;
-  bool _updateAvailable = false;
   String? _fwCheckError;
   Future<void> _cliChain = Future<void>.value();
   _RxWait? _rxWait;
@@ -149,13 +148,12 @@ class NusBleService extends ChangeNotifier {
   String? get fwMeta => _fwMeta;
   String? get fwJsonUrl => _fwJsonUrl;
   String? get serverLatest => _serverLatest;
-  bool get updateAvailable => _updateAvailable;
-  bool get fwIsLatest {
-    if (_updateAvailable) return false;
-    if (_deviceFwVersion == null || _serverLatest == null) return false;
-    return !_isNewerVersion(_deviceFwVersion, _serverLatest) &&
-        !_isNewerVersion(_serverLatest, _deviceFwVersion);
-  }
+
+  /// 1 서버가 더 높음, 0 같음, -1 장비가 더 높음, -2 비교 불가.
+  int get versionCompare => _compareVersion(_deviceFwVersion, _serverLatest);
+  bool get updateAvailable => _fwCheckError == null && versionCompare == 1;
+  bool get fwIsLatest => _fwCheckError == null && versionCompare == 0;
+  bool get deviceFwIsNewer => _fwCheckError == null && versionCompare == -1;
   String? get fwCheckError => _fwCheckError;
 
   Future<bool> ensureAdapterOn() async {
@@ -357,7 +355,6 @@ class NusBleService extends ChangeNotifier {
     _fwMeta = null;
     _fwJsonUrl = null;
     _serverLatest = null;
-    _updateAvailable = false;
     _fwCheckError = null;
     _state = BleConnectionState.disconnected;
     if (notify) {
@@ -521,7 +518,6 @@ class NusBleService extends ChangeNotifier {
       await refreshServerFirmware();
     } catch (e) {
       _fwCheckError = '확인 실패: $e';
-      _updateAvailable = false;
       _appendLog('펌웨어 확인 실패: $e');
     }
   }
@@ -562,7 +558,6 @@ class NusBleService extends ChangeNotifier {
         final res = await req.close().timeout(const Duration(seconds: 8));
         if (res.statusCode != 200) {
           _fwCheckError = '서버 HTTP ${res.statusCode}';
-          _updateAvailable = false;
           notifyListeners();
           return;
         }
@@ -577,27 +572,28 @@ class NusBleService extends ChangeNotifier {
           return;
         }
         _serverLatest = decoded['latest']?.toString();
-        _updateAvailable = _isNewerVersion(_deviceFwVersion, _serverLatest);
         _fwCheckError = null;
+        final cmp = versionCompare;
         _appendLog(
-          _updateAvailable
+          cmp == 1
               ? '서버 ${_serverLatest} > 장비 ${_deviceFwVersion} (업데이트 있음)'
-              : (fwIsLatest
-                  ? '서버 ${_serverLatest} = 장비 ${_deviceFwVersion} (최신 버전)'
-                  : '서버 ${_serverLatest ?? '-'} / 장비 ${_deviceFwVersion ?? '-'} (비교 불가)'),
+              : cmp == 0
+                  ? '서버 ${_serverLatest} = 장비 ${_deviceFwVersion} (같은 버전)'
+                  : cmp == -1
+                      ? '서버 ${_serverLatest} < 장비 ${_deviceFwVersion} (장비가 더 높음)'
+                      : '서버 ${_serverLatest ?? '-'} / 장비 ${_deviceFwVersion ?? '-'} (비교 불가)',
         );
       } finally {
         client.close(force: true);
       }
     } catch (e) {
       _fwCheckError = '서버 확인 실패: $e';
-      _updateAvailable = false;
       _appendLog('펌웨어 서버 확인 실패 ($_fwJsonUrl): $e');
       notifyListeners();
     }
   }
 
-  bool _isNewerVersion(String? current, String? server) {
+  int _compareVersion(String? current, String? server) {
     List<int>? parse(String? v) {
       if (v == null) return null;
       final m = RegExp(r'(\d+)\.(\d+)\.(\d+)').firstMatch(v.trim());
@@ -611,12 +607,11 @@ class NusBleService extends ChangeNotifier {
 
     final c = parse(current);
     final s = parse(server);
-    if (c == null || s == null) return false;
+    if (c == null || s == null) return -2;
     for (var i = 0; i < 3; i++) {
-      if (s[i] > c[i]) return true;
-      if (s[i] < c[i]) return false;
+      if (s[i] != c[i]) return s[i] > c[i] ? 1 : -1;
     }
-    return false;
+    return 0;
   }
 
   void clearLog() {

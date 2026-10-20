@@ -1,4 +1,8 @@
-#define VERSION "4.1.1" // 화면 캡처 기능 추가
+#define VERSION "4.1.11" 
+/*
+ 키보드 입력 부분 수정
+*/
+//#define VERSION "4.1.4" // 화면 캡처 기능 추가
 //efine VERSION "4.0.45"
 /*
 지금 화면에서 전력라인이 보인다. 

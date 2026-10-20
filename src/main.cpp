@@ -47,9 +47,10 @@
 #define OFFCONV_FORE_COLOR 0xFFFFFF  /* WHITE*/
 //#define WHITE 0xFFFFFF  /* WHITE*/
 #define ONCONV_BG_COLOR 0xFF00000 /* RED */
-#define ONLINE_COLOR 0x379B57 //
+#define ONLINE_COLOR 0x0A3480 /* 통전 전원선. 짙은 파랑 */
 #define OFFLINE_COLOR 0xD2EBF6//
-#define PIPE_IDLE_COLOR 0xA0A0A0 /* 흰 화면 위에서 보이는 꺼진 전력선 */ 
+#define PIPE_IDLE_COLOR 0xA0A0A0 /* 흰 화면 위에서 보이는 꺼진 전력선 */
+
 //#define ONLINE_COLOR 0xFF00000 /* RED */
 //#define OFFLINE_COLOR 0xFFFFFF  // WHITE
 // #define BRIGHT 80
@@ -252,12 +253,7 @@ void showSystemUpdate()
 
 
   //메인화면 //battery 용량
-  snprintf(buf, sizeof(buf), "#ff0000 BAT# %u #ff0000 %%#",
-           (unsigned)upsModbusData.battery_capacity);
-  lv_label_set_text(ui_lbaBatCapacity, buf);
-  snprintf(buf, sizeof(buf), "#ff0000 LOAD# %u #ff0000 %%#",
-           (unsigned)upsModbusData.load_percentage);
-  lv_label_set_text(ui_lblLoadCapacity, buf);
+  myui_set_capacity(upsModbusData.battery_capacity, upsModbusData.load_percentage);
 
   lv_label_set_text(ui_lblDcLinkVol, String(upsModbusData.vdc_link_volt_rms).c_str());
   lv_label_set_text(ui_lblBatteryVol, String(upsModbusData.bat_volt_rms).c_str());
@@ -674,8 +670,9 @@ void mainScrUpdata(){
       paintPowerLine(ui_pnlMainPower2, true);
       paintPowerLine(ui_pnlMainPower3, true);
   }
-  //바이패스모드 Change 바이패스와 인버터 SCR은 항상 반대로 
-  if (upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE == 0 ) // 바이패스 모드
+  // 16.15=0 이면 바이패스. 정전(17.7)이면 그 경로에 전원이 없으므로 SCR과 뒤 선을 끈다.
+  if (upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE == 0
+      && upsModbusData.upsOperationFault.Bit.utility_line_failure == 0)
     {
       lv_obj_set_style_bg_color(ui_imgScrBypass, lv_color_hex(ONSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
       lv_obj_set_style_img_recolor(ui_imgScrBypass, lv_color_hex(OFFCONV_FORE_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -689,10 +686,21 @@ void mainScrUpdata(){
       paintPowerLine(ui_pnlInvPower2, true);
       paintPowerLine(ui_pnlInvPower3, true);
       paintPowerLine(ui_pnlInvPower4, true);
-      //lv_obj_set_style_bg_opa(ui_pnlInvPower1, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
-      // Bypass인데 정전이 아니어야 한다.  물론 이경우는 생기지는 않느다. 
-      // 이미 정전을 감지 했으면 이 루틴으로 들어오지 않으며, 그것도 아니면 이미 셧다운이다. 
-      // 단지 Simulation을 위해 사용한다.
+    }
+  else if (upsModbusData.HWState.Bit.TRANSFER_RUN_STOP_STATE == 0)
+    {
+      lv_obj_set_style_bg_color(ui_imgScrBypass, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+      lv_obj_set_style_img_recolor(ui_imgScrBypass, lv_color_hex(BLACK), LV_PART_MAIN | LV_STATE_DEFAULT);
+      lv_obj_set_style_img_recolor_opa(ui_imgScrBypass, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+      lv_obj_set_style_bg_color(ui_imgScrOutput, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
+      lv_obj_set_style_img_recolor(ui_imgScrOutput, lv_color_hex(BLACK), LV_PART_MAIN | LV_STATE_DEFAULT);
+      lv_obj_set_style_img_recolor_opa(ui_imgScrOutput, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+      paintPowerLine(ui_pnlInvPower1, false);
+      paintPowerLine(ui_pnlInvPower2, false);
+      paintPowerLine(ui_pnlInvPower3, false);
+      paintPowerLine(ui_pnlInvPower4, false);
     }
   else {
       lv_obj_set_style_bg_color(ui_imgScrBypass, lv_color_hex(OFFSCR_COLOR ), LV_PART_MAIN | LV_STATE_DEFAULT );
@@ -1107,6 +1115,7 @@ void setup()
     //   Serial.printf("\n%s", upslog.operation_falut_eng[i]);
 
     ui_init();
+    myui_InitScreen_version();
     myui_scrAlarm1_lock_scroll();
     lv_obj_scroll_to_view_recursive(ui_alarmTextArea,LV_ANIM_OFF);
     lv_obj_scroll_to_view_recursive(ui_eventTextArea,LV_ANIM_OFF);

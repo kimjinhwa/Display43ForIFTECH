@@ -16,31 +16,40 @@
 #define FW_UPDATE_META "version.json"
 #endif
 
-bool isNewerVersion(const char* currentVersion, const char* serverVersion) {
+static bool parseVersionTriple(const char* text, int* major, int* minor, int* patch) {
+    if (text == nullptr)
+        return false;
+    return sscanf(text, "%d.%d.%d", major, minor, patch) == 3;
+}
+
+int compareVersion(const char* currentVersion, const char* serverVersion) {
     int currentMajor = 0, currentMinor = 0, currentPatch = 0;
     int serverMajor = 0, serverMinor = 0, serverPatch = 0;
-    
-    if (sscanf(currentVersion, "%d.%d.%d", &currentMajor, &currentMinor, &currentPatch) != 3) {
-        Serial.printf("현재 버전 파싱 실패: %s\n", currentVersion);
-        return false;
+
+    if (!parseVersionTriple(currentVersion, &currentMajor, &currentMinor, &currentPatch)) {
+        Serial.printf("현재 버전 파싱 실패: %s\n", currentVersion ? currentVersion : "(null)");
+        return -2;
     }
-    
-    if (sscanf(serverVersion, "%d.%d.%d", &serverMajor, &serverMinor, &serverPatch) != 3) {
-        Serial.printf("서버 버전 파싱 실패: %s\n", serverVersion);
-        return false;
+    if (!parseVersionTriple(serverVersion, &serverMajor, &serverMinor, &serverPatch)) {
+        Serial.printf("서버 버전 파싱 실패: %s\n", serverVersion ? serverVersion : "(null)");
+        return -2;
     }
-    
-    Serial.printf("Current: %d.%d.%d, Server: %d.%d.%d\n", 
+
+    Serial.printf("Current: %d.%d.%d, Server: %d.%d.%d\n",
                   currentMajor, currentMinor, currentPatch,
                   serverMajor, serverMinor, serverPatch);
-    
-    if (serverMajor > currentMajor) return true;
-    if (serverMajor < currentMajor) return false;
-    if (serverMinor > currentMinor) return true;
-    if (serverMinor < currentMinor) return false;
-    if (serverPatch > currentPatch) return true;
-    
-    return false;
+
+    if (serverMajor != currentMajor)
+        return serverMajor > currentMajor ? 1 : -1;
+    if (serverMinor != currentMinor)
+        return serverMinor > currentMinor ? 1 : -1;
+    if (serverPatch != currentPatch)
+        return serverPatch > currentPatch ? 1 : -1;
+    return 0;
+}
+
+bool isNewerVersion(const char* currentVersion, const char* serverVersion) {
+    return compareVersion(currentVersion, serverVersion) > 0;
 }
 
 extern Arduino_GFX *gfx ;
@@ -204,15 +213,23 @@ bool ESP32SelfUploder::checkNewVersion(const char* update_url) {
             gfx->println("Server version: " + String(latest_version));
             Serial.printf("Update file: %s\n", filename);
             gfx->println("Update file: " + String(filename));
-            if (isNewerVersion(String(VERSION).c_str(), latest_version)) {
+            int cmp = compareVersion(String(VERSION).c_str(), latest_version);
+            if (cmp > 0) {
                 Serial.println("새로운 버전이 있습니다");
                 gfx->println("New version is found");
                 updateFile_url = base + "/" + String(filename);
                 http.end();
                 return true;
-            } else {
+            }
+            if (cmp == 0) {
                 Serial.println("Already on latest version");
                 gfx->println("Already on latest version");
+            } else if (cmp < 0 && cmp != -2) {
+                Serial.println("Device version is newer than server");
+                gfx->println("Device is newer than server");
+            } else {
+                Serial.println("Version compare failed");
+                gfx->println("Version compare failed");
             }
         } else {
             Serial.print("JSON 파싱 실패: ");

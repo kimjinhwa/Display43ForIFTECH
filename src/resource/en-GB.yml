@@ -66,7 +66,8 @@ en-GB:
   Bat_Curr_Set: Bat Curr Set
   Bat_Volt_Set: Bat Volt Set
   Inv_Volt_Set: Inv Volt Set
-  HF_Mode: HF Mode
+  Bat_First_UV_Volt: Bat First UV Volt
+  HF_Mode: Bat First UV Volt
   R_C_Start_Run_Event: R/C Start Run 
   R_C_Re_Start_Event: R/C Re-Start 
   R_C_Stop_by_Command_Event: R/C Stop by Command

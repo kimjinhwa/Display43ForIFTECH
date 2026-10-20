@@ -146,7 +146,7 @@ typedef struct
   uint16_t Bat_Current_Ref;              // 8
   uint16_t Bat_Voltage_Ref;              // 9
   uint16_t Output_Voltage_Ref;           // 10
-  uint16_t HF_MODE;                      // 11 0:Normal 1: High Efficiency
+  uint16_t Bat_First_UV_Volt;            // 11 Bat First UV Volt
   converterStatus_t reserved_4;          // 12  Not Use
   uint16_t reserved_5;                   // 13  Not Use
   uint16_t reserved_6;                   // 14  Not Use
